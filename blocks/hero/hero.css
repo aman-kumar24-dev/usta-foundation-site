@@ -1,0 +1,618 @@
+/* stylelint-disable no-descending-specificity */
+
+.hero-container .hero-wrapper {
+  max-width: unset;
+  padding: 0;
+}
+
+.hero {
+  position: relative;
+  padding: 40px 24px;
+  min-height: 300px;
+}
+
+/* Accessible label for the hero's CSS background photo. hero.js injects an empty
+   <span role="img" aria-label="…"> (from the authored image's alt) so screen
+   readers announce the photo; it carries no interactive content (keeping the
+   block clear of axe's nested-interactive rule) and is removed from the visual
+   layout. Not display:none — that would hide it from assistive tech too. */
+.hero .hero-a11y-img {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hero h1 {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  color: var(--background-color);
+}
+
+.hero picture {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  object-fit: cover;
+  box-sizing: border-box;
+}
+
+.hero img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+@media (width >= 992px) {
+  .hero {
+    padding: 40px 32px;
+  }
+}
+
+/* ==================================================================
+   Variant: banner
+   ================================================================== */
+
+/* hero banner — full-bleed background photo + dark overlay + overlaid white text.
+   Values extracted from source computed styles (see migration-work/hero-banner-extracted.css). */
+
+/* Full-bleed: override EDS section wrapper max-width/padding */
+.hero-container:has(.hero.banner) .hero-wrapper {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* No gap between the hero and the stats bar below (source has none). The hero
+   owns this seam: zero its own bottom margin AND the following section's top
+   margin, otherwise the global `main > .section { margin: 40px 0 }` on the next
+   section keeps a 40px gap (adjacent margins collapse to the larger value). */
+main > .section.hero-container:has(.hero.banner) {
+  margin: 0;
+}
+
+/* Desktop only: butt the stats bar directly under the hero. On mobile the
+   stats section keeps its own 17px top margin (source mobile rhythm). */
+@media (width >= 992px) {
+  main > .section.hero-container:has(.hero.banner) + .section {
+    margin-top: 0;
+  }
+}
+
+.hero.banner.block {
+  position: relative;
+  box-sizing: border-box;
+
+  /* The banner PHOTO is AUTHORED (row 1 of the block) and applied by hero.js as
+     an inline background layer UNDER a 40% black overlay — the source composites
+     that same rgba(0,0,0,0.4) layer over the photo. No image is baked into CSS;
+     every image is author-managed via content. As a graceful fallback (no
+     authored image, or before JS runs) we keep the overlay tint on a neutral
+     brand background so text stays legible. */
+  background-image: linear-gradient(rgb(0 0 0 / 40%), rgb(0 0 0 / 40%));
+  background-color: var(--brand-blue, #12284c);
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  background-size: cover;
+  color: var(--background-color);
+
+  /* mobile: source hero content sits ~12px from each side, and the text is
+     framed with 112px above the h1 / 112px below the button (measured on the
+     source: h1 top 112, button-bottom→hero-bottom 112 → hero 554px @390). The old
+     72px was ~80px too short. */
+  padding: 112px 12px;
+}
+
+/* inner row: constrain to content width, left-aligned text column */
+.hero.banner.block > div {
+  max-width: var(--content-max-width, 1200px);
+  margin: 0 auto;
+}
+
+.hero.banner.block > div > div {
+  max-width: 510px;
+}
+
+.hero.banner h1 {
+  margin: 0;
+  color: var(--background-color);
+
+  /* size/weight/line-height come from the global h1 token scale (54px→100px at
+     768px, line-height 1.1) — matches the source across every breakpoint. */
+}
+
+.hero.banner p {
+  margin: 0;
+  color: var(--background-color);
+  font-family: var(--body-font-family);
+
+  /* body size from global tokens (16px→18px at 768); source line-height 24px */
+  font-size: var(--body-font-size-m);
+  line-height: var(--body-line-height);
+}
+
+/* h1 -> p gap is 0 in source; p -> CTA gap is 16px */
+.hero.banner p + p {
+  margin-top: 16px;
+}
+
+/* CTA button (decorated in hero.js) — 40px tall, CONTENT-width. The source
+   "LEARN MORE" box GROWS with the viewport (148px @390/768 → 163px @1280 →
+   190px @1440+), NOT a fixed pill. Our label is a constant ~128px, so the
+   horizontal padding scales to hit those boxes: 10px (mobile→992), 17px (@1200),
+   31px (@1440). Vertical padding stays 14px (40px tall via box-sizing). */
+.hero.banner a.button:any-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 40px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 14px 10px;
+  background-color: var(--brand-blue);
+  color: var(--background-color);
+  font-family: var(--heading-semibold-font-family);
+  font-weight: 400;
+  font-size: 18px;
+  letter-spacing: 1px;
+  line-height: 20px; /* source button line-height */
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.hero.banner a.button:hover,
+.hero.banner a.button:focus-visible {
+  border-color: transparent;
+  background-color: var(--link-hover-color);
+  color: var(--background-color);
+}
+
+/* no background photo variant falls back to dark text on white */
+.hero.banner.no-image {
+  background-image: none;
+}
+
+.hero.banner.no-image h1,
+.hero.banner.no-image p {
+  color: var(--text-color);
+}
+
+/* ------------------------------------------------------------------
+   Desktop tiers. The hero is full-bleed (background + overlay from the base
+   rule — never redeclared here or the overlay is lost). Its inner text column
+   is the block's own art-direction: it sits inside the shared centered
+   container (.container-max tier widths) and its width matches the SOURCE's
+   measured left-offset text column at each breakpoint (768→348, 992→406,
+   1200→510px) so the 100px h1 wraps exactly as the source does.
+   ------------------------------------------------------------------ */
+@media (width >= 768px) {
+  .hero.banner.block {
+    padding: 0;
+  }
+
+  /* centered container at the tier width (720/970/1170), matching page content */
+  .hero.banner.block > div {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 120px 0 96px;
+  }
+
+  /* text column: source width @768 (348px), indented ~1 column from the
+     container edge so it tracks the source's left offset (src x≈82). */
+  .hero.banner.block > div > div {
+    box-sizing: border-box;
+    width: 348px;
+    max-width: 100%;
+    margin-left: 58px;
+    padding: 0;
+  }
+}
+
+/* ≥992: the source hero is FLUID (not fixed tiers). Measured on the live site,
+   the text column follows exact linear formulas at every width ≥992:
+     • left offset = 8.333vw + 45px  (128@992, 145@1200, 165@1440, 205@1920)
+     • width       = 50vw − 90px     (406@992, 510@1200, 630@1440, 870@1920)
+   BOTH are CAPPED at their ~1920 values (width 870, left 205) — beyond ~1920 the
+   source stops growing, so the heading stays "Transforming Lives Through" on
+   line 1 (it does NOT let "Tennis &" join line 1). The band has symmetric ~208px
+   top/bottom padding, so its height follows the content — the 100px h1 wraps to
+   3 lines (~874px) around 1200 and to 2 lines (~740px) on wide screens, exactly
+   like the source. min() reproduces both the fluid growth AND the cap. */
+@media (width >= 992px) {
+  .hero.banner.block {
+    min-height: 0;
+  }
+
+  .hero.banner.block > div {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 208px 0;
+  }
+
+  .hero.banner.block > div > div {
+    width: min(calc(50vw - 90px), 870px);
+    max-width: none;
+    margin-left: min(calc(8.333vw + 45px), 205px);
+  }
+}
+
+/* Homepage LEARN MORE button width GROWS LINEARLY with the viewport like the
+   source (it's ~30% of the 50vw text panel, NOT a fixed pill): measured source
+   150@1200 → 190@1440 → 238@1728 → 270@1920, i.e. width ≈ 0.1665·vw − 50px.
+   Reproduce with a fixed WIDTH (label centered by the base flex rule) so the box
+   tracks the source at every wide-desktop width. Fluid via calc() — no new
+   breakpoint, only the approved 768/992/1200 queries. Scoped to :not(body.general)
+   so only the homepage banner is affected. */
+@media (width >= 1200px) {
+  body:not(.general) .hero.banner a.button:any-link {
+    width: calc(16.65vw - 50px);
+    padding: 14px; /* label centers via flex; width drives the box */
+  }
+}
+
+/* ------------------------------------------------------------------
+   Theme override: body.general banner (e.g. our-impact). The homepage banner
+   above is tuned to the HOMEPAGE hero; the general-template banner pages use the
+   SAME panel geometry as the text-up hero (panel at 8.333vw left, 50vw wide, a
+   15px inner gutter) but keep the BANNER vertical framing (text pushed down, not
+   top-anchored). Source-measured (our-impact): h1 left 9.4vw (34@360 → 122@1280 →
+   135@1440), h1 top 72px mobile / 136px desktop, button-bottom→hero-bottom 104px
+   mobile / 200px desktop; panel width 50vw (172@360 → 610@1280 → 690@1440).
+   Scoped to body.general so the homepage banner is untouched. */
+body.general .hero.banner.block {
+  /* mobile: text pushed down 72px from top, ~104px band below the button; the
+     panel is inset ~8.333vw from the left (source h1 left 34@360 → 40@430). */
+  padding: 72px 12px 104px 8.333vw;
+}
+
+body.general .hero.banner.block > div {
+  /* source mobile text panel is a narrow 50vw column (180@360 → 215@430) so the
+     subhead wraps to 6 lines exactly like the source (56vw wrapped to 5, too short). */
+  max-width: 50vw;
+  width: auto;
+  margin: 0;
+  padding: 0;
+}
+
+body.general .hero.banner.block > div > div {
+  width: auto;
+  max-width: none;
+  margin-left: 0;
+  padding: 0;
+}
+
+/* The homepage banner CTA is a fixed 238px pill (its "LEARN MORE"); the general-
+   template banner buttons are CONTENT-width with generous horizontal padding
+   (source "WHAT WE DO" = 183px: ~118px label + ~32px each side). Drop the fixed
+   238px width and use 24px side padding so it sizes to the label like the source. */
+body.general .hero.banner a.button:any-link {
+  width: auto;
+  padding: 14px 24px;
+}
+
+@media (width >= 768px) {
+  body.general .hero.banner.block {
+    /* desktop: 136px above the h1, 200px below the button (banner framing). */
+    padding: 136px 0 200px;
+  }
+
+  body.general .hero.banner.block > div {
+    box-sizing: border-box;
+    width: 50vw;
+    max-width: none;
+    margin-left: 8.333vw;
+    padding: 0;
+  }
+
+  /* 15px inner gutter → h1 sits 15px in from the panel edge (matches source and
+     the text-up hero), so the h1 content width is panel − 30. */
+  body.general .hero.banner.block > div > div {
+    width: auto;
+    max-width: none;
+    margin-left: 0;
+    padding: 0 15px;
+  }
+}
+
+/* ==================================================================
+   Variant: text-up
+   ================================================================== */
+
+/* hero text-up — interior-page hero (text at TOP) (e.g. who-we-are). A full-bleed background
+   photo from the AUTHORED image (set as an inline background-image on the block
+   in hero.js), a TOP-LEFT text panel (white heading + subhead + two blue CTA
+   buttons), and NO dark overlay. Distinct from `banner`: banner's photo is a
+   fixed homepage asset in CSS and it dims the whole image with a 40% overlay.
+   Values from the source computed styles at 390/768/992/1280/1440. */
+
+/* Full-bleed: override the EDS section wrapper max-width/padding. */
+.hero-container:has(.hero.text-up) .hero-wrapper {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* No gap to the section below — the source butts the next section under the
+   hero (same as banner). The hero owns the seam. */
+main > .section.hero-container:has(.hero.text-up) {
+  margin: 0;
+}
+
+.hero.text-up.block {
+  position: relative;
+  box-sizing: border-box;
+  background-repeat: no-repeat;
+  background-position: 50% 50%;
+  background-size: cover;
+  color: var(--background-color);
+
+  /* Mobile: measured on the source — the h1 sits 48px from the hero top. The band
+     below the buttons is 144px on the SINGLE-CTA heroes (get-involved 689/630/546,
+     what-we-do) but 250px on the TWO-CTA who-we-are hero (708/625/625/601). Use
+     144px as the base and add the extra only when a 2nd button-container is present
+     (below). Total height then follows the wrapping content. Content inset ~32px. */
+  padding: 48px 32px 144px;
+}
+
+/* who-we-are's two-CTA hero keeps the taller mobile lower band (source 250 vs
+   144) — add the 106px difference when a second button-container is present. */
+.hero.text-up.block:has(.button-container + .button-container) {
+  padding-bottom: 250px;
+}
+
+/* Text panel — top-left column. Mobile: the source constrains the text to a
+   NARROW column ≈ 56vw (202px @360, 220 @390, 241 @430, 284 @500), so the h1
+   wraps to "About the USTA / Foundation" and the subhead wraps to 4–5 lines
+   exactly like the source (a wide 325px panel wrapped the subhead to only 3
+   lines and left the band too short). */
+.hero.text-up.block > div {
+  max-width: 56vw;
+}
+
+.hero.text-up.block > div > div {
+  padding: 0;
+}
+
+/* Heading — white, size/line-height/weight from the global h1 token scale
+   (54px→100px at 768), matching the source at every breakpoint. */
+.hero.text-up h1 {
+  margin: 0;
+  color: var(--background-color);
+}
+
+/* Subhead — white body copy; source h1→subhead gap is 0. */
+.hero.text-up p {
+  margin: 0;
+  color: var(--background-color);
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-m); /* 16→18 at 768 */
+  line-height: var(--body-line-height);
+}
+
+/* subhead → first button gap is 16px (source). */
+.hero.text-up .button-container {
+  margin-top: 16px;
+}
+
+/* Buttons: solid blue, 40px tall, 3px radius, 18px semibold uppercase. Mobile:
+   STACKED (each on its own row), LEFT-aligned, and each 48vw wide (measured on
+   the source: 187px @390, 207px @430 — i.e. 0.48 × viewport — NOT full width),
+   with the label centered inside. */
+.hero.text-up .button-container + .button-container {
+  margin-top: 16px;
+}
+
+.hero.text-up a.button:any-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 48vw;
+  height: 40px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 14px;
+  background-color: var(--brand-blue);
+  color: var(--background-color);
+  font-family: var(--heading-semibold-font-family);
+  font-weight: 400;
+  font-size: 18px;
+  letter-spacing: 1px;
+  line-height: 20px;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.hero.text-up a.button:hover,
+.hero.text-up a.button:focus-visible {
+  border-color: transparent;
+  background-color: var(--link-hover-color);
+  color: var(--background-color);
+}
+
+/* From 768: bigger top-left panel, symmetric-ish tall padding (32/224), and the
+   two buttons sit SIDE BY SIDE. Panel width/left offset follow the source's
+   fluid formulas (width ≈ 50vw, left ≈ 8.33vw + gutter), capped on very wide
+   screens so the h1 wraps as the source does. */
+@media (width >= 768px) {
+  /* Source vertical framing (measured live at 1280): the hero top→h1 gap is a
+     constant 80px. The buttons→hero-bottom gap is 272px on the SINGLE-CTA heroes
+     (get-involved 676px, what-we-do 700px) but 378px on the TWO-CTA who-we-are
+     hero (782px) — so use 272px as the base and add the extra only when the hero
+     has two button-containers (see below). Height then follows the wrapping text. */
+  .hero.text-up.block {
+    padding: 80px 0 272px;
+  }
+
+  /* who-we-are's two-CTA hero has a taller lower band (source bottom pad 378 vs
+     272) — add the 106px difference when a second button-container is present. */
+  .hero.text-up.block:has(.button-container + .button-container) {
+    padding-bottom: 378px;
+  }
+
+  /* Source text-up panel is FLUID across the whole ≥768 range: width exactly
+     50vw, left exactly 8.333vw (768→384/64, 900→450/75, 991→496/83, 1280→640/107,
+     1440→720/120, 1920→960/160). One formula for the entire desktop range. */
+  .hero.text-up.block > div {
+    box-sizing: border-box;
+    width: 50vw;
+    max-width: none;
+    margin-left: 8.333vw;
+  }
+
+  /* Source has a 15px inner gutter inside the panel (its Bootstrap column
+     padding): the text sits 15px in from the panel edge (h1 left 122 vs panel
+     107 @1280, 98 vs 83 @992), so the h1 content width is panel−30 → wraps
+     exactly like the source. Ours had text flush to the panel edge (15px too
+     far left, 30px too wide). */
+  .hero.text-up.block > div > div {
+    padding: 0 15px;
+  }
+
+  /* buttons side by side, 30px gap (source gutter). */
+  .hero.text-up .button-container {
+    display: inline-block;
+    margin-right: 0;
+  }
+
+  .hero.text-up .button-container + .button-container {
+    margin-top: 0;
+
+    /* 30px source gutter minus the ~5px inline-block whitespace between the two
+       containers (they're inline-block, so the HTML newline renders as a space). */
+    margin-left: 25px;
+  }
+
+  /* 768–991: source buttons are CONTENT-width (~148/142px — the label + 14px
+     padding), not yet fluid. Use the source's 14px padding (not 24px) so both
+     buttons + the 30px gap fit inside the 50vw (384px @768) panel without
+     wrapping to two rows. */
+  .hero.text-up a.button:any-link {
+    width: auto;
+    padding: 14px;
+  }
+}
+
+@media (width >= 992px) {
+  /* From 992 the source buttons become FLUID — each grows with the panel (~29%
+     of the 50vw panel: 148@992, 183@1280, 210@1440, 237@1600, 290@1920), NOT a
+     fixed width. ≈14.5vw tracks that growth (our earlier fixed ~178px stayed the
+     same on wide screens while the source kept growing). Label centered via the
+     base flex rule. */
+  .hero.text-up a.button:any-link {
+    width: 14.5vw;
+    padding: 14px;
+  }
+}
+
+/* text-up, tall — YPI's hero is a FIXED-height box in the source (~601px mobile,
+   ~790px desktop) rather than following its (short) copy like the other text-up
+   heroes. The default padding-driven height matches at 768/992 but collapses at
+   1280 (676 vs 790) and 390 (522 vs 601) where the YPI text wraps short. A
+   min-height floor restores the source box: text stays top-anchored (padding-top
+   unchanged), the background just fills down to the floor, and taller content
+   (768: 810 > 790; source 814) still wins. Scoped to `.tall` so the approved
+   who-we-are/get-involved/what-we-do heroes are untouched. */
+.hero.text-up.tall.block {
+  min-height: 601px;
+}
+
+@media (width >= 768px) {
+  .hero.text-up.tall.block {
+    min-height: 790px;
+  }
+}
+
+
+/* ==================================================================
+   Variant: error
+   ================================================================== */
+
+/* hero error — 404 "page not found" hero. Centered tennis-ball graphic +
+   heading + CTA. Values from source computed styles (ustafoundation.com/404).
+   Typography comes from the global h1 token scale (54px→100px at 768). */
+
+.hero.error {
+  box-sizing: border-box;
+  padding: 80px 15px;
+  text-align: center;
+}
+
+/* centered content column */
+.hero.error > div > div {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Bouncing-ball illustration above the heading — the source's blue line-art SVG
+   (tennis-ball-bouncing.svg), NOT a solid ball. Source renders it 116×174 (of a
+   128×193 viewBox) on desktop; ~96px wide on mobile. Centered, decorative. */
+.hero.error .hero-error-ball {
+  display: block;
+  width: 96px;
+  height: auto;
+  margin: 0 auto 32px;
+}
+
+.hero.error h1 {
+  margin: 0;
+  color: #000;
+
+  /* size/line-height/weight from the global h1 token scale (54→100 at 768) */
+  text-align: center;
+}
+
+/* CTA — source is a BLACK PILL (not brand-blue): #000 bg, white text, fully
+   rounded (border-radius 9999px), 56px tall, 18px Graphik Semibold uppercase
+   with +1px letter-spacing. */
+.hero.error a.button:any-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 56px;
+  margin: 32px 0 0;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  padding: 14px 24px;
+  background-color: #000;
+  color: #fff;
+  font-family: var(--heading-semibold-font-family);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  line-height: 20px;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.hero.error a.button:hover,
+.hero.error a.button:focus-visible {
+  background-color: var(--link-hover-color);
+  color: #fff;
+  text-decoration: none;
+}
+
+@media (width >= 768px) {
+  .hero.error {
+    padding: 120px 0;
+  }
+
+  /* desktop: source renders the illustration 116×174 */
+  .hero.error .hero-error-ball {
+    width: 116px;
+    margin-bottom: 40px;
+  }
+}

@@ -1,0 +1,624 @@
+/* ============================================================
+   USTA Foundation header — matches source www.ustafoundation.com
+   Mobile-first: base = mobile; @media (min-width) enhances desktop.
+   ============================================================ */
+/* stylelint-disable no-descending-specificity */
+
+/* Mobile: the real header is ~105px (5px blue bar + 60px nav + 40px breadcrumb),
+   but styles.css reserves `min-height: var(--nav-height)` (120px) as a CLS floor
+   which left a ~15px gap below the breadcrumb. Lower the mobile floor to match
+   the real content; the desktop tier below grows the nav to 128px anyway. */
+header {
+  min-height: 105px;
+}
+
+/* blue accent bar across the very top of the page. Source is thinner on mobile:
+   5px on phones, 8px from the desktop tier (measured 5px @430 / 8px @1280). */
+header .nav-wrapper {
+  position: relative;
+  width: 100%;
+  z-index: 20;
+  background-color: #fff;
+  border-top: 5px solid var(--brand-blue);
+  box-shadow: none;
+}
+
+header nav {
+  box-sizing: border-box;
+  display: grid;
+
+  /* brand track is minmax(0, 1fr) — NOT the default `1fr` (= minmax(auto, 1fr)),
+     whose `auto` min floors at the logo's intrinsic width and, together with the
+     fixed hamburger + Donate tools, pushed the nav wider than very narrow phones
+     (< ~355px), causing horizontal page scroll. minmax(0, …) lets the track
+     shrink so the nav never exceeds the viewport. */
+  grid-template:
+    'hamburger brand tools' auto / auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 10px;
+  margin: 0 auto;
+  max-width: 1280px;
+
+  /* source mobile nav row is ~60px tall (logo 64px + minimal padding); total
+     header = 5px blue bar + 60px nav + 40px breadcrumb ≈ 105px (matches source,
+     was 128px which sat too tall). */
+  min-height: 60px;
+  padding: 0 16px; /* source mobile gutter is 16px */
+  font-family: var(--body-font-family);
+}
+
+header nav p {
+  margin: 0;
+
+  /* keep the global body line-height (24px) so it doesn't drift from the type
+     scale; the DONATE link inside is inline-flex with its own fixed height, so
+     this line-height has no visual effect on the nav row. */
+  line-height: var(--body-line-height);
+}
+
+/* ---------- brand / logo ---------- */
+header nav .nav-brand {
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+}
+
+header nav .nav-brand img {
+  width: auto;
+  height: 64px; /* source mobile logo ≈150x64 */
+  max-width: 100%; /* allow the logo to scale down on very narrow phones so the
+                      brand track can shrink and the nav never overflows */
+}
+
+header nav .nav-brand-link {
+  display: inline-flex;
+  text-decoration: none;
+  border: 0;
+}
+
+/* ---------- hamburger (mobile only) ---------- */
+header nav .nav-hamburger {
+  grid-area: hamburger;
+  display: flex;
+  align-items: center;
+  height: 22px;
+}
+
+header nav .nav-hamburger button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 22px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+
+  /* source hamburger icon is BLACK (Hamburger-Menu-Black.svg), not blue */
+  color: #000;
+  cursor: pointer;
+}
+
+header nav .nav-hamburger-icon,
+header nav .nav-hamburger-icon::before,
+header nav .nav-hamburger-icon::after {
+  box-sizing: border-box;
+  display: block;
+  position: relative;
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+header nav .nav-hamburger-icon::before,
+header nav .nav-hamburger-icon::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+header nav .nav-hamburger-icon::before { top: -7px; }
+header nav .nav-hamburger-icon::after { top: 7px; }
+
+/* hamburger morphs to × when the menu is open */
+header nav[aria-expanded='true'] .nav-hamburger-icon {
+  background: transparent;
+}
+
+header nav[aria-expanded='true'] .nav-hamburger-icon::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+header nav[aria-expanded='true'] .nav-hamburger-icon::after {
+  top: 0;
+  transform: rotate(-45deg);
+}
+
+/* ---------- sections (nav links) ---------- */
+
+/* Mobile: off-canvas panel that slides in from the LEFT (matches source, which
+   parks the menu at left:-100% and animates it to 0). Both open AND close
+   animate: the panel always keeps its 0.3s transform transition, and visibility
+   is delayed on close (transitioned) so the slide-out is visible before the
+   panel is hidden — previously `visibility:hidden` snapped it away instantly. */
+header nav .nav-sections {
+  grid-area: sections;
+  position: fixed;
+  top: var(--nav-mobile-top, 105px);
+  left: 0;
+  right: 0;
+  z-index: 25;
+  width: auto;
+  height: calc(100vh - var(--nav-mobile-top, 105px));
+  padding: 8px 20px 40px;
+  overflow-y: auto;
+  background: #fff;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-out, visibility 0s linear 0.3s;
+  visibility: hidden;
+}
+
+header nav[aria-expanded='true'] .nav-sections {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.3s ease-out, visibility 0s linear 0s;
+}
+
+header nav .nav-sections ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+header nav .nav-sections > ul > li {
+  position: relative;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+header nav .nav-sections > ul > li > a {
+  display: block;
+  padding: 15px 4px;
+  color: #000;
+  font-family: var(--heading-semibold-font-family);
+  font-size: 16px;
+  font-weight: 400;
+  text-transform: none;
+  text-decoration: none;
+}
+
+/* expanded top-level item: blue label with 4px blue underline (source) */
+header nav .nav-sections > ul > li[aria-expanded='true'] > a {
+  display: inline-block;
+  color: rgb(36 86 178);
+  box-shadow: inset 0 -4px 0 rgb(36 86 178);
+}
+
+/* caret toggle button (mobile) */
+header nav .nav-drop-toggle {
+  position: absolute;
+  top: 10px;
+  right: 4px;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Same solid ▼ chevron as desktop: an 18×12 grey triangle (border-left/right 9px
+   transparent + border-top 12px in mid-grey #6e7277) — NOT the smaller blue one. */
+header nav .nav-drop-toggle::after {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 0 auto;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 12px solid rgb(110 114 119);
+  transition: transform 0.2s ease;
+}
+
+header nav .nav-drop[aria-expanded='true'] .nav-drop-toggle::after {
+  transform: rotate(180deg);
+}
+
+/* sub-list — mobile accordion: animate open/closed with a slow max-height
+   transition (smooth reveal like the source). Collapsed = max-height 0 +
+   overflow hidden; expanded = a generous max-height the content fits within. */
+header nav .nav-sections > ul > li > ul {
+  display: block;
+  max-height: 0;
+  padding: 0 0 0 24px;
+  overflow: hidden;
+  transition: max-height 0.45s ease, padding 0.45s ease;
+}
+
+header nav .nav-sections > ul > li > ul > li {
+  border: 0;
+  margin-bottom: 28px;
+}
+
+header nav .nav-sections > ul > li > ul > li:last-child {
+  margin-bottom: 0;
+}
+
+header nav .nav-sections > ul > li[aria-expanded='true'] > ul {
+  max-height: 400px;
+  padding: 16px 0 16px 24px;
+}
+
+header nav .nav-sections > ul > li > ul > li > a {
+  display: block;
+  padding: 0;
+  color: rgb(36 86 178);
+  font-family: var(--heading-semibold-font-family);
+  font-size: 16px;
+  text-decoration: none;
+}
+
+header nav .nav-sections > ul > li > ul > li > a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- tools (donate) ---------- */
+header nav .nav-tools {
+  grid-area: tools;
+  display: flex;
+  align-items: center;
+}
+
+header nav .nav-donate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 14px;
+  background-color: var(--brand-blue);
+  color: #fff;
+  font-family: var(--heading-semibold-font-family);
+  font-size: 14px;
+  font-weight: 400;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+header nav .nav-donate:hover,
+header nav .nav-donate:focus-visible {
+  background-color: var(--link-hover-color);
+  color: #fff;
+  text-decoration: none;
+}
+
+/* ---------- breadcrumb (third row, matches source "HOME") ---------- */
+
+/* The .nav-breadcrumb is itself a <nav>, so the generic `header nav` rules
+   (grid, min-height:120px, align-items:center) would otherwise apply and
+   inflate/centre it. Reset those explicitly so it is a short left-aligned row. */
+header .nav-breadcrumb {
+  display: flex;
+  align-items: center;
+
+  /* explicit height wins over the generic `header nav { height:120px }` that
+     would otherwise apply to this <nav> and inflate the breadcrumb row. Height
+     comes from the crumb line-height (38/28px), so no min-height floor. */
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border-top: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+header .nav-breadcrumb ol {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  margin: 0;
+
+  /* Single line that scrolls horizontally (source behaviour) — the long article
+     title must NOT wrap into a tall multi-line block on mobile. Keep the row one
+     crumb-line tall and let it scroll sideways. The scrollbar is left VISIBLE so
+     users can see/drag it, exactly as the source does. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  /* horizontal gutter only — row height comes from the crumb line-height so it
+     matches the source's 38px/28px (no vertical padding) */
+  padding: 0 20px;
+  list-style: none;
+}
+
+/* crumbs never shrink/wrap; the last (title) crumb can be long → it just extends
+   the scrollable row rather than wrapping. */
+header .nav-breadcrumb li {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+header .nav-breadcrumb li,
+header .nav-breadcrumb a {
+  color: #383838;
+  font-family: var(--body-font-family);
+  font-size: 10px;
+  font-weight: 900;
+
+  /* Source drives the row height from the crumb line-height (no vertical
+     padding): 38px on phone/tablet, 28px from the 1440 tier. */
+  line-height: 38px;
+  text-transform: uppercase;
+}
+
+/* Ancestor (link) crumbs match the source's inactive-crumb treatment: brand blue
+   with a default underline; the underline is REMOVED on hover (source:
+   `.cmp-breadcrumb__navigation-item--inactive` = #0357b8 underline → hover none).
+   The current-page crumb is a plain <li> (no <a>), so it stays grey above. */
+header .nav-breadcrumb a {
+  color: #0357b8;
+  text-decoration: underline;
+}
+
+header .nav-breadcrumb a:hover {
+  text-decoration: none;
+}
+
+/* Separator between crumbs: the source uses a `>` chevron in brand green
+   (`.cmp-breadcrumb__navigation-item-divider` = #01675a, padding 6px/8px), NOT a
+   slash. */
+header .nav-breadcrumb li + li::before {
+  content: '>';
+  padding: 0 8px 0 6px;
+  color: #01675a;
+}
+
+/* ============================================================
+   Desktop (>= 992px): single row, centered nav, hover dropdowns
+   ============================================================ */
+@media (width >= 992px) {
+  /* desktop tier: the top blue accent bar thickens to 8px (source) */
+  header .nav-wrapper {
+    border-top-width: 8px;
+  }
+
+  /* Centered max-width:1440px container (matches the source + the hero). The
+     logo therefore tracks the hero heading at every viewport: 40px gutter until
+     1440, then centered with equal side margins beyond. */
+  header nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    height: 128px; /* source nav bar is 128px tall */
+    min-height: 128px;
+    max-width: 1440px;
+    margin: 0 auto;
+    overflow: visible;
+    padding: 0 40px;
+  }
+
+  /* breadcrumb: reset the generic `header nav { height:120px, max-width:1440px }`
+     (this row is a <nav>). The border runs edge-to-edge, so the row itself is FULL
+     WIDTH; the inner <ol> is centered to the SAME 1440 container + 40px gutter as
+     the nav/logo, so the first crumb ("HOME") lines up under the LOGO — matching
+     the source (breadcrumb aligns to the logo, not the narrower content column). */
+  header .nav-breadcrumb {
+    height: auto;
+    max-width: none;
+    margin: 0;
+  }
+
+  header .nav-breadcrumb ol {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+
+    /* 40px gutter = logo gutter, so crumb-left == logo-left at every width */
+    padding: 0 40px;
+
+    /* desktop has room — no sideways scroll; the long title crumb ellipsizes
+       instead (rule below). (base sets flex-wrap:nowrap + overflow-x:auto.) */
+    overflow-x: hidden;
+  }
+
+  /* Source desktop breadcrumb row is 30px tall (measured in dev tools): a 28px
+     crumb line-height + the 1px top/bottom borders. Drop from the 38px
+     phone/tablet line-height so our row matches (removes the extra ~10px that was
+     shifting the article content down vs the source). */
+  header .nav-breadcrumb li,
+  header .nav-breadcrumb a {
+    line-height: 28px;
+  }
+
+  /* the current-page (last) crumb can be a long article title — on desktop clamp
+     it to a single line with an ellipsis (row has room; no scroll). Override the
+     base `flex: 0 0 auto` so it can shrink to allow the ellipsis. */
+  header .nav-breadcrumb li:last-child {
+    flex: 0 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  header nav .nav-hamburger {
+    display: none;
+  }
+
+  header nav .nav-brand img {
+    width: 294px;
+    height: auto;
+    max-height: 125px; /* source logo renders 294×125 */
+    object-fit: contain;
+  }
+
+  /* Lock DONATE to 110px so nav-sections stays 616px and item positions match
+     the source exactly (right edge stays at 1160, 40px from the viewport). */
+  header nav .nav-donate {
+    width: 110px;
+    min-width: 110px;
+    flex-shrink: 0;
+    padding: 0;
+    justify-content: center;
+  }
+
+  /* sections: nav list starts ~100px after the logo, items left-packed with
+     50px gaps; the list flex-grows so DONATE is pushed to the far right —
+     matching the source geometry (logo@40, nav starts@434, donate right@40).
+     Reset the mobile off-canvas panel styles back to an in-flow flex row. */
+  header nav .nav-sections {
+    position: static;
+    height: auto;
+    padding: 0;
+    overflow: visible;
+    background: none;
+    transform: none;
+    transition: none;
+    visibility: visible;
+    display: flex;
+    flex: 1 1 auto;
+    margin-left: 100px;
+  }
+
+  header nav .nav-sections > ul {
+    display: flex;
+    align-items: center;
+    justify-content: normal;
+    gap: 50px;
+    width: 100%;
+    height: 120px;
+    line-height: 22.86px;
+  }
+
+  header nav .nav-sections > ul > li {
+    display: flex;
+    align-items: center;
+
+    /* stretch each top-level item to the full nav-row height and make it the
+       positioning context for its dropdown, so the panel's `top: 100%` lands at
+       the BOTTOM of the nav bar (at the breadcrumb row) exactly like the source —
+       not at the shorter label's bottom (which floated the panel too high). */
+    position: relative;
+    align-self: stretch;
+
+    /* remove the mobile row divider — desktop items have no underline */
+    border-bottom: 0;
+  }
+
+  header nav .nav-sections > ul > li > a {
+    padding: 0;
+    color: #000;
+    font-weight: 400;
+    text-transform: none;
+    line-height: 1.5;
+    transition: color 0.15s ease;
+  }
+
+  /* Hover / open state: blue label + a 4px blue underline hugging the text —
+     source applies this to EVERY top-level item on hover (not only the open
+     megamenu item), e.g. "WHAT WE DO" which has no submenu. Use the inset
+     box-shadow (same as the expanded rule) so the underline adds no layout
+     height and never shifts the row. */
+  header nav .nav-sections > ul > li:hover > a,
+  header nav .nav-sections > ul > li[aria-expanded='true'] > a {
+    display: inline-block;
+    color: rgb(36 86 178);
+    box-shadow: inset 0 -4px 0 rgb(36 86 178);
+  }
+
+  /* desktop caret sits inline after the label as a solid ▼ triangle (18x12) */
+  header nav .nav-drop-toggle {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 12px;
+    margin-left: 5px;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+
+  /* Source caret is an 18×12 solid triangle (border-left/right 9px transparent,
+     border-top 12px) in a mid-grey (#6e7277) — match size AND color. */
+  header nav .nav-drop-toggle::after {
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-top: 12px solid rgb(110 114 119);
+  }
+
+  header nav .nav-sections > ul > li:hover .nav-drop-toggle::after,
+  header nav .nav-sections > ul > li[aria-expanded='true'] .nav-drop-toggle::after {
+    border-top-color: rgb(36 86 178);
+  }
+
+  /* hover dropdown panel — reset the mobile accordion's max-height/overflow
+     clip so the absolutely-positioned panel shows in full. Matches source:
+     white panel, soft shadow, 12px/20px/36px/26px padding, ~246px wide. */
+  header nav .nav-sections > ul > li > ul {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+
+    /* Source panel is 246px WIDE (border-box) and shifted 26px LEFT of the label
+       (margin-left:-26px) so its 26px left padding brings the item text back to
+       align exactly under the label. Match box-sizing + width + offset so our
+       panel occupies the same rectangle (source left 891 / right 1137, text @917
+       under the "GET INVOLVED" label). */
+    box-sizing: border-box;
+    width: 246px;
+    min-width: 0;
+    max-height: none;
+    margin: 0 0 0 -26px;
+    padding: 12px 20px 36px 26px;
+    overflow: visible;
+    background: #fff;
+    box-shadow: 0 6px 6px rgb(0 0 0 / 16%);
+    z-index: 30;
+    transition: none;
+  }
+
+  header nav .nav-sections > ul > li[aria-expanded='true'] > ul {
+    display: block;
+  }
+
+  /* sub-items: a taller panel to match the source — a 1px DASHED divider between
+     items (source uses a dashed rule, not a solid one), with generous spacing so
+     the panel has the same open, airy height as the source dropdown. */
+  header nav .nav-sections > ul > li > ul > li {
+    margin-bottom: 15px;
+    border-top: 0;
+    border-bottom: 1px dashed #e6e6e6;
+  }
+
+  header nav .nav-sections > ul > li > ul > li:last-child {
+    margin-bottom: 0;
+    border-bottom: 0;
+  }
+
+  header nav .nav-sections > ul > li > ul > li > a {
+    padding: 0 0 15px;
+    color: rgb(36 86 178);
+    font-family: var(--heading-semibold-font-family);
+    font-size: 16px;
+    font-weight: 900;
+    border-bottom: 0;
+  }
+
+  header nav .nav-sections > ul > li > ul > li:last-child > a {
+    padding-bottom: 0;
+  }
+
+  header nav .nav-sections > ul > li > ul > li > a:hover {
+    text-decoration: underline;
+  }
+}

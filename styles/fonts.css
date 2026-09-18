@@ -1,0 +1,72 @@
+/* stylelint-disable max-line-length */
+
+/* USTA Foundation brand fonts — self-hosted from the source site (ustafoundation.com), in the same
+   faces/formats the source serves. Complete set — nothing missing.
+   PRIMARY: Graphik (brand typeface). SECONDARY: Inter / Barlow Condensed / Anton (specific source
+   components). */
+
+/* --- Graphik (primary) --- */
+@font-face {
+  font-family: 'Graphik Regular';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/graphik-regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Graphik Semibold';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../fonts/graphik-semibold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Graphik XXCond Bold';
+  font-style: normal;
+  font-weight: 700;
+
+  /* `block` for the big condensed display face (h1/h2): the browser briefly
+     blocks (renders invisible) until this font is ready, then paints the REAL
+     condensed font — it does NOT show the wide fallback and does NOT get stuck on
+     it (which is what `optional` did). Because we preload this 24KB woff2 + inline
+     this @font-face in the eager phase, it's ready almost immediately, so the
+     block period is tiny and the headline ALWAYS renders in Graphik XXCond Bold —
+     never the fallback. */
+  font-display: block;
+  src: url('../fonts/graphik-xxcond-bold.woff2') format('woff2');
+}
+
+/* --- Secondary (self-hosted from source; wire only where the source uses them) --- */
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/inter-variable.ttf') format('truetype-variations');
+}
+
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/barlow-condensed-regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/barlow-condensed-bold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: Anton;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/anton-regular.ttf') format('truetype');
+}

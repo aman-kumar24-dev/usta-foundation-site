@@ -1,0 +1,246 @@
+/* Table block — mirrors the source's two-column data layout:
+   bold header row, black text, no borders/background/cell-padding, equal
+   columns separated by the shared grid gutter. Group spacing comes from the
+   authored empty paragraphs (one 24px line each), exactly like the source.
+   Mobile-first: columns stack; from 768px they sit side-by-side as a table. */
+
+.table table {
+  width: 100%;
+  color: #000;
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-m); /* 16px mobile → 18px at 768 (source) */
+  line-height: 24px;
+}
+
+/* base (mobile): render every table part as a block so the two columns stack */
+.table table,
+.table thead,
+.table tbody,
+.table tr,
+.table th,
+.table td {
+  display: block;
+  padding: 0;
+  border: 0;
+  text-align: left;
+}
+
+/* Source header ("Winners" / "NJTL Chapter") is NOT bold — it's plain body text,
+   weight 400, just the first line of each column (measured on the live source).
+   The source also separates the header from the first group with a 24px blank
+   line (an empty in-column paragraph); reproduce it as padding under the header
+   so the spacing matches even when no blank paragraph is authored. */
+.table thead th {
+  padding-bottom: 24px;
+  font-weight: 400;
+}
+
+.table tbody td {
+  font-weight: 400;
+}
+
+/* stacked-column spacing on mobile: a 24px gap before each column after the
+   first, matching the source's group rhythm */
+.table th + th,
+.table td + td {
+  margin-top: 24px;
+}
+
+/* On mobile the multi-row body stacks, so each data ROW (an age bracket / sub-
+   group) needs a gap before the next — otherwise the bracket groups run together
+   in one dense list. A 24px gap before every body row after the first reproduces
+   the source's blank-line separators between brackets in BOTH columns. Reset on
+   desktop below (real table rows). */
+.table tbody tr + tr {
+  margin-top: 24px;
+}
+
+/* the source zeroes paragraph rhythm inside the columns; blank authored
+   paragraphs supply the 24px group separators */
+.table th p,
+.table td p {
+  margin: 0;
+  line-height: 24px;
+}
+
+@media (width >= 768px) {
+  .table table {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .table thead { display: table-header-group; }
+  .table tbody { display: table-row-group; }
+  .table tr { display: table-row; }
+
+  .table th,
+  .table td {
+    display: table-cell;
+    vertical-align: top;
+  }
+
+  /* real table rows from 768 — drop the mobile stacked row margin */
+  .table tbody tr + tr {
+    margin-top: 0;
+  }
+
+  /* column gutter (shared grid gap) between the two columns */
+  .table th + th,
+  .table td + td {
+    margin-top: 0;
+    padding-left: var(--grid-gap);
+  }
+
+  /* open the between-bracket gap with cell padding (margins don't apply to table
+     rows), so each age bracket stays separated in both columns like the source */
+  .table tbody tr + tr td {
+    padding-top: 24px;
+  }
+}
+
+/* ==================================================================
+   Grouped 2-column data table (news winners list). Built column-major by
+   table.js: `.table-grouped > .table-col > (.table-col-head | .table-group)`.
+   MOBILE: columns stack — the WHOLE first column (header + its bracket groups)
+   then the whole second column, matching the source (NOT row-interleaved).
+   DESKTOP (≥768): the columns sit side by side on the shared grid.
+   ================================================================== */
+.table-grouped {
+  display: grid;
+  grid-template-columns: 1fr; /* mobile: stacked, column-major */
+  gap: 24px 0;
+  color: #000;
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-m);
+  line-height: 24px;
+}
+
+.table-grouped .table-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px; /* the blank-line gap between the header and each bracket group */
+}
+
+.table-grouped .table-col-head {
+  font-weight: 400;
+}
+
+.table-grouped .table-col p {
+  margin: 0;
+  line-height: 24px;
+}
+
+@media (width >= 768px) {
+  .table-grouped-2-cols {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--grid-gap);
+  }
+}
+
+/* ==================================================================
+   Variant: directory — multi-column name directory (source: Board of
+   Directors "Officers and Directors / Advisory Board / Honorary Board").
+   Measured on the live source at 1200: 3 columns (each ~330px), separated by a
+   thin vertical divider; headings 28px/30.8 Graphik Semibold black, 10px below;
+   names 18/24 Graphik Regular black — name bold (<b>), role italic (<i>).
+   Mobile: columns stack, dividers become a top border between them.
+   ================================================================== */
+
+.table.directory {
+  display: grid;
+  grid-template-columns: 1fr; /* mobile: stacked */
+  gap: 40px 0;
+}
+
+.table.directory .table-directory-col {
+  min-width: 0;
+}
+
+/* heading — source h4 (Graphik Semibold, w500, black, 10px bottom margin).
+   RESPONSIVE: 22/24.2 on mobile → 28/30.8 from 768 (measured on the source). */
+.table.directory .table-directory-col h4 {
+  margin: 0 0 10px;
+  font-family: var(--heading-semibold-font-family);
+  font-size: 22px;
+  line-height: 24.2px;
+  font-weight: 500;
+  color: #000;
+  text-transform: none;
+}
+
+@media (width >= 768px) {
+  .table.directory .table-directory-col h4 {
+    font-size: 28px;
+    line-height: 30.8px;
+  }
+}
+
+/* name/role lines — 18/24 body, black; name bold, role italic (as authored). */
+.table.directory .table-directory-col p {
+  margin: 0;
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-m); /* 16 mobile → 18 at 768 (matches source) */
+  line-height: 24px;
+  color: #000;
+}
+
+.table.directory .table-directory-col b {
+  font-weight: 700;
+}
+
+.table.directory .table-directory-col i {
+  font-style: italic;
+}
+
+/* From 768: lay the columns side by side with a divider between them. The source
+   columns are ~330px wide with ~60px gaps; equal 1fr columns + a 60px gap and a
+   left border (drawn in the gap) reproduce the divider look at the content width. */
+@media (width >= 768px) {
+  .table.directory.table-directory-2-cols {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 60px;
+  }
+
+  .table.directory.table-directory-3-cols {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 60px;
+  }
+
+  /* vertical divider before every column except the first — a 1px line centered
+     in the 60px gap (30px of negative offset via padding on the column). */
+  .table.directory .table-directory-col + .table-directory-col {
+    padding-left: 30px;
+    border-left: 1px solid #d8d8d8;
+    margin-left: -30px; /* pull the border into the middle of the 60px gap */
+  }
+}
+
+/* ==================================================================
+   Single-column LIST table (news winners grouped by grade/category). Built by
+   table.js as `.table-list > .table-list-group` — one group per row (a header
+   line + its "Name - Chapter" lines). Tight lines within a group, a clear 24px
+   gap between groups — matching the source's plain grouped list.
+   ================================================================== */
+.table-list {
+  color: #000;
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-m);
+  line-height: 24px;
+}
+
+.table-list-group {
+  margin: 0 0 24px;
+}
+
+.table-list-group:last-child {
+  margin-bottom: 0;
+}
+
+/* stylelint-disable-next-line no-descending-specificity */
+.table-list-group p {
+  margin: 0;
+  line-height: 24px;
+}

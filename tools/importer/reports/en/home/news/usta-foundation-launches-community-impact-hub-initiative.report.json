@@ -1,0 +1,14 @@
+{
+  "status": "success",
+  "url": "https://www.ustafoundation.com/en/home/news/usta-foundation-launches-community-impact-hub-initiative.html",
+  "path": "en/home/news/usta-foundation-launches-community-impact-hub-initiative",
+  "timestamp": "2026-09-08T04:57:23.231Z",
+  "title": "USTA Foundation launches Community Impact Hub initiative",
+  "template": "news",
+  "blocks": [
+    "cards-news",
+    "reactions",
+    "video-embed×1",
+    "columns-media×1"
+  ]
+}

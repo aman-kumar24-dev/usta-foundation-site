@@ -1,0 +1,93 @@
+/*
+ * news template — article page layout (USTA Foundation news articles).
+ * Scoped to `body.news` so it only affects news pages. Values measured from the
+ * live source at 390 / 768 / 1280:
+ *   • H1 "hero" headline: Graphik XXCond Bold w500, #333 — 54/59.4 mobile →
+ *     100/110 from 768. (Larger than the global h1 scale — article-specific.)
+ *   • Body copy: Graphik Regular, #000 — 16/24 mobile → 18/24 from 768.
+ *   • Inline links: brand blue (#0357b8).
+ *   • Image caption: Graphik Regular, #333, 16/22.86 at every viewport.
+ * The content column + gutters come from the global site grid (55/30/31 →
+ * 1170/708/328); this file only sets the article's typography + media layout.
+ */
+
+/* ---- Space above the headline (breadcrumb → H1 gap) -----------------------
+   The source's breadcrumb→H1 gap is AUTHOR-controlled per article, not a fixed
+   template rule: the DEFAULT article (e.g. evert-speaks-on-rally-to-rebuild) has
+   NO top-padding band — the H1's own line-box leading yields a small ~25px gap
+   from the breadcrumb — while a few articles (e.g. the Aerie page) author an
+   extra `padding-top` band. We match the DEFAULT (the common case) with a small
+   top pad; the earlier blanket 64px pushed every headline down too far vs the
+   source. (main > .section:first-of-type already has margin-top:0.) */
+body.news main > .section:first-of-type {
+  padding-top: 24px; /* → ~24px breadcrumb→H1 gap, matching the source (mobile + desktop both ~25px) */
+}
+
+/* ---- Article headline (H1) ------------------------------------------------
+   SIZE is intentionally NOT set here — the H1 inherits the GLOBAL scale
+   (54/59.4 mobile → 100/110 @768) so the headline is identical site-wide and the
+   font-preload/fallback-metrics CLS fix applies uniformly. This template only
+   manages what's genuinely news-specific: COLOR and the source margin.
+
+   Source news H1 is #333 (NOT the global prose black). The global rule
+   `main .default-content-wrapper :is(h1..){color:var(--dark-color)}` paints it
+   #000, so override: explicit #333 at higher specificity, plus re-point
+   --dark-color to #333 on the H1 as a belt-and-suspenders. */
+body.news main h1 {
+  --dark-color: #333;
+
+  /* Source leaves a large gap below the article H1 before the body content
+     (measured H1→first-paragraph: ~89px mobile, ~105px desktop). Reproduce it
+     with the H1's bottom margin (it collapses with the following block's top gap,
+     so the effective gap lands on the source values: 75→~88px mobile, 91→~105px
+     desktop, both matching the source). */
+  margin: 0 0 75px;
+  color: #333;
+}
+
+@media (width >= 768px) {
+  body.news main h1 {
+    margin-bottom: 91px;
+  }
+}
+
+/* Higher-specificity twin (0,2,3) so the explicit #333 wins over the global
+   `main .default-content-wrapper :is(h1..)` rule (0,1,2). */
+body.news main .default-content-wrapper h1 {
+  color: #333;
+}
+
+/* ---- Article body copy ---------------------------------------------------- */
+body.news main .default-content-wrapper p {
+  font-family: var(--body-font-family);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  color: #000;
+}
+
+@media (width >= 768px) {
+  body.news main .default-content-wrapper p {
+    font-size: 18px;
+  }
+}
+
+/* inline links in article body — brand blue, underline on hover */
+body.news main .default-content-wrapper a {
+  color: var(--link-color, #0357b8);
+}
+
+body.news main .default-content-wrapper a:hover {
+  text-decoration: underline;
+}
+
+/* ---- Image caption --------------------------------------------------------
+   The source renders an article image immediately followed by its caption text.
+   Caption = a paragraph that directly follows a picture-only paragraph. */
+body.news main .default-content-wrapper p:has(> picture) + p {
+  margin-top: 8px;
+  font-family: var(--body-font-family);
+  font-size: 16px;
+  line-height: 22.86px;
+  color: #333;
+}

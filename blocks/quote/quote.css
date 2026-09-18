@@ -1,0 +1,189 @@
+/* Block: quote — italic testimonial quote(s) + bold attribution.
+   Values from source computed styles (chris-evert-50th-anniversary):
+   - quotation: 32px/48px, weight 500, italic, Graphik Regular, black, left,
+     20px left inset, ~40px gap between blocks.
+   - attribution: 22/24.2 → 28/30.8 @768, weight 700 + ITALIC (source nests
+     <h4><b><i>), Graphik Semibold, black, centered (measured at 390/768/1200). */
+
+.quote {
+  color: #000;
+}
+
+/* Quotation paragraphs — mirror the source <blockquote> treatment. */
+.quote .quote-quotation {
+  padding-left: 20px;
+  margin-bottom: 40px;
+}
+
+.quote .quote-quotation p {
+  margin: 0;
+  font-family: var(--body-font-family); /* Graphik Regular */
+  font-size: 32px;
+  line-height: 48px;
+  font-weight: 500;
+  font-style: italic;
+  text-align: left;
+}
+
+/* Attribution — name + affiliation. */
+.quote .quote-attribution {
+  margin: 0;
+}
+
+.quote .quote-attribution p {
+  margin: 0;
+  font-family: var(--heading-semibold-font-family); /* Graphik Semibold */
+
+  /* source: the attribution nests <h4> > <b> > <i>, so the VISIBLE text is
+     BOLD + ITALIC (weight 700, italic) — Graphik Semibold, black, centered,
+     22/24.2 mobile → 28/30.8 @768. */
+  font-size: 22px;
+  line-height: 24.2px;
+  font-weight: 700;
+  font-style: italic;
+  text-align: center;
+}
+
+@media (width >= 768px) {
+  .quote .quote-attribution p {
+    font-size: 28px; /* source: 28/30.8 from the 768 tier */
+    line-height: 30.8px;
+  }
+}
+
+/* quote-image — bold pull-quote + attribution beside a portrait image.
+   Values from the source computed styles at 390/768/992/1200. */
+
+/* --- base / mobile-first: stack quote → attribution → image --- */
+.quote.image .quote-image-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.quote.image .quote-image-text {
+  min-width: 0;
+}
+
+/* Bold condensed pull-quote. Size/line-height come from the global h2 token
+   scale (44/48.4 @390 → 76/83.6 @1200). Source CENTERS it at EVERY viewport. */
+.quote.image .quote-image-text h2 {
+  margin: 0;
+  color: #000;
+  text-align: center;
+}
+
+/* Attribution: Graphik Regular, weight 400, ITALIC, right-aligned, #000,
+   "- Name" (source wraps it in <i>: 16/24 @390 → 18/24 @1200 via body-m). */
+.quote.image .quote-image-text p {
+  margin: 16px 0 0;
+  color: #000;
+  font-size: var(--body-font-size-m); /* 16px→18px at 768 (global token) */
+  line-height: 24px;
+  font-style: italic;
+  text-align: right;
+}
+
+.quote.image .quote-image-media {
+  min-width: 0;
+  margin-top: 32px;
+}
+
+.quote.image .quote-image-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* --- desktop: two columns, text left / image right, top-aligned --- */
+@media (width >= 992px) {
+  .quote.image .quote-image-row {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 30px; /* source grid gutter */
+  }
+
+  .quote.image .quote-image-text {
+    flex: 1;
+  }
+
+  .quote.image .quote-image-media {
+    flex: 1;
+    margin-top: 0;
+  }
+}
+
+/* quote-tweet — a STATIC reproduction of an embedded tweet. The SOURCE renders
+   it as a BARE blockquote (the platform.twitter.com widget doesn't upgrade the
+   markup) — plain tweet text + inline blue links + a plain handle/date line, with
+   NO card border/background and NO Twitter bird icon. We reproduce exactly that;
+   the third-party widget is deliberately not loaded (consent + performance).
+
+   Measured on the live source at 390/768/1200:
+   - blockquote: padding 10px 20px, no border/bg/radius/shadow.
+   - tweet body <p>: Graphik Regular, weight 400, #333, left, 16/22.857 mobile →
+     18/25.714 @768.
+   - links (@mentions, #hashtags, pic.twitter, handle): #0357b8, weight 400, same
+     size as the body (the date link is a hair smaller — 17.5/25 — Twitter's own
+     em-relative size). */
+
+.quote.tweet {
+  box-sizing: border-box;
+  padding: 10px 20px;
+  color: var(--text-color); /* #333 */
+  font-family: var(--body-font-family);
+}
+
+.quote.tweet .quote-tweet-body p,
+.quote.tweet .quote-tweet-footer p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22.857px;
+  font-weight: 400;
+  text-align: left;
+}
+
+/* Source separates the tweet's sentences with a double <br> (one BLANK line);
+   our body is authored as separate <p>, so reproduce that blank line as a
+   one-line-height gap BETWEEN body paragraphs (not after the last one). */
+.quote.tweet .quote-tweet-body p + p {
+  margin-top: 22.857px;
+}
+
+/* blank line between the tweet body and the handle/date line (source rhythm) */
+.quote.tweet .quote-tweet-footer {
+  margin-top: 22.857px;
+}
+
+/* Links: @mentions, #hashtags, pic.twitter, handle + date — blue, weight 400. */
+.quote.tweet a:any-link {
+  color: var(--link-color); /* #0357b8 */
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.quote.tweet a:hover {
+  color: var(--link-hover-color);
+  text-decoration: underline;
+}
+
+/* Inline links inside the tweet body sit within a text block, so they must be
+   distinguished by more than color (WCAG link-in-text-block); underline them.
+   (The source uses color-only links — a source a11y quirk; we underline the
+   in-text ones to pass axe, a minimal, defensible deviation.) The standalone
+   handle/date links are their own line and stay clean. */
+.quote.tweet .quote-tweet-body a:any-link {
+  text-decoration: underline;
+}
+
+@media (width >= 768px) {
+  .quote.tweet .quote-tweet-body p,
+  .quote.tweet .quote-tweet-footer p {
+    font-size: 18px;
+    line-height: 25.714px;
+  }
+
+  .quote.tweet .quote-tweet-body p + p,
+  .quote.tweet .quote-tweet-footer {
+    margin-top: 25.714px;
+  }
+}

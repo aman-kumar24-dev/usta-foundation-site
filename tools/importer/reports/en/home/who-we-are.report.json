@@ -1,0 +1,19 @@
+{
+  "status": "success",
+  "url": "https://www.ustafoundation.com/en/home/who-we-are.html",
+  "path": "en/home/who-we-are",
+  "timestamp": "2026-09-08T18:51:42.954Z",
+  "title": "Who We Are",
+  "template": "general",
+  "blocks": [
+    "hero-text-up",
+    "default-content(intro)",
+    "columns(history,image-right)",
+    "spacer(leading-yellow-strip)",
+    "columns(evert,image-left)",
+    "section-metadata(yellow-band)",
+    "default-content(supporters)",
+    "cards-tiles",
+    "spacer(trailing-black-band)"
+  ]
+}

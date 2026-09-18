@@ -1,0 +1,120 @@
+/*
+ * toc-profile — the source's Leadership & Staff tab strip, reproduced exactly.
+ * Values measured on the live source at 1200 (content width 1170):
+ *   - tab row: flex, tabs abut (gap 0), each `padding: 0 12px`, 38px tall,
+ *     18px Graphik Semibold, uppercase, black.
+ *   - a full-width SAGE track under the row: 6px tall, #dcdfcf.
+ *   - a single BLACK indicator bar (6px) that SLIDES under the active tab
+ *     (translateX + width transition — seamless, matching the source).
+ * No sticky bar, no scroll-progress bar (those belonged to the master-toc demo).
+ */
+
+.toc-profile {
+  box-sizing: border-box;
+  width: 100%;
+
+  /* Space ABOVE the tab bar — the sample authors the intro heading/paragraph in
+     the SAME section as the bar, so there's no spacer between them; the source
+     leaves ~77px above the tab row. Add it here (a bit less on mobile). Bottom
+     margin gives the ~32px source gap from the bar down to the active panel's
+     heading (the panel section's own top margin/spacer adds the rest). */
+  margin-top: 48px;
+  margin-bottom: 8px;
+}
+
+@media (width >= 768px) {
+  .toc-profile {
+    margin-top: 77px; /* source content→tab-row gap */
+  }
+}
+
+/* the tab row. `position: relative` anchors the absolutely-positioned track +
+   indicator; `padding-bottom: 6px` reserves the band they occupy at the bottom. */
+.toc-profile .toc-profile-nav {
+  position: relative;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  padding-bottom: 6px; /* room for the 6px track + indicator band */
+}
+
+.toc-profile .toc-profile-nav::-webkit-scrollbar {
+  display: none; /* WebKit */
+}
+
+/* full-width sage track — the base bar under the whole tab row. */
+.toc-profile .toc-profile-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: #dcdfcf;
+  pointer-events: none;
+}
+
+/* each tab — source: 18px Graphik Semibold, uppercase, black, 0 12px padding,
+   38px tall, no per-tab underline (the shared indicator draws it).
+   MOBILE: the source tabs GROW to fill the row width (the spare space is split
+   between them: STAFF→91, BOARD→237 = the full 328 column), so the active
+   indicator under BOARD reaches the right edge. `flex: 1 1 auto` reproduces that
+   equal-share growth. From 768 the tabs revert to natural width, left-packed
+   (indicator = text width). Text stays left-aligned within the grown tab. */
+.toc-profile .toc-profile-item {
+  display: inline-flex;
+  align-items: flex-start; /* source: text sits near the tab TOP, leaving ~21px
+                              below it before the track (not vertically centered) */
+  justify-content: flex-start;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  color: #000;
+  font-family: var(--heading-semibold-font-family);
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 400;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (width >= 768px) {
+  .toc-profile .toc-profile-item {
+    flex: 0 0 auto; /* desktop/tablet: natural width, left-packed */
+  }
+}
+
+.toc-profile .toc-profile-item:hover {
+  color: var(--link-color, #0357b8);
+}
+
+.toc-profile .toc-profile-item:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: -2px;
+}
+
+/* the single sliding indicator — sits ON the sage track (same 6px band, same
+   bottom:0), black, translated/resized to the active tab. Sharing the exact
+   bottom+height as the track keeps them pixel-flush (no doubled/offset line).
+   The transition makes the move seamless (source parity). */
+.toc-profile .toc-profile-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 6px;
+  background: #000;
+  transform: translateX(0);
+  transition: transform 0.5s ease, width 0.5s ease; /* source uses 0.5s */
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toc-profile .toc-profile-indicator {
+    transition: none;
+  }
+}

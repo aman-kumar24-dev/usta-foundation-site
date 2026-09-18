@@ -1,0 +1,1019 @@
+@import url('brand.css');
+
+/*
+ * Copyright 2020 Adobe. All rights reserved.
+ * This file is licensed to you under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License. You may obtain a copy
+ * of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+ * OF ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ */
+
+:root {
+  /* colors (from brand.css; kept here for EDS defaults) */
+  --background-color: #fff;
+  --light-color: #f5f5f5;
+  --dark-color: #000;
+  --text-color: #333;
+  --link-color: #0357b8;
+  --link-hover-color: #23527c;
+
+  /* fonts. Each web face is paired with a metrics-matched fallback (size-adjust
+     faces below) BEFORE the generic fallbacks, so the pre-swap render has ~the
+     same box as the loaded font → minimal CLS when `font-display: swap` fires.
+     The condensed display face (h1/h2, up to 100px) especially needs this. */
+  --body-font-family: "Graphik Regular", roboto-fallback, tahoma, sans-serif;
+  --heading-font-family: "Graphik XXCond Bold", graphik-xxcond-fallback, "Arial Narrow", tahoma, sans-serif;
+
+  /* body sizes — mobile-first (source: 16px body @ <768, 18px @ >=768) */
+  --body-font-size-m: 16px;
+  --body-font-size-s: 16px;
+  --body-font-size-xs: 14px;
+  --body-line-height: 24px; /* source body line-height is a fixed 24px */
+
+  /* heading sizes — mobile-first (source computed scale, tools/quality/typography.json) */
+  --heading-font-size-xxl: 54px; /* h1 */
+  --heading-font-size-xl: 44px;  /* h2 */
+  --heading-font-size-l: 36px;   /* h3 */
+  --heading-font-size-m: 18px;   /* h4 */
+  --heading-font-size-s: 18px;   /* h5 */
+  --heading-font-size-xs: 16px;  /* h6 */
+
+  /* shared 12-column grid (source: Bootstrap-3, 30px gutter) — see
+     docs/source-css-system.md §3. Blocks consume --grid-gap + .grid-* utilities. */
+  --grid-gap: 30px;
+
+  /* nav height */
+  --nav-height: 120px;
+}
+
+/* fallback fonts (metrics-matched, so the pre-swap render ≈ the loaded font). */
+@font-face {
+  font-family: roboto-condensed-fallback;
+  size-adjust: 88.82%;
+  src: local('Arial');
+}
+
+@font-face {
+  font-family: roboto-fallback;
+  size-adjust: 99.529%;
+  src: local('Arial');
+}
+
+/* Graphik XXCond Bold is an ULTRA-condensed display face used at up to 100px for
+   h1/h2 — its glyphs are only ~50.6% the width of Arial (measured), so a normal
+   Arial fallback wraps the headline to ~1.85× the height and the page jumps
+   hundreds of px when the web font swaps in (huge CLS). This fallback squeezes
+   Arial to the same advance width + matches Graphik's vertical metrics, so the
+   pre-swap headline occupies almost the same box → near-zero CLS. */
+@font-face {
+  font-family: graphik-xxcond-fallback;
+  src: local('Arial Narrow'), local('Arial');
+  size-adjust: 50.6%;
+  ascent-override: 141%;   /* Graphik ascent (~0.715em) ÷ size-adjust 0.506 */
+  descent-override: 42%;   /* Graphik descent (~0.215em) ÷ 0.506 */
+  line-gap-override: 0%;
+}
+
+@media (width >= 768px) {
+  :root {
+    /* heading + body sizes — desktop (source scale jumps at the 768 tier) */
+    --heading-font-size-xxl: 100px;
+    --heading-font-size-xl: 76px;
+    --heading-font-size-l: 56px;
+    --heading-font-size-m: 18px;
+    --heading-font-size-s: 18px;
+    --heading-font-size-xs: 16px;
+    --body-font-size-m: 18px;
+  }
+}
+
+body {
+  display: none;
+  margin: 0;
+  background-color: var(--background-color);
+
+  /* Source default body/copy text is pure BLACK (measured on article + home
+     templates: default <p> = rgb(0,0,0)). --text-color (#333) is reserved for
+     the specific components that measured #333 (quote-tweet body, image
+     captions), so set the default here to #000 rather than repurposing the
+     token. */
+  color: var(--dark-color);
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-m);
+  line-height: var(--body-line-height);
+}
+
+body.appear {
+  display: block;
+}
+
+header {
+  /* reserve at least the nav height to avoid CLS before the block loads, but
+     let the header grow to fit its real content (nav bar + breadcrumb row) so
+     the hero below it starts at the correct offset, not under the breadcrumb */
+  min-height: var(--nav-height);
+}
+
+header .header,
+footer .footer {
+  visibility: hidden;
+}
+
+header .header[data-block-status="loaded"],
+footer .footer[data-block-status="loaded"] {
+  visibility: visible;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0.8em;
+  margin-bottom: 0.25em;
+  font-family: var(--heading-font-family);
+
+  /* Source renders the condensed display face at weight 500 (single Graphik
+     XXCond Bold cut), not 700 — match the source's computed weight. */
+  font-weight: 500;
+  line-height: 1.1;
+  scroll-margin: 40px;
+}
+
+h1 { font-size: var(--heading-font-size-xxl); }
+h2 { font-size: var(--heading-font-size-xl); }
+h3 { font-size: var(--heading-font-size-l); }
+
+/* h4-h6 use the semibold body-style face at smaller sizes (per source) */
+h4,
+h5,
+h6 {
+  font-family: var(--heading-semibold-font-family);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+h4 { font-size: var(--heading-font-size-m); }
+h5 { font-size: var(--heading-font-size-s); }
+h6 { font-size: var(--heading-font-size-xs); }
+
+/* Default-content (prose) headings render pure black on the source — e.g. the
+   financials "Annual Reports" list, section intros. Blocks/hero that need a
+   different colour (white on a photo, brand orange, etc.) set their own, so this
+   only colours plain authored headings that would otherwise inherit body #333. */
+main .default-content-wrapper :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--dark-color);
+}
+
+p,
+dl,
+ol,
+ul,
+pre,
+blockquote {
+  margin-top: 0.8em;
+  margin-bottom: 0.25em;
+}
+
+/* Default-content lists (e.g. the financials PDF-link list) — the source renders
+   a disc bullet with a 40px indent; links inside stay plain underlined text links
+   (EDS only button-decorates standalone <p><a>, never <li><a>). Placed AFTER the
+   generic `ul` rule above to satisfy no-descending-specificity. */
+main .default-content-wrapper ul {
+  padding-left: 40px;
+  list-style: disc;
+}
+
+main .default-content-wrapper li {
+  color: var(--dark-color); /* source default copy is black (matches body) */
+  line-height: 1.4286; /* source list line-height (22.857/25.714), not the fixed 24 */
+}
+
+main .default-content-wrapper li + li {
+  margin-top: 10px; /* source spaces successive list items ~10px */
+}
+
+code,
+pre {
+  font-size: var(--body-font-size-s);
+}
+
+pre {
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--light-color);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+main > div {
+  margin: 40px 16px;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+/* links (source uses underlined links) */
+a:any-link {
+  color: var(--link-color);
+  text-decoration: underline;
+  overflow-wrap: break-word;
+}
+
+a:hover {
+  color: var(--link-hover-color);
+  text-decoration: underline;
+}
+
+/* buttons */
+p.button-wrapper {
+  margin: 12px 0;
+}
+
+a.button:any-link,
+button.button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0;
+  border: 2px solid var(--brand-blue);
+  border-radius: 0;
+  padding: 0.55em 1.4em;
+  background-color: var(--brand-blue);
+  color: #fff;
+  font: inherit;
+  font-family: var(--heading-semibold-font-family);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.button:hover,
+a.button:focus-visible,
+button.button:hover,
+button.button:focus-visible {
+  border-color: var(--link-hover-color);
+  background-color: var(--link-hover-color);
+  color: #fff;
+  text-decoration: none;
+}
+
+a.button[aria-disabled="true"],
+button.button:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+a.button.primary,
+button.button.primary {
+  border-color: var(--text-color);
+  background-color: var(--text-color);
+  color: var(--background-color);
+}
+
+a.button.primary:hover,
+a.button.primary:focus-visible,
+button.button.primary:hover,
+button.button.primary:focus-visible {
+  border-color: var(--dark-color);
+  background-color: var(--dark-color);
+  color: var(--light-color);
+}
+
+a.button.primary[aria-disabled="true"],
+a.button.primary[aria-disabled="true"]:hover,
+a.button.primary[aria-disabled="true"]:focus-visible,
+button.button.primary:disabled,
+button.button.primary:disabled:hover,
+button.button.primary:disabled:focus-visible {
+  background-color: var(--light-color);
+  border-color: var(--light-color);
+  color: var(--dark-color);
+}
+
+a.button.secondary,
+button.button.secondary {
+  border-color: var(--text-color);
+  background-color: transparent;
+  color: var(--text-color);
+}
+
+a.button.secondary:hover,
+a.button.secondary:focus-visible,
+button.button.secondary:hover,
+button.button.secondary:focus-visible {
+  border-color: var(--dark-color);
+  background-color: var(--light-color);
+  color: var(--dark-color);
+}
+
+a.button.secondary[aria-disabled="true"],
+a.button.secondary[aria-disabled="true"]:hover,
+a.button.secondary[aria-disabled="true"]:focus-visible,
+button.button.secondary:disabled,
+button.button.secondary:disabled:hover,
+button.button.secondary:disabled:focus-visible {
+  background-color: var(--light-color);
+  border-color: var(--light-color);
+  color: var(--dark-color);
+}
+
+/* high-impact call-to-action */
+a.button.accent,
+button.button.accent {
+  border-color: var(--link-color);
+  background-color: var(--link-color);
+  color: var(--background-color);
+}
+
+a.button.accent:hover,
+a.button.accent:focus-visible,
+button.button.accent:hover,
+button.button.accent:focus-visible {
+  border-color: var(--link-hover-color);
+  background-color: var(--link-hover-color);
+}
+
+a.button.accent[aria-disabled="true"],
+a.button.accent[aria-disabled="true"]:hover,
+a.button.accent[aria-disabled="true"]:focus-visible,
+button.button.accent:disabled,
+button.button.accent:disabled:hover,
+button.button.accent:disabled:focus-visible {
+  background-color: var(--light-color);
+  border-color: var(--light-color);
+  color: var(--dark-color);
+}
+
+main img {
+  max-width: 100%;
+  width: auto;
+  height: auto;
+}
+
+.icon {
+  display: inline-block;
+  height: 24px;
+  width: 24px;
+}
+
+.icon img {
+  height: 100%;
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------
+   Shared 12-column grid — reproduces the source's Bootstrap-3 system
+   (12 cols, 30px gutter, centered container 720/970/1170 at 768/992/1200).
+   Set ONCE here; blocks consume .container-max / .grid-12 / .grid-col-*.
+   See docs/source-css-system.md §3 and skills/grid-system.
+   ------------------------------------------------------------------ */
+.container-max {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin-inline: auto;
+  padding-inline: 15px; /* fluid phone tier: 15px side gutter */
+}
+
+.grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  column-gap: var(--grid-gap);
+}
+
+/* common source spans (col-* → grid span) */
+.grid-col-3 { grid-column: span 3; }  /* col-lg-3 (1/4) */
+.grid-col-4 { grid-column: span 4; }  /* col-md-4 (1/3) */
+.grid-col-6 { grid-column: span 6; }  /* col-*-6 (1/2)  */
+.grid-col-8 { grid-column: span 8; }  /* col-md-8 (2/3) */
+.grid-col-9 { grid-column: span 9; }  /* col-lg-9 (3/4) */
+
+@media (width >= 768px) {
+  .container-max {
+    max-width: 720px;
+    padding-inline: 0;
+  }
+}
+
+@media (width >= 992px) {
+  .container-max { max-width: 970px; }
+}
+
+@media (width >= 1200px) {
+  .container-max { max-width: 1170px; }
+}
+
+/* sections */
+main > .section {
+  margin: 40px 0;
+}
+
+/* Section content sits on the SOURCE grid. MOBILE: the source lays ALL content in
+   ONE FIXED 328px column, CENTERED — its side margins GROW with the viewport
+   (31px @390, 51px @430), so nothing ever reaches the floating Donate tab (fixed
+   at the right edge, left ~x377). This is a SINGLE GLOBAL width rule: every
+   section content wrapper (default content AND block wrappers) shares the 328px
+   column on mobile, so blocks no longer need their own per-block mobile caps.
+   From 768 it opens to the Bootstrap-3 container widths (720/970/1170) per tier
+   (layered in the media queries below), matching the source grid. Full-bleed
+   blocks (stats/cards-stats bands, cards-expand) set their own width + negative
+   margin on the BLOCK element to escape this wrapper — unaffected. */
+main > .section > div {
+  max-width: 328px;
+  margin-inline: auto;
+  padding: 0;
+}
+
+main > .section:first-of-type {
+  margin-top: 0;
+}
+
+/* An empty section (no authored content in it) must not contribute its default
+   40px margin — otherwise it opens a white gap. This can appear as a trailing
+   section before the footer, which would push the footer away from the flush
+   black separator strip above it. */
+main > .section:empty {
+  margin: 0;
+}
+
+@media (width >= 768px) {
+  main > .section > div {
+    max-width: 720px;
+    padding: 0;
+  }
+}
+
+@media (width >= 992px) {
+  main > .section > div {
+    max-width: 970px;
+  }
+}
+
+@media (width >= 1200px) {
+  main > .section > div {
+    max-width: 1170px;
+  }
+}
+
+/* Vertical rhythm INSIDE a section between successive wrappers. EDS gives every
+   block/default-content wrapper `margin: 0`, so wrappers sit flush against each
+   other — on the source these are clearly separated. Add a top gap in BOTH
+   directions so no block ever abuts its neighbour:
+     1. any wrapper that FOLLOWS a block wrapper (block → block, block → text), and
+     2. any BLOCK wrapper that follows default content (text → block).
+   The one intentional exception (kept tight) is a default-content wrapper that is
+   only a lead-in HEADING immediately introducing the block below it — but a full
+   default-content paragraph run before a block still needs the gap, so we space
+   the block itself in case 2. Mobile uses a slightly smaller gap. */
+main .section > .default-content-wrapper + div[class$="-wrapper"]:not(.default-content-wrapper),
+main .section > div[class$="-wrapper"]:not(.default-content-wrapper) + div[class$="-wrapper"] {
+  margin-top: 32px;
+}
+
+@media (width >= 768px) {
+  main .section > .default-content-wrapper + div[class$="-wrapper"]:not(.default-content-wrapper),
+  main .section > div[class$="-wrapper"]:not(.default-content-wrapper) + div[class$="-wrapper"] {
+    margin-top: 40px;
+  }
+}
+
+/* section metadata */
+main .section.light {
+  background-color: var(--light-color);
+  margin: 0;
+  padding: 40px 0;
+}
+
+/* light-blue support/cards band (from source #e2f7ff).
+   `highlight` is the legacy alias; `section-blue` is the semantic, self-describing
+   name — both paint the SECTION background so any block/default content inside
+   sits on the band (the color is never baked into a block). */
+main .section.highlight,
+main .section.section-blue {
+  background-color: var(--section-blue-bg);
+  margin: 0;
+  padding: 56px 0;
+}
+
+/* yellow/cream impact band (source #FFEFBE) — semantic section color, applied to
+   the SECTION (e.g. the cards-stats section) rather than the cards block itself.
+   Source band vertical padding: 16px on mobile → 32px from the 768 tier. */
+main .section.section-yellow {
+  background-color: var(--section-yellow-bg);
+  margin: 0;
+  padding: 16px 0;
+}
+
+@media (width >= 768px) {
+  main .section.section-yellow {
+    padding: 32px 0;
+  }
+}
+
+/* A yellow band whose content is a COLUMNS block (image+text row — e.g.
+   get-involved's Impact Societies / Planned Giving) sits in a much TALLER band on
+   the source: the nested AEM containers stack padding so the band-top→content gap
+   is ~137px top / ~140px bottom (not the 32px a bare section-yellow gives). The
+   `center-intro` bands (who-we-are leadership, corporate) lead with a centered
+   intro (default content first) and keep the tighter 32px, so scope this to a
+   section-yellow that leads DIRECTLY with a columns block and is NOT a center-intro band. */
+@media (width >= 992px) {
+  main .section.section-yellow:not(.center-intro):has(> .columns-wrapper:first-child) {
+    padding: 68px 0 70px;
+  }
+}
+
+/* center-intro — center ONLY the leading default-content wrapper (an intro heading
+   ± paragraph ± CTA) that sits ABOVE a columns block, so the columns keep their
+   normal left-aligned two-column layout. Distinct from `center` (which centers ALL
+   the section's default content). The intro spans the full content width, centered.
+   Composes with any background/width style (e.g. `section-yellow, center-intro` for
+   a yellow band whose leading heading is centered). */
+main .section.center-intro > .default-content-wrapper:first-child {
+  margin-inline: auto;
+  text-align: center;
+}
+
+main .section.center-intro > .default-content-wrapper:first-child .button-wrapper {
+  text-align: center;
+}
+
+/* dark band variant (e.g. stats) */
+main .section.dark {
+  background-color: var(--stats-band-bg);
+  color: #fff;
+  margin: 0;
+  padding: 40px 0;
+}
+
+/* ------------------------------------------------------------------
+   Page themes. A `Theme` metadata row adds its value as a <body> class via the
+   stock decorateTemplateAndTheme() — NO extra CSS/JS fetch (unlike `Template`),
+   so a CSS-only interior page layers cleanly here in the global sheet.
+
+   leadership — the Leadership & Staff page (who-we-are/leadership-and-staff).
+   The source page's H1 sits ~41px below the breadcrumb with no heading margin,
+   whereas our global `h1` carries a 0.8em (~80px at 100px) top margin. Zero that
+   margin and set the first section's top padding to the measured source gap.
+   ------------------------------------------------------------------ */
+body.leadership main > .section:first-of-type {
+  padding-top: 41px;
+}
+
+body.leadership main h1 {
+  margin-top: 0;
+}
+
+/* general — the interior marketing pages (who-we-are, what-we-do, get-involved,
+   our-impact). Their standalone CTAs (LEARN MORE) are the source's SOLID BLUE
+   pill: brand-blue bg, white, 3px radius, 18px Graphik Semibold uppercase, 40px
+   tall. decorateButtons() wraps these in <strong> → the `.primary` (black)
+   treatment, so override EVERY button variant in this theme back to source blue.
+   Scoped to `body.general main` and listing .primary/.secondary/.accent so it
+   outspecifies those variant rules regardless of which one decorateButtons set. */
+body.general main a.button:any-link,
+body.general main a.button.primary,
+body.general main a.button.secondary,
+body.general main a.button.accent {
+  /* source CTA box: border-box, 40px tall, 14px horizontal padding, 1px border.
+     The explicit height + flex centering (from the base .button rule) reproduces
+     the source's fixed 40px pill; horizontal padding + 1px letter-spacing brings
+     the width to the source's ~170px naturally (no fixed width). */
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 14px;
+  background-color: var(--brand-blue);
+  color: var(--background-color);
+  font-size: 18px;
+
+  /* the source CTA renders "Graphik Semibold" at weight 400 — the semibold face
+     is baked into the font file, so weight 600 synthetically over-bolds it. */
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: 1px;
+}
+
+body.general main a.button:hover,
+body.general main a.button:focus-visible,
+body.general main a.button.primary:hover,
+body.general main a.button.primary:focus-visible,
+body.general main a.button.secondary:hover,
+body.general main a.button.secondary:focus-visible,
+body.general main a.button.accent:hover,
+body.general main a.button.accent:focus-visible {
+  border-color: transparent;
+  background-color: var(--link-hover-color);
+  color: var(--background-color);
+}
+
+/* A general-page intro section that ENDS IN A CTA button (e.g. the "Our
+   Supporters" band before the cards) leaves the button flush against the section
+   edge — its 12px button-wrapper bottom margin collapses into the section boundary
+   (section padding-bottom is 0), so the following section sits only the 40px
+   section-margin away (button→next-content 40px vs the source's ~70px). Add
+   guaranteed bottom breathing room via PADDING (padding doesn't collapse) when the
+   section's last content is a button, independent of the trailing content type. */
+body.general main > .section > .default-content-wrapper:last-child > p.button-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+body.general main > .section:has(> .default-content-wrapper:last-child > p.button-wrapper:last-child) {
+  padding-bottom: 30px;
+}
+
+/* ------------------------------------------------------------------
+   Generic, reusable, block-agnostic SECTION layout styles. Composable —
+   author them together in Section Metadata (e.g. style: "center, narrow").
+   These style the SECTION's default content only; blocks carry their own
+   width/layout, so do NOT apply `narrow` to sections whose purpose is a block.
+   ------------------------------------------------------------------ */
+
+/* center — center the section's content column and its text. Keeps the default
+   section width unless combined with `narrow`. Text is pure black to match the
+   brand headings; sizes inherit the global type scale. */
+main .section.center > div {
+  margin-inline: auto;
+  text-align: center;
+}
+
+main .section.center h1,
+main .section.center h2,
+main .section.center h3,
+main .section.center h4,
+main .section.center h5,
+main .section.center h6,
+main .section.center p {
+  color: #000;
+  text-align: center;
+}
+
+/* narrow — constrain the section's content to a single narrower measure than
+   the default grid (max 810px), CONSISTENT across viewports. On MOBILE it caps to
+   the source's 328px content column (centered) like all other content, so it stays
+   clear of the floating Donate tab; from 768 it opens to the 810px measure. Used
+   for short intros / statements (e.g. "Ready on the court. Ready for life."). */
+main .section.narrow > div {
+  max-width: 328px;
+  margin-inline: auto;
+}
+
+@media (width >= 768px) {
+  main .section.narrow > div {
+    max-width: 810px;
+  }
+}
+
+/* Generic centered-text width modifiers (used WITH `center`). The source lays its
+   centered copy bands on the 12-col grid at column spans NARROWER than the full
+   content width — measured on who-we-are:
+     • medium — the "mission intro" band: 708 @768 → 772 @992 → 970 @1200
+     • wide   — the "supporters" band:    708 @768 → 902 @992 → 1170 @1200
+   Each breakpoint is set explicitly because `.section.medium` outspecifies the
+   global `main > .section > div` width rule (which would otherwise leave the
+   mobile 328 cap in place at the larger tiers). Mobile stays the 328 column. */
+main .section.medium > div,
+main .section.wide > div {
+  max-width: 328px;
+  margin-inline: auto;
+}
+
+@media (width >= 768px) {
+  main .section.medium > div,
+  main .section.wide > div {
+    max-width: 708px;
+  }
+}
+
+@media (width >= 992px) {
+  main .section.medium > div {
+    max-width: 772px;
+  }
+
+  main .section.wide > div {
+    max-width: 902px;
+  }
+}
+
+@media (width >= 1200px) {
+  main .section.medium > div {
+    max-width: 970px;
+  }
+
+  main .section.wide > div {
+    max-width: 1170px;
+  }
+}
+
+/* map-wide — a very wide, near-full-viewport content band (WIDER than the 1170
+   content grid), for the what-we-do NJTL map image. The source sizes the map to
+   the viewport minus a small responsive side gutter (measured: ~8px @390, ~12px
+   @768, ~30px @992+ → 374/744/932/1220/1380 across 390/768/992/1280/1440). Used
+   WITH `center` so the heading above it stays centered on the normal measure. */
+main .section.center.map-wide > div {
+  max-width: none;
+  width: calc(100vw - 16px);
+  margin-inline: auto;
+}
+
+@media (width >= 768px) {
+  main .section.center.map-wide > div {
+    width: calc(100vw - 24px);
+  }
+}
+
+@media (width >= 992px) {
+  main .section.center.map-wide > div {
+    width: calc(100vw - 60px);
+  }
+}
+
+/* split-left — a block-agnostic TWO-COLUMN section: a block sits ENTIRELY in the
+   left column and the default-content text that FOLLOWS it sits ENTIRELY in the
+   right column (two equal columns, 30px gutter) — exactly like the source article
+   that places an embedded tweet beside its body copy. Unlike a float, the two
+   columns are independent grid cells: the taller right column NEVER wraps back
+   under the left one. Any default content BEFORE the block (a heading) spans the
+   full width above both columns.
+
+   Because EDS breaks a section into separate wrappers (heading → block → body),
+   we grid the SECTION and place its wrappers — no block-in-block needed. The grid
+   uses the SAME default page content width as the rest of the site (720/970/1170
+   per tier), so it's as wide as the home page — not narrowed.
+
+   MOBILE (<768): no grid. The global 328px rule stacks everything in the single
+   content column (heading, then tweet, then body). The two-column split is a
+   desktop affordance only. */
+@media (width >= 768px) {
+  /* the section becomes the centered content-width grid (matches the page width) */
+  main > .section.split-left {
+    box-sizing: border-box;
+    max-width: 720px;
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 30px;
+    align-items: start;
+  }
+
+  /* wrappers are grid items now — drop the global per-wrapper width cap/centering.
+     Default: span both columns (this is the heading row above the split). */
+  main .section.split-left > div {
+    grid-column: 1 / -1;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  /* the block wrapper → left column, second row */
+  main .section.split-left > div[class$='-wrapper']:not(.default-content-wrapper) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* the default content that FOLLOWS the block → right column, same row */
+  main .section.split-left
+    > div[class$='-wrapper']:not(.default-content-wrapper)
+    ~ .default-content-wrapper {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@media (width >= 992px) {
+  main > .section.split-left {
+    max-width: 970px;
+  }
+}
+
+@media (width >= 1200px) {
+  main > .section.split-left {
+    max-width: 1170px;
+  }
+}
+
+/* split-right — mirror of split-left: default-content text sits ENTIRELY in the
+   LEFT column and a block sits ENTIRELY in the RIGHT column (two equal columns,
+   30px gutter). Author the TEXT first, then the block (e.g. a video-embed), so on
+   MOBILE they stack text→block in reading order; from 768 the section becomes the
+   centered content-width grid and the block moves to the right column beside the
+   text. Matches the source's "text left / video right" article layout. */
+@media (width >= 768px) {
+  main > .section.split-right {
+    box-sizing: border-box;
+    max-width: 720px;
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 30px;
+    align-items: start;
+  }
+
+  /* wrappers are grid items — drop the global per-wrapper cap/centering. Default:
+     span both columns (a heading row above the split, if any). */
+  main .section.split-right > div {
+    grid-column: 1 / -1;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  /* the block wrapper → RIGHT column, second row */
+  main .section.split-right > div[class$='-wrapper']:not(.default-content-wrapper) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  /* the default content that PRECEDES the block → LEFT column, same row */
+  main .section.split-right
+    > .default-content-wrapper:has(~ div[class$='-wrapper']:not(.default-content-wrapper)) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+
+@media (width >= 992px) {
+  main > .section.split-right {
+    max-width: 970px;
+  }
+}
+
+@media (width >= 1200px) {
+  main > .section.split-right {
+    max-width: 1170px;
+  }
+}
+
+/* split-even — a symmetric, block-agnostic TWO-COLUMN section for TWO blocks
+   side by side (e.g. a Quote block left + a donation form block right, as on the
+   source's Chris Evert campaign page). Unlike split-left/right (which key off
+   default-content vs block to decide sides), this simply flows EACH direct
+   wrapper into its own equal column in source order — first→left, second→right —
+   so it works for any pair of blocks without nth-child logic. Same centered page
+   content width as the rest of the site (720/970/1170 per tier).
+
+   MOBILE (<768): no grid — the global 328px rule stacks the two blocks in the
+   single content column, in authored order. Two-column split is desktop-only. */
+@media (width >= 768px) {
+  main > .section.split-even {
+    box-sizing: border-box;
+    max-width: 720px;
+    margin-inline: auto;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    column-gap: 30px;
+    align-items: start;
+  }
+
+  /* wrappers are grid items — drop the global per-wrapper width cap/centering.
+     min-width:0 stops a wide block's min-content from stealing >1fr (keeps the
+     two columns equal); margin-top:0 cancels the global inter-wrapper spacing
+     (which would otherwise push the 2nd block down out of row alignment). */
+  main .section.split-even > div {
+    max-width: none;
+    margin-inline: 0;
+    min-width: 0;
+  }
+
+  /* cancel the global inter-wrapper spacing (which pushes a 2nd block down out
+     of row alignment) — matched at equal specificity to the rule that adds it.
+     This top-aligns the donation form (a `donate-embed` block) with the sibling
+     quote block, matching the source (form top === quote top). Centering of the
+     ~376px FundraiseUp iframe within its column lives in the block's own CSS
+     (blocks/donate-embed/donate-embed.css). */
+  main .section.split-even > div[class$='-wrapper'] + div[class$='-wrapper'] {
+    margin-top: 0;
+  }
+}
+
+@media (width >= 992px) {
+  main > .section.split-even {
+    max-width: 970px;
+  }
+}
+
+@media (width >= 1200px) {
+  main > .section.split-even {
+    max-width: 1170px;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Section separator bands — authored as Spacer blocks in their own sections
+   (see blocks/spacer + tools/importer). The source stacks full-bleed 17px
+   colored strips between sections. The spacer section itself owns no margin
+   (blocks/spacer.css zeroes it); the gaps around each strip are tuned here so
+   they match the source: blue strips float with whitespace after the video and
+   impact sections, the black strip butts the footer flush.
+   ------------------------------------------------------------------ */
+
+/* stylelint-disable no-descending-specificity */
+
+/* toc-profile tabs: collapse a spacer section that borders a HIDDEN panel. When
+   a tab hides a panel section (`.toc-profile-panel[hidden]`), the spacer authored
+   next to it would otherwise stay and open a large empty gap before the visible
+   panel. Hide the spacer that immediately precedes or follows a hidden panel. */
+main > .section.spacer-container:has(+ .section.toc-profile-panel[hidden]),
+main > .section.toc-profile-panel[hidden] + .section.spacer-container {
+  display: none;
+}
+
+/* Tighten the gap from the tab bar down to the active panel to the source's
+   ~32px. The toc section, an optional spacer, and the panel section each carry
+   40px section margins that stack into a large gap; zero the toc's bottom margin
+   and cap the visible panel's top margin so the tab-row→panel distance matches
+   the source regardless of which panel (and how many orphaned spacers) sit
+   between them. */
+main > .section.toc-profile-container {
+  margin-bottom: 0;
+}
+
+main > .section.toc-profile-container ~ .section.toc-profile-panel:not([hidden]) {
+  margin-top: 32px;
+}
+
+/* A spacer that survives between the toc and the visible first panel (its
+   neighbours are the toc + a VISIBLE panel, so it isn't collapsed above) would
+   re-inflate the gap — zero it so only the 32px panel margin remains. */
+main > .section.toc-profile-container + .section.spacer-container {
+  display: none;
+}
+
+/* Blue spacer floating after the video / impact feature sections: give the
+   spacer section whitespace above and below (source ~56 above / 76 below on
+   desktop, 40/60 on mobile). */
+main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) {
+  margin: 40px 0 60px;
+}
+
+/* The blue spacer immediately before the light-blue support section sits close:
+   a THIN white gap below it (a 17px white "border" the same height as the
+   strip), then the support section's own top padding gives the heading its room
+   (matches the source ~82px strip-to-heading gap, not the full 76px float). */
+main > .section.spacer-container:has(.spacer[style*='cards-band-bg']):has(+ .section.highlight),
+main > .section.spacer-container:has(.spacer[style*='cards-band-bg']):has(+ .section.section-blue) {
+  margin-bottom: 17px;
+}
+
+main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) + .section.highlight,
+main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) + .section.section-blue {
+  margin-top: 0;
+}
+
+/* Yellow strip before the yellow band (who-we-are leadership section): the source
+   stacks a ~17px full-bleed yellow strip, a ~17px white gap, then the main yellow
+   band — same colored-spacer pattern as the blue strip above. Whitespace above the
+   strip (float away from the preceding white History section), a thin white gap
+   below it, then the band's own top padding gives the heading its room. */
+main > .section.spacer-container:has(.spacer[style*='section-yellow-bg']) {
+  margin: 40px 0 17px;
+}
+
+main > .section.spacer-container:has(.spacer[style*='section-yellow-bg']) + .section.section-yellow {
+  margin-top: 0;
+}
+
+/* Black spacer before the footer is FLUSH: the support section butts it on top
+   and the footer butts it below, with no white gap. */
+main > .section.spacer-container:has(.spacer[style*='stats-band-bg']) {
+  margin: 0;
+}
+
+/* the support (highlight / section-blue) section butts the black spacer below it */
+main > .section.highlight,
+main > .section.section-blue {
+  margin-bottom: 0;
+}
+
+/* footer butts the black spacer above it (no gap) */
+footer {
+  margin-top: 0;
+}
+/* stylelint-enable no-descending-specificity */
+
+@media (width >= 992px) {
+  main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) {
+    margin: 56px 0 76px;
+  }
+
+  main > .section.spacer-container:has(.spacer[style*='section-yellow-bg']) {
+    margin: 56px 0 17px;
+  }
+}
