@@ -15,6 +15,7 @@ import {
   toCamelCase,
   getMetadata,
 } from './aem.js';
+import { loadTargetEager } from './target-atjs.js';
 
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
   const innerTT = window.trustedTypes.createPolicy('tt-inner', {
@@ -281,6 +282,10 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  // at.js (loaded in head.html, bodyHidingEnabled: true) hides <body> itself
+  // and reveals it once a decision arrives or its own timeout elapses - no
+  // manual await/task-break needed here.
+  loadTargetEager();
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Kick off template CSS but DON'T block the eager render on it — the LCP H1's
