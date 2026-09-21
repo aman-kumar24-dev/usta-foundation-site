@@ -280,6 +280,7 @@ async function loadTemplateJS(name, main) {
 let templateName = null;
 
 async function loadEager(doc) {
+  import('./feroot.js'); 
   document.documentElement.lang = 'en';
   preloadDisplayFont();
   decorateTemplateAndTheme();
