@@ -4,9 +4,8 @@
 // open-source release: https://github.com/adobe/appmeasurement (v2.27.0,
 // matching the version seen in a real captured beacon on ustafoundation.com).
 //
-// Only imported once consent-check.js has determined the visitor consented
-// (see consent-check.js's loadConsented()) - this file assumes consent is
-// already granted; it does not check it again.
+// This site has no consent-management requirement, so this is imported
+// unconditionally from loadDelayed() in scripts.js.
 
 const APP_MEASUREMENT_PATH = `${window.hlx.codeBasePath}/scripts/vendor/AppMeasurement.js`;
 

@@ -11,10 +11,8 @@
 // runs (from scripts.js's loadEager()), at.js has already loaded and run -
 // this file only needs to trigger the view evaluation.
 //
-// Runs unconditionally, regardless of consent state: head.html is static,
-// so the at.js <script> tag itself cannot be gated behind a runtime
-// consent check the way consented.js/AppMeasurement.js can. Confirmed
-// deliberate choice - see PR discussion.
+// This site has no consent-management requirement, so this runs
+// unconditionally - same as consented.js/AppMeasurement.js.
 //
 // Docs referenced:
 // https://experienceleague.adobe.com/en/docs/target-dev/developer/client-side/deploy-at-js/implement-target-without-a-tag-manager
