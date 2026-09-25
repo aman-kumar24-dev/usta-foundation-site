@@ -382,7 +382,7 @@ async function getAndApplyOffers() {
 //     withWebGLRenderer: false,
 //   });
 //   document.addEventListener('at-library-loaded', () => getAndApplyOffers());
-}
+// }
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
