@@ -15,7 +15,6 @@ import {
   toCamelCase,
   getMetadata,
 } from './aem.js';
-import { loadTargetEager } from './target-atjs.js';
 
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
   const innerTT = window.trustedTypes.createPolicy('tt-inner', {
@@ -280,12 +279,90 @@ async function loadTemplateJS(name, main) {
 // Template name resolved in loadEager (via CSS load), consumed in loadLazy for JS.
 let templateName = null;
 
+// Adobe Target (at.js 2.0), per aem.live's own EDS-specific pattern:
+// https://www.aem.live/developer/target-integration
+// Uses at.js's headless getOffers()/applyOffers() API instead of triggerView()'s
+// automatic DOM rendering, so offer application can wait for EDS's own async
+// block/section decoration instead of racing it - see onDecoratedElement below.
+function initATJS(path, config) {
+  window.targetGlobalSettings = config;
+  return new Promise((resolve) => {
+    import(path).then(resolve);
+  });
+}
+
+function onDecoratedElement(fn) {
+  // Apply propositions to all already decorated blocks/sections
+  if (document.querySelector('[data-block-status="loaded"],[data-section-status="loaded"]')) {
+    fn();
+  }
+
+  const observer = new MutationObserver((mutations) => {
+    if (mutations.some((m) => m.target.tagName === 'BODY'
+      || m.target.dataset.sectionStatus === 'loaded'
+      || m.target.dataset.blockStatus === 'loaded')) {
+      fn();
+    }
+  });
+  // Watch sections and blocks being decorated async
+  observer.observe(document.querySelector('main'), {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['data-block-status', 'data-section-status'],
+  });
+  // Watch anything else added to the body
+  observer.observe(document.querySelector('body'), { childList: true });
+}
+
+function toCssSelector(selector) {
+  return selector.replace(/(\.\S+)?:eq\((\d+)\)/g, (_, clss, i) => `:nth-child(${Number(i) + 1}${clss ? ` of ${clss})` : ''}`);
+}
+
+function getElementForOffer(offer) {
+  const selector = offer.cssSelector || toCssSelector(offer.selector);
+  return document.querySelector(selector);
+}
+
+function getElementForMetric(metric) {
+  const selector = toCssSelector(metric.selector);
+  return document.querySelector(selector);
+}
+
+async function getAndApplyOffers() {
+  const response = await window.adobe.target.getOffers({ request: { execute: { pageLoad: {} } } });
+  const { options = [], metrics = [] } = response.execute.pageLoad;
+  onDecoratedElement(() => {
+    window.adobe.target.applyOffers({ response });
+    // keeping track of offers that were already applied
+    options.forEach((o) => { o.content = o.content.filter((c) => !getElementForOffer(c)); });
+    // keeping track of metrics that were already applied
+    metrics.map((m, i) => (getElementForMetric(m) ? i : -1))
+      .filter((i) => i >= 0)
+      .reverse()
+      .forEach((i) => metrics.splice(i, 1));
+  });
+}
+
+// Testing Target only, on the Code & Theory account - not USTA's. Swap back to
+// USTA's real clientCode/serverDomain/imsOrgId before this ships for real.
+let atjsPromise = Promise.resolve();
+if (getMetadata('target')) {
+  atjsPromise = initATJS('./at.js', {
+    clientCode: 'codeandtheoryamerpar',
+    serverDomain: 'codeandtheoryamerpar.tt.omtrdc.net',
+    imsOrgId: '6ED976C95CFFA6810A495C73@AdobeOrg',
+    bodyHidingEnabled: false,
+    cookieDomain: window.location.hostname,
+    pageLoadEnabled: false,
+    secureOnly: true,
+    viewsEnabled: false,
+    withWebGLRenderer: false,
+  });
+  document.addEventListener('at-library-loaded', () => getAndApplyOffers());
+}
+
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
-  // at.js (loaded in head.html, bodyHidingEnabled: true) hides <body> itself
-  // and reveals it once a decision arrives or its own timeout elapses - no
-  // manual await/task-break needed here.
-  loadTargetEager();
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Kick off template CSS but DON'T block the eager render on it — the LCP H1's
@@ -297,7 +374,15 @@ async function loadEager(doc) {
   if (main) {
     decorateMain(main);
     document.body.classList.add('appear');
-    await loadSection(main.querySelector('.section'), waitForFirstImage);
+    // wait for at.js to finish loading
+    await atjsPromise;
+    // break up possible long tasks before showing the LCP block to reduce TBT
+    await new Promise((resolve) => {
+      window.setTimeout(async () => {
+        await loadSection(main.querySelector('.section'), waitForFirstImage);
+        resolve();
+      }, 0);
+    });
   }
   templateName = await templateCssPromise;
 
