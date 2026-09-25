@@ -4,3 +4,4 @@ tools/importer/*.bundle.js
 tools/importer/**/*.bundle.js
 tools/importer/backups/**
 scripts/at.js
+scripts/vendor

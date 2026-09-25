@@ -445,7 +445,9 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
-  import('./consent-check.js');
+  // This site has no consent-management requirement, so Analytics loads
+  // unconditionally instead of going through a consent check first.
+  import('./consented.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
   // load anything that can be postponed to the latest here
@@ -455,7 +457,7 @@ async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   // Defer the delayed phase ~3s (EDS convention) so non-critical third parties
-  // (the FundraiseUp donate tab, the consent gate) load well after the page is
+  // (the FundraiseUp donate tab, Analytics) load well after the page is
   // interactive — keeps them out of the initial critical path / "unused JS".
   window.setTimeout(() => loadDelayed(), 3000);
 }
