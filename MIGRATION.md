@@ -1404,6 +1404,18 @@ black, centered, 22/24.2 → 28/30.8 @768). Verified @1200 (28/30.8 wt700 italic
 screenshot confirms the slant matches the source. Lesson reinforced: walk to the DEEPEST text-bearing element
 (`<h4><b><i>`), not just the first wrapper — each nested tag can add weight/style.
 
+### 2026-09-24 — Header resize jitter fix at 991px/992px breakpoint (all pages)
+Addressed a cross-page resize issue where nav content appeared to slide laterally when
+crossing the desktop breakpoint (`991px ↔ 992px`). Root cause: on breakpoint change,
+the mobile off-canvas `.nav-sections` transform transition could animate while styles
+switched between mobile/desktop states.
+- **Fix (`blocks/header/header.js`):** in the `isDesktop` media-query `change`
+  handler, temporarily force `navSections.style.transition = 'none'`, reset nav
+  state (`aria-expanded='false'`, close dropdowns), then remove the inline
+  transition on the next animation frame.
+- **Result:** prevents unintended resize-time horizontal sliding while preserving
+  normal menu behavior after the breakpoint settles.
+
 ### 2026-09-06 — quote-image: attribution is ITALIC (source wraps it in <i>) — reverted the upright override
 Same deep-element issue on quote-image: the source attribution is `<p>` > **`<i>`** — the `<i>` computes
 **italic**, weight 400, Graphik Regular, 16/24 @390 → 18/24 @1200, right, #000. In the earlier pass I'd wrongly
@@ -3343,6 +3355,96 @@ get-involved use hero TOP (text-up). Pick the variant per page.
 - `decorateButtons` (scripts.js) only buttonizes `<p><a>` wrapped in `<strong>`/`<em>`.
 - SVG-wrapped raster headshots must be rasterized before DA (409). (leadership page.)
 
+### 2026-09-22 — Related Articles is now metadata-driven (list-from / sort-order / max-items / news-tags / pages)
+The news template (`templates/news/news.js`) built Related Articles as a fixed "latest-3, newest-first" feed.
+Authors now steer it per page via metadata (mirrors the source AEM list component config in `foundationarticles.csv`):
+- **list-from** `children | tags | static` (default `children`) — resolution ladder, most-specific wins:
+  - `static` → exactly the articles named in **pages** (comma-separated paths; a source `/content/<repo>/…`
+    prefix is auto-stripped to EDS-relative; otherwise matched as-is per request "do nothing" on path fixups).
+  - `tags` → articles sharing ≥1 **news-tags** value with this page. Tags compared by **leaf slug**
+    (`usta:categories/…/usta-foundation` → `usta-foundation`) to match the index's `newstags` leaf. Empty tags → children.
+  - `children` (default) → every article in `/news-index.json` (children == "from news-index.json" per author).
+- **sort-order** `asc | desc` (default `desc`); **max-items** int (default 3).
+- Sort key: `publicationdate`, **falling back to `lastModified`** (republish date) when a pub date is empty.
+- Current page always excluded; result capped at max-items.
+- **Publication Date authoring** comes from the sheet's `publishDate` column: set on the **12** articles that have a
+  real date, left **empty** on the other 60 so runtime falls back to the query-index date. `displayDate()` mirrors the
+  sort fallback for the card's *visible* date — shows `publicationdate` when set, else formats `lastModified` to the
+  same "August 20, 2026" style, else nothing. (NB: index `lastModified` is currently blank for all rows; helix-query
+  populates it from the HTTP `last-modified` header on (re)publish, so the fallback fills in once these drafts ship.)
+- **`readMeta()` helper**: `getMetadata()` matches exact meta names, which works on preview/publish (names normalized
+  to `list-from` etc.) but NOT on local dev serving raw `.plain.html` drafts (names keep label casing `List From`).
+  `readMeta` falls back to a normalized scan so the same page previews in both. NOTE: locally, `scripts.js`'s own
+  `getMetadata('template')` also fails for drafts, so the template JS only auto-runs on **normalized** pages
+  (real `/en/**` content + preview/live) — verified there (frances-tiafoe page: 3 dynamic cards, correct order).
+- Metadata seeded onto **all 72 `content/drafts/rusmeen/*.plain.html`** from the CSV (52 children / 18 tags / 2 static).
+- Verify: lint 0 errors · breakpoint-check ✓ · logic unit-tested vs live index (children/tags×asc,desc/static all correct).
+- **Empty "NEWS" card fix:** the news query index (`include: /**/news/**`) also matched the folder landing page
+  `/en/home/news` (title "News", placeholder image, no date) → it rendered as an empty related card. Fixed two ways:
+  (a) `isArticle()` filter in `fetchIndex()` keeps only paths with a slug **below** `/news/` (`/news/[^/]+`); and
+  (b) `helix-query.yaml` news index now excludes `/**/news`. Verified: filter drops exactly `/en/home/news`, keeps 72.
+
+### 2026-09-22 — Related-articles parity: tag data corrected + modified tie-break (original-vs-ours diff)
+Comparing our pages to the live source (`ustafoundation.com`) surfaced THREE causes of related-article mismatch:
+1. **Tag data was wrong.** KEY INSIGHT: the sheet's `tags` column is the tags-mode **query filter**, NOT each article's
+   own tags. Ground truth is the SOURCE page's `data-tags` attribute — scraped all 73: **70 carry `usta-foundation`**
+   (2 also `usta-news`; 3 untagged: `daymond-john…`, `njtl-essay-grant-recipients-2020`, `…transformative-2-7-million…`).
+   Our index only had `newstags` on 12 (from the earlier import) and even those diverged. **Fix:** synced **News Tags**
+   metadata on all rusmeen drafts from `data-tags` → 69 tagged (67 `usta-foundation` + 2 `usta-foundation,usta-news`),
+   3 rows removed/omitted. (Do NOT re-derive tags from the sheet's filter column — use the source `data-tags`.)
+2. **No tie-break.** Source list component sorts by `orderBy=modified`; many articles share `publicationdate` (esp.
+   `May 06, 2026`) so ties decided the visible set. **Fix:** `templates/news/news.js` sort now falls back to
+   `modifiedValue()` (query-index `lastModified`) on a date tie, respecting asc/desc. Unit-tested with simulated stamps.
+3. **One article never migrated** — `usta-foundation-celebrates-24-outstanding-students-through-caree` (Career Excellence
+   Week, Sept 16 2026) exists on source but NOT in our index/content/drafts/CSV (published after the sheet export).
+   This shifts all **52 children pages** by one (their top-3 slides). NOT fixed this pass — needs a content import.
+- **CAVEATS (not yet visible):** (a) synced tags + tie-break only take effect after the drafts are **published** — the
+  live index still has the old 12-tag data and **`lastModified` is empty for all 73 rows** (helix-query fills it from the
+  HTTP `last-modified` header on (re)publish). Until then the tie-break is a no-op and tag pages use stale data.
+  (b) Even fully corrected, deep date-ties among ~70 same-tag/same-date articles may not byte-match the source's exact order.
+- Verify: lint 0 errors. Gates deferred to post-publish (feature is index-data-dependent).
+
+### 2026-09-22 — Verified 6 PR-#9 test pages by simulating post-publish data; fixed tie-break DIRECTION
+Built a simulation dataset (`/tmp/sim.json`): index publication dates + source `data-tags` + sheet `cq:lastModified`
+(= the index `lastModified` after (re)publish), then ran the exact template algorithm and diffed vs each ORIGINAL's
+rendered related list. Findings:
+- **Tie-break was directional — BUG, now fixed.** Two independent originals prove the source breaks same-date ties by
+  **modified ASCENDING regardless of primary sort** (desc page celebrate-winners: Donnelly@16:00 before GameChanger@22:20;
+  asc page gala: Realize-Dream@15:14:30 before BHM@15:14:41). Old code tied in the primary direction → wrong on desc.
+  Fixed: tie-break is now always `modifiedValue(a)-modifiedValue(b)`.
+- **children/asc pages now MATCH exactly** (tiafoe-houston, njtl-ata → WHM, RFLF-partner, 2023-essay). ✅
+- **children/desc (celebrate-winners): off by one ONLY due to the missing article** (Career Excellence Week). Our slots
+  1–2 == original's 2–3; tie-break correct. Will fully match once that article is imported.
+- **tags pages still diverge — a limitation, not a bug.** The source's tags list is NOT "all same-tag articles sorted by
+  date+modified." On the yonex (tags/asc) page the source shows `pledges-800`/`black-history` (later modified) but SKIPS
+  `2023-njtl-essay`/`six-student` (earlier modified, same May-06 date) that our pure date+modified sort picks. The AEM
+  list component applies additional criteria we can't reconstruct from available data (likely a curated/related-by-topic
+  facet or a different secondary key). Documented as a known gap; children pages are the reliably-matchable case.
+
+### 2026-09-22 — Imported the missing article → children/desc pages now match the source
+`usta-foundation-celebrates-24-outstanding-students-through-caree` (Career Excellence Week, pub **Sept 16 2026**) was
+on the live source but never migrated (published after the CSV export), so it was absent from our index — shifting every
+children/**desc** related list by one. **Imported via the news importer** (profile-driven, NOT hand-authored):
+`run-bulk-import.js --import-script tools/importer/import-news-v1.bundle.js --urls <one-url> --force` → 95.4% completeness,
+saved to `content/en/home/news/…caree.plain.html`. Then added the feature metadata rows (List From=children, Sort Order=desc,
+Max Items=3, News Tags=usta-foundation — it carries `data-tags="usta-foundation"` on source; not in the sheet so fleet
+defaults used) and copied the page to `content/drafts/rusmeen/` (fleet now 74 files). Added its URL to `urls-news.txt`.
+- **Verified (simulated post-publish):** children/desc top-3 now == source exactly — Career-Excellence(Sep16),
+  Donnelly(Sep04), GameChanger(Sep04), including the correct earliest-modified-first tie-break on the two Sep-04 items.
+- Effective after publish (article must enter `/news-index.json`). children/asc pages already matched; this closes desc.
+- Gates: lint 0 errors.
+
+### 2026-09-22 — Static pages fixed (Pages path resolution) — LIVE-VERIFIED
+The 2 static pages resolved only 2 of 3 `Pages`: the entry `…billie-jean-king-at-` (stray trailing dash from the source
+AEM slug) had no match in our index, which has `…billie-jean-king-at` (2025 article) and `…-at-0` (2026 article). Source
+shows the **2025** one. **Fix:** corrected the `Pages` metadata in both static drafts
+(`usta-foundation-receives-transformative-…`, `daymond-john-…`) to `…billie-jean-king-at`. All 3 now resolve.
+- **LIVE-verified** on branch preview (published drafts to DA + previewed): both render exactly
+  Community-Impact-Hub / Billie-Jean-King-2025 / Williams-Family — **matches source**. (All 3 share May 06, so the tie
+  keeps author order — correct for the asc page.)
+- Live-correct count now 5 (2 static + 3 children/desc). children/asc (49) still blocked on empty index `lastModified`.
+- IMPORTANT method note: earlier "52 correct" was from a SIMULATION that injected modified stamps the live index lacks.
+  Live checks (branch preview render) are the source of truth — children/asc do NOT match live until lastModified populates.
 ### 2026-09-14 — News: `six-student-athletes…tiafoe-fund` video was WRONGLY split-right → re-imported full-width
 The YouTube video on `/en/home/news/six-student-athletes-awarded-first-grants-frances-tiafoe-fund` rendered as a
 `split-right` section (video beside the paragraph). Source truth: the embed sits in a **full-width `aem-GridColumn--default--12`**
@@ -3543,3 +3645,168 @@ Now that donate-embed is proven, removed the hand-built block and switched every
   this env — config change is a URL swap only; verify a11y where the harness runs.)
 - **Deploy:** block deletion + a11y config + importer = git push (block code already committed). The 3 CONTENT files are
   git-ignored (live on DA) — must be re-published to DA for the real page + samples to show the new block.
+
+### 2026-09-23 — News Related-Articles feed missing in DA preview pane — case-sensitive `template` meta lookup
+User: the Related Articles feed renders on aem.page (`/drafts/rusmeen/tiafoe-houston-youth-clinic`) but NOT in the DA
+authoring preview pane. Reproduced LOCALLY (dev server serving raw `.plain.html` = same casing as the DA preview
+pane): the feed was absent, `document.body.className` was just `"appear"` (no `news` class), and
+`getMetadata('template')` returned '' — so `news.js` never ran.
+- **Root cause:** the feed is gated on `news.js` running, which only happens if `scripts.js` `loadTemplateCSS()`
+  resolves a template name via `getMetadata('template')`. aem.js `getMetadata` is CASE-SENSITIVE
+  (`meta[name="template"]`). The PUBLISHED pipeline (aem.page/aem.live) lowercase-hyphenates metadata keys →
+  `<meta name="template">` matches → feed renders. The DA PREVIEW PANE + dev server serve the raw draft with the
+  author's ORIGINAL casing → `<meta name="Template">`, `<meta name="List From">`, etc. → the lookup misses → no
+  template class, no template CSS/JS, no feed. (`news.js`'s own `readMeta()` normalized fallback never gets a chance —
+  the GATE that loads news.js runs first and misses.) Confirmed live: aem.page emits `template`/`list-from`/… ;
+  raw draft emits `Template`/`List From`/… .
+- **Fix (scripts.js only — aem.js is untouchable):** added `getMetadataNormalized(key)` (same normalized head scan
+  `news.js` already uses) and switched `loadTemplateCSS()` to resolve the template name through it, so a capitalized
+  `Template` resolves in the preview pane exactly as lowercase does live. Also `document.body.classList.add(name)`
+  there, because aem.js `decorateTemplateAndTheme()` only adds the body class for the lowercase key — so `body.news`-
+  scoped article typography (H1 #333, body 16/18) now applies in the preview pane too.
+- **Verified LOCAL** (reproduces the preview-pane casing): raw draft `/content/drafts/rusmeen/tiafoe-houston-youth-clinic`
+  AND proxied real path `/en/home/news/tiafoe-houston-youth-clinic` → `body.className = "news appear"`, feed = 3 cards
+  (WHM 2026 / RFLF / Yonex, titles+dates+desc+Read More), H1 = rgb(51,51,51). Applies to ALL templates (news, and any
+  future `templates/<name>/`), not just news. Gates: lint 0 errors (7 pre-existing a11y no-console warnings, unrelated)
+  · breakpoint-check ✓ (768/992/1200). Deploys via git push (code-only; no content change).
+
+### 2026-09-23 — Mobile content column 328 → 336px (align to customer's stated design system)
+Customer provided the authoritative source breakpoints/widths: `@small-mobile`/`@mobile` (<768) content **max-width:
+336px**, `@tablet` 720, `@desktop` (≥992) 1200. Our mobile column was **328px** (originally tuned at 390 to clear the
+floating Donate tab). Aligned the mobile column to the customer's **336px** — step 1 of reconciling to their spec
+(tablet 720 already matches; the desktop 970/1170-vs-flat-1200 gap is a SEPARATE follow-up, not touched here).
+- **Global rule** `styles.css main > .section > div`: 328 → **336** (the single source of truth every section wrapper
+  inherits). Also the `narrow`/`medium`/`wide` section-style mobile caps (same column) 328 → 336.
+- **Per-block mobile content-column caps** that mirror the global column (all release at the 768 tier): `cards.css`
+  content/stats/support/tiles `ul` 328 → 336; cards-news feed `ul` 338 → **346** (= 336 image + the li's 2×5px inline
+  padding); `embed-instagram` 328 → 336; `columns` collage-heading cap 328 → 336. `columns` statement band was ALREADY
+  336 (unchanged). Updated the matching explanatory comments (side-margin math 31→27px @390).
+- **Deliberately NOT changed** (not the content column): cards-expand card `height: 328px`; the 310/312 card-internal
+  widths + 9px inset; `hero` 348px text column; image-crop comments. These are element geometry, not the section measure.
+- **Verified LOCAL @360** (overflow sweep baseline): section content column = **336px** (left inset 12px), news feed
+  column = 336px, **no horizontal overflow** (scrollWidth 360 == viewport). Feed still renders 3 cards.
+- Gates: lint 0 errors (7 pre-existing a11y no-console warnings, unrelated) · breakpoint-check ✓ (768/992/1200).
+  (overflow-sweep CLI Chromium not installed in this env → verified overflow via MCP Playwright at 360 instead.)
+  CSS-only → visible in local preview; deploys via git push.
+
+### 2026-09-23 — Desktop content column: fixed 970 plateau → fluid (min(vw,1200) − 30), clamps at 1170
+Step 2 of the breakpoint-reconciliation with the customer's spec (`@desktop (min-width:992) → content max-width:1200`).
+**Re-measured the LIVE source** (home "Your support" heading, by getBoundingClientRect) across the desktop range and
+found our implementation diverged in the **992–1199 window** — a real, visible bug:
+| viewport | SOURCE content col | OURS (before) |
+|---|---|---|
+| 1100 | 1070 (fluid, vw−30) | **970 fixed** (−100) |
+| 1199 | 1169 (fluid, vw−30) | **970 fixed** (−199) |
+| 1200 | 1170 (clamped) | 1170 ✓ |
+| 1440 | 1170 (clamped) | 1170 ✓ |
+The source runs ONE fluid desktop container — `max-width:1200` + 15px gutter each side → content = `min(vw,1200) − 30`,
+fluid 992→1199 and clamped at 1170 from 1200. Ours held a FIXED **970** plateau from 992 then jumped to 1170 at 1200,
+so on any 1024–1199 laptop our content was up to **~199px too narrow** vs the source. (This also resolves the earlier
+"1170 vs flat 1200" confusion: the customer's `1200` is the OUTER container; 1200 − 2×15 gutter = 1170 CONTENT, which is
+exactly what the source's content column measures at ≥1200. Both describe the same layout.)
+- **Fix (styles.css):** replaced the two-step 992→`970` / 1200→`1170` on `main > .section > div` with ONE desktop rule
+  at ≥992: `box-sizing:border-box; max-width:1200px; padding-inline:15px` (fluid below 1200, clamps at 1170 above). This
+  COLLAPSES the desktop content-width into a single tier — the separate 1200 content-width breakpoint is gone (1200 is
+  still used elsewhere e.g. medium/wide bands, so it stays a project breakpoint). Applied the SAME fluid model to the
+  (currently unused) `.container-max` utility for consistency.
+- **NOT changed:** the `narrow`(810) / `medium`(772/970) / `wide`(902/1170) section-style bands and the split-section
+  tiers keep their explicit per-band measured widths — they're intentionally narrower than the content column and were
+  measured per-band, NOT the general column the customer flagged. Full-bleed blocks (cards-expand, banner-stats-grid,
+  cards-content) already use `min(970/1170, calc(100vw−90px))` self-contained escapes — unaffected.
+- **Verified LOCAL vs SOURCE** (home + who-we-are + a news article), content column now matches at EVERY desktop width:
+  1100 → **1070** (L=15), 1199 → **1169** (L=15), 1200 → **1170** (L=15), 1440 → **1170** (L=135) — exact source match;
+  **no horizontal overflow** at any width. News article H1 + columns-media block also track the fluid column (1070 @1100).
+- Gates: lint 0 errors (7 pre-existing a11y no-console warnings) · breakpoint-check ✓ (768/992/1200). CSS-only → visible
+  in local preview; deploys via git push.
+
+### 2026-09-23 — Fixed broken body image on frances-tiafoe-awards-njtl-alumnus (unlocalized content.da.live hotlink)
+The article's body image (columns media-right) + its Metadata Image both pointed at a `content.da.live/…` URL that
+401s (auth-gated) — so the image was broken and had never been localized. It was the ONLY news page still hotlinking
+content.da.live (all 71 others were localized to /media-da/). Fix (per Content-Import Rule — finalize-assets, not
+hand-authoring blocks): re-pointed the two img srcs to the servable SOURCE coreimg URL
+(`…/image.coreimg.jpeg/1755111414064/20250811-tiafoe-ustaf-p.jpeg`, 200/JPEG/720KB) then ran
+`node tools/assets/localize-assets.mjs en/home/news/frances-tiafoe-awards-njtl-alumnus-with-college-scholarship`
+→ downloaded to `content/media-da/en/home/news/frances-tiafoe-awards-…/media-9e383c2e….jpeg`, both src+metadata
+rewritten to the local /media-da path, 0 leftover hotlinks. Verified LOCAL: img loads (naturalWidth 1170×780,
+complete=true), serves 200 on dev, no content.da.live anywhere in content/en/home/news/.
+- **Deploy:** the corrected `.plain.html` + the new media-da image are git-ignored DA content — must be re-uploaded/
+  published to DA for the fix to show on aem.page/aem.live (outward-facing, on user request). The LIVE page already
+  serves a working `media_…png` (published earlier), so only the local content copy was stale; re-publish to sync.
+
+### 2026-09-23 — cards (news) TABLET: 4-card feed → 3-up + wrap (was 4 cramped in one row)
+User: on a news article with a 4-card Related-Articles feed, the TABLET view crammed all 4 into one row (each ~25%,
+titles wrapping tall), but the SOURCE shows a FIXED 3-up with the 4th card wrapping to a second row. Root cause:
+the tablet tier (`@media width>=768`) used `.cards.news > ul > li { flex: 1 1 0; max-width: 33.333% }` — `flex-grow:1`
+let 4 cards shrink to 25% and share one row. Fix: pin the basis at the tablet tier — `flex: 0 0 33.333%` (grow
+disabled) so exactly 3 fit per row and a 4th wraps. Desktop (`>=992`) is UNCHANGED (`flex: 1 1 0` fill-the-row →
+4-up), matching the source's wider desktop layout.
+- Verified LOCAL vs source screenshots: @900 4-card feed → row1 cards 0/1/2 (W240, L90/330/570), row2 card 3
+  (W240, L90, wrapped) — matches source 3-up+wrap; 3-card feed @900 still 3-up no wrap; @1280 4-card feed still 4-up
+  one row (W293). No horizontal overflow at any width.
+- Gates: stylelint ✓ · breakpoint-check ✓ (768/992/1200 min-width only). CSS-only → live in preview; deploys via git push.
+
+### 2026-09-23 — embed-instagram: cap embed width 540 → 368px (was wider than source)
+User: on ngounoue-excellence-team-junior-french-open the Instagram embed rendered LARGER than the source. Measured
+the live source at desktop: the IG embed is a FIXED ~368px wide (computed width 367.984), centered in the content
+column (L=456 @1280). Ours used `.embed-instagram .instagram-media { max-width: 540px }` (Instagram's own default max)
+so it rendered up to 540 — ~172px too wide. Fix: `max-width: 540px → 368px !important`. Verified LOCAL vs source:
+desktop embed now W=368 (== source 368), centered cx=640 @1280 (L=456, matches source); mobile @390 caps to the 336
+content column (W=336, no overflow) since width:100% bounds it below the 368 max. Gates: stylelint ✓ · breakpoint ✓.
+CSS-only → live in preview; deploys via git push. NOTE: applies to the standalone (text-less) IG embed variant used
+on ngounoue; the split-left (embed-beside-text) variant inherits the same 368 cap, still fits its col-5.
+
+### 2026-09-23 — Fix 2025-NJTL-essay-winners: stray header-only `table` block → interleaved plain list
+User: on usta-foundation-to-celebrate-winners-of-2025-national-junior-ten the winners rendered as a bordered `table`
+holding only the 4 grade HEADERS (Freshmen/Sophomores/Juniors/Seniors), with the winner-name `<ul>` lists detached
+BELOW it — the source is a PLAIN interleaved list (each grade heading immediately followed by its 2 bulleted names).
+Root cause: the importer's `wrapGradeListTable()` matched the "…following categories:" lead-in + grade-header lines,
+but this page authors the names as `<ul>` lists (not "Name - Chapter" `<p>` lines), so it wrapped the bare headers
+into a table and orphaned the lists.
+- **Content fix (this page only, per user — no re-import):** replaced the `.table` block + 4 detached `<ul>`s in
+  `content/en/home/news/usta-foundation-to-celebrate-winners-of-2025-national-junior-ten.plain.html` with the
+  interleaved structure `<p>Freshmen</p><ul>…2 li…</ul>` × 4 grades, matching the source (plain `<p>` headings, not
+  bold — source renders them unstyled). Verified LOCAL: 0 `table` blocks; renders Freshmen→2, Sophomores→2, Juniors→2,
+  Seniors→2 interleaved, matching the source screenshot.
+- **Importer HARDENED for future imports** (so a re-import won't reintroduce this): `wrapGradeListTable()` now BAILS
+  when the detected groups are header-only (no `<p>` name lines) — i.e. the list-based variant — leaving it as plain
+  default content. Only the paragraph-line variant (2026 essay winners) still becomes a table. Re-bundled
+  import-news-v1.bundle.js. (Not executed — single-page content fix applied directly.)
+- **Deploy:** the corrected `.plain.html` is git-ignored DA content — re-upload/publish to DA for aem.page/aem.live
+  (outward-facing, on request). Importer source+bundle deploy via git push.
+
+### 2026-09-24 — Mobile perf: drop render-blocking `@import brand.css` chain (inline tokens into styles.css)
+PageSpeed mobile on a news page (daymond-john…) — CWV all GREEN (FCP 1.4s, LCP 1.8s, TBT 20ms, CLS 0.003); only
+Speed Index orange (4.9s). PageSpeed "Render-blocking requests — est 600ms" + the network tree showed the fixable
+item: `styles/styles.css` began with `@import url('brand.css')`, which CHAINS a 2nd render-blocking request
+(styles.css must download+parse before brand.css is even fetched → styles 150ms + brand 450ms serial).
+- **Fix:** inlined the 6 USED brand tokens (`--heading-semibold-font-family`, `--brand-blue`, `--brand-orange`,
+  `--stats-band-bg`, `--section-blue-bg`, `--section-yellow-bg`) into styles.css `:root`, removed the `@import`, and
+  deleted the now-orphaned `styles/brand.css`. (head.html is untouchable, so a 2nd parallel `<link>` isn't an option;
+  inlining is the correct fix — styles.css is already `<link>`ed in head.) Dropped 3 DEAD brand tokens
+  (`--content-max-width`, `--cards-band-bg`, `--heading-size-*`) that nothing consumed (styles.css uses
+  `--heading-font-size-*`).
+- **Verified LOCAL:** all 6 tokens resolve (`--brand-blue:#0373f3` etc.), NO brand.css stylesheet requested
+  (`hasImportChain:false`), home renders unchanged. Gates: stylelint ✓ · lint 0 errors · breakpoint ✓.
+- **The Speed-Index 4.9s residual is largely INTENTIONAL / not worth regressing perf for:** the FundraiseUp donate
+  tab + its font (`static.fundraiseup.com/…woff2` at ~4.9s in the tree) are deliberately deferred to the delayed
+  phase (3s `setTimeout` in scripts.js loadPage) to keep them off the LCP/TBT critical path — loading them earlier
+  would improve Speed Index but hurt LCP/TBT/"unused JS". CWV are the scored metrics and are all green; SI is
+  unscored-ish weight. Left the delayed-FRU pattern as-is (documented rationale in the 2026-09-15 donate entries).
+- **Deploy:** CSS-only (styles.css edit + brand.css deletion) → git push; re-check PageSpeed after code-sync.
+
+### 2026-09-24 — Resize jitter FIX v2 (confirmed): disable mobile nav transform transition during breakpoint swap
+Follow-up to the earlier 991/992 jitter fix: user still saw right-to-left sliding while resizing.
+Instrumented live page at 993→991 with frame sampling and found the exact culprit:
+`header nav .nav-sections` still transitioned `transform` for ~0.3s during the breakpoint
+change (`left` sequence moved from ~-133 to -991 over samples) even with the prior patch.
+
+- **Root cause:** transition was being re-enabled too early (`requestAnimationFrame`) while
+  CSS switched from desktop (`transform:none`) to mobile closed (`translateX(-100%)`).
+- **Final fix (`blocks/header/header.js`):**
+  - On `isDesktop` media-query change, force closed nav state and set
+    `navSections.style.transition = 'none'` with no immediate restore.
+  - In `toggleMenu()`, restore transition only when the user explicitly opens the
+    mobile menu (`aria-expanded` false → true).
+- **Verification:** frame sampling now shows `nav-sections` `leftSpan: 0` across all
+  post-resize samples (no animated drift), while intentional menu open still animates
+  with `transitionDuration: 0.3s`.
