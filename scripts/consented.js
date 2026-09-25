@@ -29,9 +29,11 @@ async function loadAppMeasurement() {
   // Launch containers are loaded this way rather than via import().
   await loadClassicScript(APP_MEASUREMENT_PATH);
 
+  // Report suite must be passed to the constructor, not set afterward via
+  // s.account - AppMeasurement.js validates it synchronously during
+  // construction and logs "missing Report Suite ID" if it's not there yet.
   // eslint-disable-next-line no-undef, new-cap
-  const s = new AppMeasurement();
-  s.account = REPORT_SUITE;
+  const s = new AppMeasurement(REPORT_SUITE);
   s.trackingServer = TRACKING_SERVER;
   s.trackingServerSecure = TRACKING_SERVER;
   s.currencyCode = 'USD';
