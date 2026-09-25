@@ -307,12 +307,12 @@ let templateName = null;
 // Uses at.js's headless getOffers()/applyOffers() API instead of triggerView()'s
 // automatic DOM rendering, so offer application can wait for EDS's own async
 // block/section decoration instead of racing it - see onDecoratedElement below.
-// function initATJS(path, config) {
-//   window.targetGlobalSettings = config;
-//   return new Promise((resolve) => {
-//     import(path).then(resolve);
-//   });
-// }
+function initATJS(path, config) {
+  window.targetGlobalSettings = config;
+  return new Promise((resolve) => {
+    import(path).then(resolve);
+  });
+}
 
 function onDecoratedElement(fn) {
   // Apply propositions to all already decorated blocks/sections
@@ -368,21 +368,21 @@ async function getAndApplyOffers() {
 
 // Testing Target only, on the Code & Theory account - not USTA's. Swap back to
 // // USTA's real clientCode/serverDomain/imsOrgId before this ships for real.
-// let atjsPromise = Promise.resolve();
-// if (getMetadata('target')) {
-//   atjsPromise = initATJS('./at.js', {
-//     clientCode: 'codeandtheoryamerpar',
-//     serverDomain: 'codeandtheoryamerpar.tt.omtrdc.net',
-//     imsOrgId: '6ED976C95CFFA6810A495C73@AdobeOrg',
-//     bodyHidingEnabled: false,
-//     cookieDomain: window.location.hostname,
-//     pageLoadEnabled: false,
-//     secureOnly: true,
-//     viewsEnabled: false,
-//     withWebGLRenderer: false,
-//   });
-//   document.addEventListener('at-library-loaded', () => getAndApplyOffers());
-// }
+let atjsPromise = Promise.resolve();
+if (getMetadata('target')) {
+  atjsPromise = initATJS('./at.js', {
+    clientCode: 'codeandtheoryamerpar',
+    serverDomain: 'codeandtheoryamerpar.tt.omtrdc.net',
+    imsOrgId: '6ED976C95CFFA6810A495C73@AdobeOrg',
+    bodyHidingEnabled: false,
+    cookieDomain: window.location.hostname,
+    pageLoadEnabled: false,
+    secureOnly: true,
+    viewsEnabled: false,
+    withWebGLRenderer: false,
+  });
+  document.addEventListener('at-library-loaded', () => getAndApplyOffers());
+}
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
@@ -398,7 +398,7 @@ async function loadEager(doc) {
     decorateMain(main);
     document.body.classList.add('appear');
     // wait for at.js to finish loading
-    // await atjsPromise;
+    await atjsPromise;
     // break up possible long tasks before showing the LCP block to reduce TBT
     await new Promise((resolve) => {
       window.setTimeout(async () => {
