@@ -6,13 +6,16 @@
  *   - injects a persistent floating "Donate" tab on the right edge of the page,
  *   - opens the secure donation overlay when the URL carries `?form=DONATE`.
  *
- * scripts.js calls the default export (initDonate) at the end of the lazy
+ * scripts.js calls the default export (initDonate) at the start of the lazy
  * phase. It normalises every donate trigger to the relative `?form=DONATE` link
  * straight away (cheap, no network) so a click keeps the visitor on our site,
  * and loads the official Fundraise Up loader (a heavy, cookie-setting third
- * party) only on the visitor's first interaction — or after a fallback timeout,
- * or immediately when the URL already carries `?form=` (overlay deep link).
- * Lighthouse never interacts, so the widget stays out of the measured window.
+ * party) only on the visitor's first deliberate interaction, or immediately
+ * when the URL already carries `?form=` (overlay deep link). There is no timed
+ * fallback and no `pointermove` trigger: Lighthouse runs can outlast any timer
+ * (Tags keeps the network busy), and Chrome fires synthetic mouse moves under a
+ * resting cursor on layout changes — either would pull the widget (and its
+ * cookies) into an audit.
  *
  * Donation events (checkout open / donation complete) are re-emitted as a
  * `donate` window event (and buffered in `window.donateEvents`) so analytics
@@ -25,10 +28,8 @@
 
 const FRU_ACCOUNT = 'AURLRFGR';
 
-// Load the widget at the latest this long after initDonate() runs, even if the
-// visitor never interacts (so the floating Donate tab still appears).
-const FRU_FALLBACK_MS = 8000;
-const INTERACTION_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'];
+// Deliberate engagement only (see header comment for why not pointermove/timer).
+const INTERACTION_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll'];
 
 /**
  * Trusted Types + the Fundraise Up widget.
@@ -192,18 +193,15 @@ function wireDonateTriggers() {
   document.querySelectorAll('a[href*="form="]').forEach(normalizeDonateLink);
 }
 
-/** Load the widget on the first interaction, or after FRU_FALLBACK_MS. */
+/** Load the widget on the visitor's first interaction. */
 function loadFundraiseUpOnInteraction() {
-  let timer;
   const trigger = () => {
     INTERACTION_EVENTS.forEach((type) => window.removeEventListener(type, trigger));
-    clearTimeout(timer);
     // links in late-decorated blocks exist by now; the widget intercepts them
     wireDonateTriggers();
     loadFundraiseUp();
   };
   INTERACTION_EVENTS.forEach((type) => window.addEventListener(type, trigger, { passive: true }));
-  timer = setTimeout(trigger, FRU_FALLBACK_MS);
 }
 
 /**
