@@ -1,13 +1,14 @@
 /**
- * Per-site Adobe Analytics (Adobe Experience Platform Tags / Launch) settings.
+ * Per-site martech settings: Adobe Analytics (Adobe Experience Platform Tags /
+ * Launch) and Adobe Target (at.js).
  *
  * This codebase is shared (repoless) by several sites. Each entry describes one
- * site; scripts/analytics.js picks the entry matching the current hostname:
- *   - localhost / 127.0.0.1        → the entry with `local: true`, `development` URL
+ * site; resolveSite() picks the entry matching the current hostname:
+ *   - localhost / 127.0.0.1        → the entry with `local: true`, `development` env
  *   - {ref}--{site}--{org}.aem.page → entry listing `{site}--{org}` in `edsSites`,
- *                                     `development` URL
- *   - {ref}--{site}--{org}.aem.live → same match, `production` URL
- *   - any host in `productionHosts` → `production` URL
+ *                                     `development` env
+ *   - {ref}--{site}--{org}.aem.live → same match, `production` env
+ *   - any host in `productionHosts` → `production` env
  * An entry with an empty URL (or a host with no entry) loads nothing.
  *
  * Tags embed URLs are public (served to every visitor) — they are not secrets.
@@ -20,8 +21,14 @@
  * Analytics link beacons: `events`, fixed `set` variables, and `map` from an
  * event field to the variables that receive its value. A beacon is only sent
  * when at least one mapped field has a value.
+ *
+ * `target` configures Adobe Target (scripts/target.js). at.js only runs when
+ * `enabled` is true AND the page has `Target` metadata. `a4t: true` loads the
+ * Experience Cloud ID service (VisitorAPI) before at.js so Target activities
+ * report through Analytics. Never enable it while the site's Tags library still
+ * contains the Adobe Target extension — two at.js instances conflict.
  */
-export default [
+const SITES = [
   {
     id: 'ustafoundation',
     local: true,
@@ -54,6 +61,16 @@ export default [
         map: { amount: ['eVar76'] },
       },
     },
+    // Same account settings as the "Adobe Target v2" extension in the Tags
+    // property. Cutover: remove that extension + the "Load Target" rule from Tags,
+    // publish, then set `enabled: true`.
+    target: {
+      enabled: false,
+      clientCode: 'unitedstatestennisas',
+      serverDomain: 'unitedstatestennisas.tt.omtrdc.net',
+      imsOrgId: 'A6D83F7A5347FCE90A490D44@AdobeOrg',
+      a4t: true,
+    },
   },
   {
     // PLACEHOLDER — fill in hosts, EDS site names and embed URLs when known.
@@ -62,6 +79,7 @@ export default [
     edsSites: [],
     launch: { production: '', development: '' },
     consentRequired: true,
+    target: { enabled: false },
   },
   {
     // PLACEHOLDER — fill in hosts, EDS site names and embed URLs when known.
@@ -70,5 +88,31 @@ export default [
     edsSites: [],
     launch: { production: '', development: '' },
     consentRequired: true,
+    target: { enabled: false },
   },
 ];
+
+const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
+
+/**
+ * Find the site entry and environment for a hostname.
+ * @param {string} [hostname] defaults to the current page's hostname
+ * @returns {{site: object, env: 'development'|'production'}|null}
+ */
+export function resolveSite(hostname = window.location.hostname) {
+  if (LOCAL_HOSTS.includes(hostname)) {
+    const site = SITES.find((s) => s.local);
+    return site ? { site, env: 'development' } : null;
+  }
+  // repoless EDS hosts: {ref}--{site}--{org}.aem.page|live
+  const eds = hostname.match(/^([^.]+)\.aem\.(page|live)$/);
+  if (eds) {
+    const siteKey = eds[1].split('--').slice(-2).join('--');
+    const site = SITES.find((s) => s.edsSites.includes(siteKey));
+    return site ? { site, env: eds[2] === 'page' ? 'development' : 'production' } : null;
+  }
+  const site = SITES.find((s) => s.productionHosts.includes(hostname));
+  return site ? { site, env: 'production' } : null;
+}
+
+export default SITES;

@@ -3,37 +3,15 @@
  * extension). Loaded in the delayed phase from scripts.js.
  *
  * Resolves the current site + environment from the hostname (see
- * analytics-config.js), waits for consent when that site requires it, then
+ * site-config.js), waits for consent when that site requires it, then
  * injects the site's Tags embed code once, asynchronously. Donation events from
  * donate.js are sent as Analytics link beacons (site's `donateBeacons`).
  */
-import SITES from './analytics-config.js';
+import { resolveSite } from './site-config.js';
 import { onConsent } from './consent-check.js';
 
-const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
 const TRACKER_POLL_MS = 500;
 const TRACKER_POLL_MAX = 40;
-
-/**
- * Find the site entry and environment for a hostname.
- * @param {string} hostname
- * @returns {{site: object, env: 'development'|'production'}|null}
- */
-function resolveSite(hostname) {
-  if (LOCAL_HOSTS.includes(hostname)) {
-    const site = SITES.find((s) => s.local);
-    return site ? { site, env: 'development' } : null;
-  }
-  // repoless EDS hosts: {ref}--{site}--{org}.aem.page|live
-  const eds = hostname.match(/^([^.]+)\.aem\.(page|live)$/);
-  if (eds) {
-    const siteKey = eds[1].split('--').slice(-2).join('--');
-    const site = SITES.find((s) => s.edsSites.includes(siteKey));
-    return site ? { site, env: eds[2] === 'page' ? 'development' : 'production' } : null;
-  }
-  const site = SITES.find((s) => s.productionHosts.includes(hostname));
-  return site ? { site, env: 'production' } : null;
-}
 
 // Tags state: `requested` once the embed is injected; `handlesDonate` when the
 // library itself attached Fundraise Up listeners (see loadTags).
@@ -116,7 +94,7 @@ function loadTags(src) {
   document.head.append(script);
 }
 
-const match = resolveSite(window.location.hostname);
+const match = resolveSite();
 const src = match?.site.launch?.[match.env];
 if (src) {
   const { donateBeacons } = match.site;

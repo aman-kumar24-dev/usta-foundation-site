@@ -3871,3 +3871,24 @@ plus first-party fundraiseup_stat/_func) → the widget loaded during the audit 
 - **Note:** `aem.page`/`aem.live` are on the Public Suffix List — each branch host is its own site. Own-host
   `SameSite=None` cookies (fundraiseup_stat/_func, _hj*) are flagged as third-party only when the page is framed
   cross-site (reproduced via iframe); a top-level clean run passes the cookie audit.
+
+### 2026-09-27 — Adobe Target moved to site code (at.js 2.x, aem.live pattern), behind a flag
+Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
+- **Config:** `scripts/analytics-config.js` → **`scripts/site-config.js`** (now also exports `resolveSite()`, used by
+  analytics.js and target.js). New per-site `target` block; ustafoundation copied from the Tags "Adobe Target
+  v2" extension (clientCode `unitedstatestennisas`, A4T), **`enabled: false`** until Tags drops Target.
+- **Loading:** `loadEager` imports `scripts/target.js` only on pages with `Target` metadata and awaits at.js
+  (not offers) before the first section. target.js: ECID (VisitorAPI 5.5.0) → targetGlobalSettings → import
+  `scripts/vendor/at.min.js` (aem.live optimised at.js 2.11.4; Tags had 2.11.7) → getOffers/applyOffers as
+  sections decorate. Guard: skips if `window.adobe.target` already exists; consent-required sites skipped.
+- **Gotchas:** (1) the aem.live snippet's async `getElementForOffer` makes its filter drop all offers after the
+  first pass → sync `findTarget()`. (2) at.js must be the `import()`-compatible build; VisitorAPI must be a
+  classic `loadScript`. (3) with the flag on while Tags still has Target, Tags' at.js replaces
+  `window.adobe.target` at ~3s → cutover order matters. (4) Playwright MCP `run_code` crashed on long runs —
+  use `migration-work/target/*.mjs` scripts instead.
+- **Verified local:** one delivery call with `mid` + `sdid` + `server_side`; with Tags, the page view carries the
+  same `mid`/`sdid` and Tags reuses our single Visitor instance (A4T OK); fake HTML offer with `<script>` runs,
+  `:eq()` works, no Trusted Types/CSP errors; no metadata or flag off → no vendor files, no delivery.
+- **Perf (localhost proxy):** mobile 82→69, LCP 4.2→6.0 s; desktop 96→94, LCP 1.3→1.5 s (after modulepreload of
+  at.js in parallel with VisitorAPI). BP 100→~78 on Target pages from ECID ID-sync cookies (A4T side effect).
+- **Pending:** activity inventory + VEC re-pointing (selector guide in docs), Tags cutover, flag flip.
