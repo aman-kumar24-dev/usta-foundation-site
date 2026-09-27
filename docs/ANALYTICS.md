@@ -12,7 +12,7 @@ Analytics extension sends beacons straight to Adobe Analytics.
 | `scripts/analytics.js` | Resolves site + environment from the hostname, gates on consent if required, injects the embed once (`async`); turns `donate` events into link beacons |
 | `scripts/consent-check.js` | Exposes `onConsent(callback)`; placeholder consent (`?consent=accept`) until a real CMP is wired per site |
 | `scripts/scripts.js` → `loadDelayed()` | `import('./analytics.js')` — ~3s after load, independent of the donate widget |
-| `scripts/donate.js` (from `loadLazy()`) | Normalises donate links immediately; loads Fundraise Up on first interaction / 8s fallback / immediately with `?form=`; re-emits its donation events as a `donate` window event (buffered in `window.donateEvents`) |
+| `scripts/donate.js` (from `loadLazy()`) | Normalises donate links immediately; loads Fundraise Up on first deliberate interaction (pointerdown/keydown/touchstart/wheel/scroll — no timer, no pointermove) or immediately with `?form=`; re-emits its donation events as a `donate` window event (buffered in `window.donateEvents`) |
 
 ### Donation events (Fundraise Up → Analytics)
 

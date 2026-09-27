@@ -3856,3 +3856,18 @@ Lighthouse Best Practices flagged "third-party cookies" from `cdn.fundraiseup.co
 - **Lighthouse (localhost, median of 3):** std-mobile 67→96 (BP 61→100), std-desktop 99 (BP 100);
   extended-wait mobile 65→82, TBT 26.8s→0.6s. Remaining BP cookies are Adobe ECID sync (demdex/everesttech),
   only when Launch is captured.
+
+### 2026-09-27 — Fundraise Up: drop the 8s fallback and the pointermove trigger
+DevTools Lighthouse on the branch still listed FRU cookies (fundraiseup_cid/_session from cdn.fundraiseup.com,
+plus first-party fundraiseup_stat/_func) → the widget loaded during the audit without a real interaction.
+- **Causes:** (1) the 8s fallback — once Tags loads (~3s) Target/ID-sync/Hotjar requests keep the network busy,
+  so Lighthouse waits past 8s (reproduced: FRU started at 8.2s in an extended run); (2) `pointermove` — real
+  Chrome fires synthetic mouse moves under a resting cursor on layout/viewport changes (DevTools emulation).
+- **Fix:** FRU loads only on `pointerdown/keydown/touchstart/wheel/scroll` (or immediately with `?form=`). No timer.
+  Trade-off: the floating Donate tab appears after the first interaction; DONATE links still work before that
+  (normalised href → `?form=` reload opens the overlay). Verified: idle 14s → no FRU; wheel → FRU loads.
+- **Not changed (user decision):** Hotjar cookies still appear in long runs (Tags "PS-5502 HotJar" rule, ~3s) until
+  the Analytics-only library ships; header/footer `/content/*.plain.html` 404s left as-is.
+- **Note:** `aem.page`/`aem.live` are on the Public Suffix List — each branch host is its own site. Own-host
+  `SameSite=None` cookies (fundraiseup_stat/_func, _hj*) are flagged as third-party only when the page is framed
+  cross-site (reproduced via iframe); a top-level clean run passes the cookie audit.
