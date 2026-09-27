@@ -8,10 +8,29 @@ Analytics extension sends beacons straight to Adobe Analytics.
 
 | File | Role |
 |---|---|
-| `scripts/analytics-config.js` | One entry per site: hosts, EDS site names, Tags embed URL per environment, `consentRequired` |
-| `scripts/analytics.js` | Resolves site + environment from the hostname, gates on consent if required, injects the embed once (`async`) |
+| `scripts/analytics-config.js` | One entry per site: hosts, EDS site names, Tags embed URL per environment, `consentRequired`, optional `donateBeacons` |
+| `scripts/analytics.js` | Resolves site + environment from the hostname, gates on consent if required, injects the embed once (`async`); turns `donate` events into link beacons |
 | `scripts/consent-check.js` | Exposes `onConsent(callback)`; placeholder consent (`?consent=accept`) until a real CMP is wired per site |
-| `scripts/scripts.js` → `loadDelayed()` | `import('./donate.js').finally(() => import('./analytics.js'))` — ~3s after load; FundraiseUp stub exists before Tags rules run |
+| `scripts/scripts.js` → `loadDelayed()` | `import('./analytics.js')` — ~3s after load, independent of the donate widget |
+| `scripts/donate.js` (from `loadLazy()`) | Normalises donate links immediately; loads Fundraise Up on first interaction / 8s fallback / immediately with `?form=`; re-emits its donation events as a `donate` window event (buffered in `window.donateEvents`) |
+
+### Donation events (Fundraise Up → Analytics)
+
+`donate.js` attaches `FundraiseUp.on('checkoutOpen' | 'donationComplete')` and emits
+`{ type, campaignId, campaignName }` / `{ type, amount }`. `analytics.js` replays the
+buffer on load, listens for new events, and sends `s.tl(true, 'o', linkName, overrides)`
+(overrides only — nothing leaks into later beacons) once the tracker exists.
+
+| Event | Beacon (ustafoundation `donateBeacons`) |
+|---|---|
+| `checkoutOpen` | "Fundraise Up Donation Checkout Open": event9, pageName `ustafoundation:fundraiseup:DONATE`, prop/eVar61 = campaign id, prop/eVar62 = campaign name (skipped if both empty) |
+| `donationComplete` | "Fundraise Up Donation Complete": event67, eVar76 = amount (skipped if no amount) |
+
+Interim de-duplication: the old library still has its own two Fundraise Up rules. They
+attach only if `window.FundraiseUp` exists when the library runs (visitor interacted
+before ~3s). In that case `analytics.js` leaves post-load events to those rules. Remove
+the guard (`tags.handlesDonate`) and the two rules together when the Analytics-only
+library ships.
 
 `head.html` is not touched. The CSP (`strict-dynamic`) allows scripts injected by our
 nonce'd modules, and the Trusted Types default policy in `scripts.js` lets Tags
@@ -69,8 +88,7 @@ Tags only loads with `?consent=accept` (testing only).
 | `eVar17` / `prop17` | page URL |
 | `campaign` (v0) | `?cid=` query parameter |
 | page view | `s.t()` ("page load" rule) |
-| FundraiseUp checkout open | `s.tl` — event9, pageName `ustafoundation:fundraiseup:DONATE`, eVar/prop61 campaign id, eVar/prop62 campaign name |
-| FundraiseUp donation complete | `s.tl` — event67, eVar76 amount |
+| FundraiseUp checkout open / donation complete | sent from site code — see "Donation events" above |
 | Download links | automatic (doc, pdf, xls, … list in the extension) |
 
 ### Known gaps (interim library)
