@@ -1,4 +1,4 @@
-# Adobe Analytics (Adobe Experience Platform Tags + Analytics extension)
+# Martech: Adobe Analytics (Tags) + Adobe Target (at.js)
 
 Implementation method: **Tags with the Adobe Analytics extension** (AppMeasurement,
 no Edge Network). A Tags embed (loader) script is injected on every page; the
@@ -8,7 +8,7 @@ Analytics extension sends beacons straight to Adobe Analytics.
 
 | File | Role |
 |---|---|
-| `scripts/analytics-config.js` | One entry per site: hosts, EDS site names, Tags embed URL per environment, `consentRequired`, optional `donateBeacons` |
+| `scripts/site-config.js` | One entry per site: hosts, EDS site names, Tags embed URL per environment, `consentRequired`, optional `donateBeacons` |
 | `scripts/analytics.js` | Resolves site + environment from the hostname, gates on consent if required, injects the embed once (`async`); turns `donate` events into link beacons |
 | `scripts/consent-check.js` | Exposes `onConsent(callback)`; placeholder consent (`?consent=accept`) until a real CMP is wired per site |
 | `scripts/scripts.js` → `loadDelayed()` | `import('./analytics.js')` — ~3s after load, independent of the donate widget |
@@ -48,7 +48,7 @@ custom-code/Hotjar injection through (verified: no CSP/TT errors).
 
 ## Adding site 2 / site 3 (repoless)
 
-Fill in the placeholder entry in `scripts/analytics-config.js`:
+Fill in the placeholder entry in `scripts/site-config.js`:
 
 ```js
 {
@@ -116,3 +116,97 @@ Tags only loads with `?consent=accept` (testing only).
 3. Consent path: set the site's `consentRequired: true` locally → no adobedtm/omtrdc/demdex
    requests without `?consent=accept`; loads with it. Revert.
 4. Unknown host (e.g. the machine's IP on port 3000) → nothing loads, no console errors.
+
+---
+
+## Adobe Target (at.js 2.x, outside Tags)
+
+Pattern: [aem.live — Adobe Target at.js (legacy)](https://www.aem.live/developer/target-integration#adobe-target-atjs-legacy).
+Target is moved **out of the Tags library** into site code; Tags keeps Analytics + ECID.
+
+### Files
+
+| File | Role |
+|---|---|
+| `scripts/site-config.js` → `target` | Per site: `enabled`, `clientCode`, `serverDomain`, `imsOrgId`, `a4t`. ustafoundation filled in, **`enabled: false` until cutover**; placeholders `{ enabled: false }` |
+| `scripts/scripts.js` → `loadEager()` | Only when the page has `Target` metadata (any value except off/false/no): imports `target.js`, awaits it (at.js loaded, not the offers), then renders the first section |
+| `scripts/target.js` | Checks the site flag (and skips consent-required sites), preconnects to the edge, modulepreloads at.js, creates the ECID instance (A4T), sets `targetGlobalSettings`, imports at.js, fires `getOffers` (pageLoad) on `at-library-loaded`, applies offers as sections/blocks decorate |
+| `scripts/vendor/at.min.js` | at.js **2.11.4**, the aem.live-optimised build (loadable with `import()`). Tags used 2.11.7; a 2.11.7 download from Target → Administration → Implementation can replace it later **if it still works with `import()`** (the stock download may not; test it before swapping) |
+| `scripts/vendor/VisitorAPI.min.js` | Experience Cloud ID service 5.5.0 (same version Tags uses), loaded as a classic script |
+
+### Settings (`window.targetGlobalSettings`)
+
+aem.live defaults: `bodyHidingEnabled:false`, `pageLoadEnabled:false`, `viewsEnabled:false`,
+`withWebGLRenderer:false`, `secureOnly:true`, `cookieDomain: location.hostname` (aem.page/aem.live are
+public suffixes). Carried over from the Tags "Adobe Target v2" extension: `timeout:3000`,
+`visitorApiTimeout:2000`, `globalMboxName:'target-global-mbox'`, `decisioningMethod:'server-side'`,
+`analyticsLogging:'server_side'`, `supplementalDataIdParamTimeout:30`, `deviceIdLifetime`, `sessionIdLifetime`.
+
+Difference from the aem.live snippet: its `getElementForOffer`/`getElementForMetric` are `async`, so the
+"drop already-applied offers" filter always saw a (truthy) Promise and removed everything after the first
+pass. `target.js` uses a synchronous `findTarget()` so offers whose elements decorate later still apply.
+
+### A4T (Analytics for Target)
+
+`target.js` calls `Visitor.getInstance(imsOrgId)` before at.js. The Tags ECID extension later reuses that
+instance (one `Visitor` in `s_c_il`), so the at.js delivery call and the Analytics page view carry the
+**same `mid` and `sdid`** — verified locally. Side effect: the ECID ID syncs (demdex, everesttech,
+doubleclick, crwdcntrl — third-party cookies) now start early on Target pages instead of at ~3s; they are
+the same syncs Tags already runs on every page. Changing that (e.g. `disableIdSyncs`) would affect
+cross-domain visitor stitching — business decision, not changed.
+
+### Authoring
+
+Add **`Target` = `on`** to the page metadata (or to a folder in the bulk metadata sheet). Pages without it
+load no Target code at all.
+
+### Cutover (never run both at.js instances)
+
+1. Tags property: delete rule **"Load Target"** and extension **Adobe Target v2**; build + publish to
+   production (embed URL unchanged). Keep ECID + Adobe Analytics.
+2. `site-config.js`: ustafoundation `target.enabled: true`; push.
+3. Check on production: exactly one `…tt.omtrdc.net/rest/v1/delivery?…version=2.11.4` call per Target page,
+   `window.adobe.target.VERSION === '2.11.4'`, and matching `sdid` on the delivery call and the `b/ss` page view.
+
+Before step 1, if the flag is on, Tags' own at.js loads at ~3s and replaces `window.adobe.target` (seen in
+testing) — hence the order.
+
+### Activities (inventory needed)
+
+VEC activities built on the old AEM markup target selectors that no longer exist. `toCssSelector` only
+converts `:eq(n)`; structural changes need the activity re-pointed/rebuilt in VEC against the branch
+preview. Old → new selector guide (homepage):
+
+| Old site (AEM) | New site (EDS) |
+|---|---|
+| `a.navigation-menu__list-item-link--level-1/2` | `header .nav-sections a` |
+| `button.top-navigation__main-button` (DONATE NOW) | `header a.nav-donate` |
+| `a.top-navigation__logo-image` | `header a.nav-brand-link` |
+| `.cmp-breadcrumb…` | `header .nav-breadcrumb` |
+| hero `h1` / intro | `main .hero.banner` (`.hero h1`) |
+| stats row | `main .columns.stats` |
+| feature rows (text + video / images) | `main .columns.feature` |
+| "Your support makes a difference" cards | `main .cards.support` (`li` per card) |
+| `.cmp-button` | `main a.button` |
+| footer social icons `.social-media-icons__item` | `footer .footer-social-icons a` |
+| footer nav / legal | `footer .footer-nav a`, `footer .footer-legal a` |
+
+### Performance (Lighthouse 12, localhost via test proxy, homepage, median of 3, Tags excluded)
+
+| | no Target | Target on |
+|---|---|---|
+| Mobile perf / LCP | 82 / 4.2 s | 69 / 6.0 s |
+| Desktop perf / LCP | 96 / 1.3 s | 94 / 1.5 s |
+| Best Practices | 100 | 78–79 (ECID ID-sync cookies) |
+
+Most of the mobile cost is parsing/executing at.js + VisitorAPI (~170 KB raw) before the first section
+(the aem.live anti-flicker trade-off). Only enable `Target` metadata on pages with live activities.
+
+### Target test checklist
+
+1. `node migration-work/target/test-target.mjs --block-launch` — forces flag + metadata; expect one
+   delivery call with `mid`, `sdid`, `logging: server_side`.
+2. `node migration-work/target/test-target.mjs` (Tags on) — same `mid`/`sdid` on the Analytics page view,
+   one Visitor instance.
+3. `--fake-offer` — HTML offer with `<script>` applies and runs (Trusted Types OK); `:eq()` selector works.
+4. `node migration-work/target/test-default.mjs` — no metadata / flag off → no vendor files, no delivery.
