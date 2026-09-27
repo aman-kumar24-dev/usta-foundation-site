@@ -1,4 +1,5 @@
 let consentedLoaded = false;
+let consentGranted = false;
 
 /**
  * Dummy consent implementation.
@@ -37,10 +38,30 @@ function loadConsented() {
  */
 function onConsentUpdate() {
   const consented = hasConsent();
+  consentGranted = consented;
   window.dispatchEvent(new CustomEvent('consent.update', { detail: { consented } }));
   if (consented) {
     loadConsented();
   }
+}
+
+/**
+ * Runs a callback once consent is granted — immediately if it already is,
+ * otherwise on the first `consent.update` event that grants it.
+ * @param {Function} callback
+ */
+// eslint-disable-next-line import/prefer-default-export
+export function onConsent(callback) {
+  if (consentGranted) {
+    callback();
+    return;
+  }
+  const listener = (e) => {
+    if (!e.detail?.consented) return;
+    window.removeEventListener('consent.update', listener);
+    callback();
+  };
+  window.addEventListener('consent.update', listener);
 }
 
 onConsentUpdate();

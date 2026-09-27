@@ -3810,3 +3810,29 @@ change (`left` sequence moved from ~-133 to -991 over samples) even with the pri
 - **Verification:** frame sampling now shows `nav-sections` `leftSpan: 0` across all
   post-resize samples (no animated drift), while intentional menu open still animates
   with `transitionDuration: 0.3s`.
+
+### 2026-09-27 — Analytics: interim old Launch, multi-site config
+Adobe Analytics via **Tags + Analytics extension** (no Edge Network). Full details: `docs/ANALYTICS.md`.
+- **Source library read in full** (`launch-b4bd8f30c678.min.js`, property "USTA Foundation"
+  PR5c573c837d974d7ab833f62e00856bf6): Core, ECID, Analytics (AppMeasurement 2.27.0 + ActivityMap; prod
+  `usta.global`, dev/stage `usta.ustacomdev`), Target v2. Data elements `pageName` (`foundation:`+title),
+  `pageUrl`, `campaignId` (`?cid`). 8 rules — 2 (links, iframe buttons) depend on jQuery + old AEM classes.
+- **Interim decision:** use the old library unchanged; later swap to an Analytics-only library (config URL only).
+- **Multi-site (repoless) config:** `scripts/analytics-config.js` — per site: `productionHosts`, `edsSites`
+  (`{site}--{org}`), `launch.{production,development}`, `consentRequired`. ustafoundation filled
+  (`consentRequired:false`); `site-2`/`site-3` are placeholders (empty URLs, `consentRequired:true`).
+  localhost + `*.aem.page` → development URL; `*.aem.live` + prod hosts → production URL.
+- **Loader:** `scripts/analytics.js` (delayed phase, after donate.js so the FundraiseUp stub exists before the
+  Tags FundraiseUp rules attach). `consent-check.js` gained `onConsent(callback)`. head.html untouched.
+- **Gotchas:** no `-development`/`-staging` embed exists under that name (404) → preview uses prod library
+  (preview traffic hits `usta.global`) until the dev embed URL is provided. Page Bottom rules DO still fire with
+  async injection (verified in `_satellite` debug log) — no `_satellite.pageBottom()` needed. Rule errors are
+  swallowed by Tags (only visible in debug) → console stays clean.
+- **Verified local:** beacon `usta.global`, `pageName=foundation:Home`, v17/c17 URL, v0=`test`, mid, UTF-8/USD;
+  consent-required path blocks until `?consent=accept`; unknown host loads nothing.
+- **pageName continuity gap:** titles differ from live on who-we-are ("About the USTA Foundation" vs "Who We
+  Are"), what-we-do, our-impact, special-funds (H1 used, no Title metadata) → fix Title metadata via importer.
+- **Perf (Lighthouse 12, localhost, 3 runs, noisy):** standard mode usually finishes before the 3s delayed
+  phase (desktop never captured Launch; mobile captured it 2/3). When captured, Launch costs ~3.5s main-thread
+  on throttled mobile (~70ms desktop) and Best Practices drops 100→~61 (third-party cookies demdex/everesttech;
+  http-only-on-localhost beacons). Scripts: `migration-work/perf/` (`run.sh`, `summarize.mjs`, `inspect.mjs`).

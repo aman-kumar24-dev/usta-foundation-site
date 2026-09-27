@@ -356,8 +356,10 @@ async function loadLazy(doc) {
  */
 function loadDelayed() {
   import('./consent-check.js');
-  // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
-  import('./donate.js');
+  // Fundraise Up donation widget (floating tab + ?form=DONATE overlay), then
+  // Adobe Analytics — after donate.js so the FundraiseUp stub exists before the
+  // Tags FundraiseUp rules attach their listeners.
+  import('./donate.js').finally(() => import('./analytics.js'));
   // load anything that can be postponed to the latest here
 }
 
