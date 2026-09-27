@@ -451,7 +451,7 @@ async function loadPage() {
   // Defer the delayed phase ~3s (EDS convention) so non-critical third parties
   // (analytics, the consent gate) load well after the page is
   // interactive — keeps them out of the initial critical path / "unused JS".
-  window.setTimeout(() => loadDelayed(), 3000);
+  window.setTimeout(() => loadDelayed(), 2000);
 }
 
 loadPage();
