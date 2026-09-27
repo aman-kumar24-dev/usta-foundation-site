@@ -15,6 +15,11 @@
  * `consentRequired: true` defers loading until consent is granted (see
  * scripts/consent-check.js `onConsent`). Sites that don't need a consent gate
  * load Tags straight away in the delayed phase.
+ *
+ * `donateBeacons` (optional) maps donate.js events (see scripts/donate.js) to
+ * Analytics link beacons: `events`, fixed `set` variables, and `map` from an
+ * event field to the variables that receive its value. A beacon is only sent
+ * when at least one mapped field has a value.
  */
 export default [
   {
@@ -34,6 +39,21 @@ export default [
       development: 'https://assets.adobedtm.com/15c795eb812c/e99b4446eb17/launch-b4bd8f30c678.min.js',
     },
     consentRequired: false,
+    // Same variables as the source site's "FundraiseUp Donation Checkout Open" /
+    // "FundraiseUp Donation Complete" Tags rules.
+    donateBeacons: {
+      checkoutOpen: {
+        linkName: 'Fundraise Up Donation Checkout Open',
+        events: 'event9',
+        set: { pageName: 'ustafoundation:fundraiseup:DONATE' },
+        map: { campaignId: ['prop61', 'eVar61'], campaignName: ['prop62', 'eVar62'] },
+      },
+      donationComplete: {
+        linkName: 'Fundraise Up Donation Complete',
+        events: 'event67',
+        map: { amount: ['eVar76'] },
+      },
+    },
   },
   {
     // PLACEHOLDER — fill in hosts, EDS site names and embed URLs when known.

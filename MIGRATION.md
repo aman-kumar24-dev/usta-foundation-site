@@ -3837,6 +3837,26 @@ Adobe Analytics via **Tags + Analytics extension** (no Edge Network). Full detai
   on throttled mobile (~70ms desktop) and Best Practices drops 100→~61 (third-party cookies demdex/everesttech;
   http-only-on-localhost beacons). Scripts: `migration-work/perf/` (`run.sh`, `summarize.mjs`, `inspect.mjs`).
 
+### 2026-09-27 — Fundraise Up on first interaction; donation analytics decoupled from load order
+Lighthouse Best Practices flagged "third-party cookies" from `cdn.fundraiseup.com` (loaded at ~3s in delayed).
+- **donate.js** is now side-effect-free with a default `initDonate()` called at the START of `loadLazy()`:
+  normalises `a[href*="form="]` to `{path}?form=CODE` immediately + a capture-phase click handler (authored
+  hrefs are absolute to www.ustafoundation.com — an early click would otherwise leave the site), then loads the
+  widget on first `pointerdown/pointermove/keydown/scroll/touchstart`, 8s fallback, or immediately when the URL
+  has `?form=` (overlay deep link). `donate-embed` still calls `loadFundraiseUp()` eagerly.
+- **Donation analytics moved to code:** donate.js bridges `FundraiseUp.on('checkoutOpen'|'donationComplete')` to
+  a `donate` window event (+ `window.donateEvents` buffer); analytics.js maps them via the site's
+  `donateBeacons` config to `s.tl(true,'o',name,overrides)` — same vars as the old Tags rules (event9 + p/v61,
+  p/v62 + DONATE pageName; event67 + v76). No load-order dependency (analytics.js no longer waits on donate.js).
+- **Gotcha / interim dedupe:** the old library's own FRU rules attach only if `window.FundraiseUp` exists when it
+  runs (interaction < ~3s) → analytics.js skips post-load events then (`tags.handlesDonate`). Drop with the rules.
+- **Verified local:** no interaction → Launch + page view at ~3s, FRU at fallback; simulated events → correct
+  beacons, empty checkout skipped, tracker pageName not polluted; early interaction → 0 duplicate beacons;
+  `?form=DONATE` loads FRU immediately; early DONATE click → `/en/home?form=DONATE` (stays on site).
+- **Lighthouse (localhost, median of 3):** std-mobile 67→96 (BP 61→100), std-desktop 99 (BP 100);
+  extended-wait mobile 65→82, TBT 26.8s→0.6s. Remaining BP cookies are Adobe ECID sync (demdex/everesttech),
+  only when Launch is captured.
+
 ### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
 Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
 which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,
