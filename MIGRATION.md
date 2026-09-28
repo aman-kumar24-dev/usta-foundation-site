@@ -3919,3 +3919,18 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
 - **Verified local (sheet variants served via Playwright):** published values = parity (page view, beacons);
   emptied `launch.development` → no Tags; invalid values (incl. a non-adobedtm script URL) ignored with warnings;
   edited `linkName` reaches the beacon; 404 → defaults; `target.enabled=true` → our at.js delivery call.
+
+### 2026-09-28 — `/site-config` sheet made admin-only (DA org permissions)
+- **Where rules live:** the **org** config (`admin.da.live/config/aman-kumar24-dev/`), org-relative paths
+  (`/usta-foundation-site/**`). The site config's own permissions sheet (vishal, naveen) is separate; left as-is.
+- **Added 2 rows** (existing 3 rows + `data` sheet unchanged; backup `migration-work/da-permissions/backup-2026-09-28/`):
+  `/usta-foundation-site/site-config.json` write → aman.kumar@, vishal.sharma@; read → udit.upmanyu@, victor.deb@,
+  ravishankar.ramamurthy@, sri.priyesh.dash@, naveen.kambam@.
+- **Gotchas (da-admin `src/utils/auth.js`):** non-HTML files match only their exact path, so the rule must be
+  `…/site-config.json` (extension-less only works for `.html`); per identity the longest rule wins, so every non-admin
+  author must be on the read row or `/usta-foundation-site/**` write still applies. Config POST takes form field
+  `config` and refuses a config without a `CONFIG` write row.
+- **Verified:** stored config = intended; own account `x-da-actions` still read,write on the sheet, pages and CONFIG;
+  simulated evaluation (same algorithm, `migration-work/da-permissions/simulate.mjs`) → admins write, 5 others read on
+  the sheet, page access unchanged. naveen.kambam@ has no page access at org level (already the case before).
+- **Undo:** re-POST `backup-2026-09-28/org-config.json` as form field `config`.
