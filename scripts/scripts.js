@@ -376,6 +376,10 @@ if (getMetadata('target')) {
     imsOrgId: '6ED976C95CFFA6810A495C73@AdobeOrg',
     bodyHidingEnabled: false,
     cookieDomain: window.location.hostname,
+    // at.js 2.10+: do not set the third-party visitor cookie on *.tt.omtrdc.net.
+    // First-party mbox cookies on this host still work. Visitors are not
+    // recognized across other domains that share this Target account.
+    crossDomain: 'disabled',
     pageLoadEnabled: false,
     secureOnly: true,
     viewsEnabled: false,
