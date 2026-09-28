@@ -347,6 +347,9 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  // Kick off site-config.json early (non-blocking). Delayed analytics / other
+  // modules await whenSiteConfigReady() when they need settings.
+  import('./site-config.js');
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Kick off template CSS but DON'T block the eager render on it — the LCP H1's
@@ -402,10 +405,11 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
+  // Consent → consented.js → analytics-router (Launch / Hotjar from site-config).
+  // consentRequired comes from site-config; OneTrust can replace the query gate later.
   import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
-  // load anything that can be postponed to the latest here
 }
 
 /**
