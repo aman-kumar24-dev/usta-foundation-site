@@ -142,6 +142,7 @@ const SETTINGS = {
   'target.serverDomain': [(v) => (/^[\w-]+\.tt\.omtrdc\.net$/.test(v) ? v : undefined), (c, v) => { c.target.serverDomain = v; }],
   'target.imsOrgId': [(v) => (/^[A-F0-9]+@AdobeOrg$/i.test(v) ? v : undefined), (c, v) => { c.target.imsOrgId = v; }],
   'target.a4t': [toBool, (c, v) => { c.target.a4t = v; }],
+  'target.flickerTimeout': [(v) => (/^\d+$/.test(v) && Number(v) <= 3000 ? Number(v) : undefined), (c, v) => { c.target.flickerTimeout = v; }],
 };
 
 function warn(message) {
@@ -187,7 +188,7 @@ function applySheet(defaults, json) {
   const config = {
     ...defaults,
     launch: { production: '', development: '', ...defaults.launch },
-    target: { enabled: false, ...defaults.target },
+    target: { enabled: false, flickerTimeout: 1000, ...defaults.target },
   };
   const settings = json?.settings?.data || (json?.[':type'] === 'sheet' ? json.data : []) || [];
   settings.forEach(({ key, value }) => {
@@ -219,7 +220,9 @@ export function getSiteConfig() {
       const env = match?.env || envFromHost(hostname);
       const defaults = match?.site || { id: hostname };
       try {
-        const resp = await fetch(SHEET_URL);
+        // reuse the request scripts.js started at the beginning of the eager phase
+        const resp = await (window.hlx?.siteConfigFetch || fetch(SHEET_URL));
+        if (!resp) throw new Error('network');
         if (!resp.ok) {
           if (resp.status !== 404) warn(`${SHEET_URL}: HTTP ${resp.status} — using code defaults`);
           return { site: defaults, env };

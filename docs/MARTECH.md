@@ -51,8 +51,10 @@ custom-code/Hotjar injection through (verified: no CSP/TT errors).
 Martech settings are **edited by admins in DA**, not in code. Each site's DA repo has a sheet document
 **`/site-config`** (e.g. `da.live/sheet#/aman-kumar24-dev/usta-foundation-site/site-config`), served as
 `/site-config.json` after **Preview** (aem.page) / **Publish** (aem.live). `scripts/site-config.js`
-`getSiteConfig()` fetches it once per page and applies it over the code defaults (the `SITES` entries,
-kept as a fallback). Changes go live on publish — no code deploy.
+`getSiteConfig()` applies it over the code defaults (the `SITES` entries, kept as a fallback). Changes go
+live on publish — no code deploy. The request is started at the **very beginning of the eager phase**
+(`loadEager` → `window.hlx.siteConfigFetch`, `priority: 'low'`, or `'high'` on Target pages) and shared
+by Target (eager) and Analytics (delayed) — one request per page, issued before the LCP image.
 
 **Tab `settings`** — columns `key | value | notes`:
 
@@ -66,6 +68,7 @@ kept as a fallback). Changes go live on publish — no code deploy.
 | `target.serverDomain` | `unitedstatestennisas.tt.omtrdc.net` | `….tt.omtrdc.net` |
 | `target.imsOrgId` | `A6D83F7A5347FCE90A490D44@AdobeOrg` | `…@AdobeOrg` |
 | `target.a4t` | `true` / `false` | boolean |
+| `target.flickerTimeout` | `1000` — max ms the first section waits for Target offers (0 = don't wait) | integer 0–3000 |
 
 **Tab `donate-beacons`** — one row per donate.js event, columns `event | linkName | events | set | map`:
 
@@ -184,7 +187,7 @@ Target is moved **out of the Tags library** into site code; Tags keeps Analytics
 | File | Role |
 |---|---|
 | `scripts/site-config.js` → `target` | Per site: `enabled`, `clientCode`, `serverDomain`, `imsOrgId`, `a4t`. ustafoundation filled in, **`enabled: false` until cutover**; placeholders `{ enabled: false }` |
-| `scripts/scripts.js` → `loadEager()` | Only when the page has `Target` metadata (any value except off/false/no): imports `target.js`, awaits it (at.js loaded, not the offers), then renders the first section |
+| `scripts/scripts.js` → `loadEager()` | Only when the page has `Target` metadata (any value except off/false/no): imports `target.js` and awaits it — i.e. until the **offers have arrived** (or `target.flickerTimeout`, default 1 s) — then renders the first section, so its first paint already shows the offer |
 | `scripts/target.js` | Checks the site flag (and skips consent-required sites), preconnects to the edge, modulepreloads at.js, creates the ECID instance (A4T), sets `targetGlobalSettings`, imports at.js, fires `getOffers` (pageLoad) on `at-library-loaded`, applies offers as sections/blocks decorate |
 | `scripts/vendor/at.min.js` | at.js **2.11.4**, the aem.live-optimised build (loadable with `import()`). Tags used 2.11.7; a 2.11.7 download from Target → Administration → Implementation can replace it later **if it still works with `import()`** (the stock download may not; test it before swapping) |
 | `scripts/vendor/VisitorAPI.min.js` | Experience Cloud ID service 5.5.0 (same version Tags uses), loaded as a classic script |
@@ -256,6 +259,14 @@ preview. Old → new selector guide (homepage):
 
 Most of the mobile cost is parsing/executing at.js + VisitorAPI (~170 KB raw) before the first section
 (the aem.live anti-flicker trade-off). Only enable `Target` metadata on pages with live activities.
+
+**Anti-flicker: wait for offers (2026-09-28).** The first section now waits for the page-load offers
+(capped by `target.flickerTimeout`), not just for at.js. Verified with a simulated offer on the hero `h1`:
+the first visible frame already shows the offer. If Target answers after the cap, the page renders
+without it and the offer applies on arrival (flicker only in that slow case); if it answers after at.js's
+own `timeout` (3000 ms) the offer is dropped by at.js. Extra cost vs the at.js-only wait (localhost proxy,
+median of 3): mobile LCP 6.0 → 6.6 s, desktop 1.5 → 1.9 s — about one Target round trip. Normal pages are
+unaffected by the eager config fetch (LCP 2.53 → 2.45 s mobile, 0.78 → 0.78 s desktop).
 
 ### Target test checklist
 

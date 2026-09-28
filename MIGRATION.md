@@ -3935,6 +3935,22 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   the sheet, page access unchanged. naveen.kambam@ has no page access at org level (already the case before).
 - **Undo:** re-POST `backup-2026-09-28/org-config.json` as form field `config`.
 
+### 2026-09-28 — Site config fetched eagerly; Target waits for offers (anti-flicker)
+- **Problem:** `/site-config.json` was only fetched when first needed — by analytics.js in the delayed phase on
+  every normal page. Target (site at.js) only waited for at.js, so offers landed after the first paint (flicker).
+  The flicker visible today is Launch's own Target (delayed phase, body hiding off) — stays until the cutover.
+- **Fix:** `loadEager` starts `fetch('/site-config.json')` first thing (`window.hlx.siteConfigFetch`, priority low /
+  high on Target pages); `getSiteConfig()` reuses it. `initTarget()` now resolves after the page-load offers arrive,
+  capped by the new sheet key `target.flickerTimeout` (default 1000 ms, 0–3000; added to the DA sheet + previewed).
+  Removed the `setTimeout(0)` hack in loadEager.
+- **Verified (`migration-work/target/test-eager.mjs`):** config requested at ~96 ms (before the LCP image), one
+  request per page shared with Analytics; simulated offer → first visible frame already shows it; delivery at 2 s →
+  first section at the 1 s cap, offer applied later; flag off → no at.js. Lighthouse: normal page unchanged; Target
+  page +0.4–0.5 s LCP vs at.js-only wait (one Target round trip).
+- **Gotcha:** at.js's own `timeout` (3000 ms, from Tags) drops slower offers entirely. The sheet also gained
+  Hotjar keys (`hotjarId.*`, `hotjarVersion`, `hotjarHostUrl.*`) outside this work — site-config.js doesn't know them
+  yet and logs `[site-config] unknown key` warnings.
+
 ### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
 Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
 which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,
