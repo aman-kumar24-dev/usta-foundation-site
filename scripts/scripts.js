@@ -357,7 +357,7 @@ async function loadLazy(doc) {
  */
 function loadDelayed() {
   import('./consent-check.js');
-    // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
+  // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
   // load anything that can be postponed to the latest here
 }
