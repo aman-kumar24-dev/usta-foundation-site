@@ -3893,6 +3893,19 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   at.js in parallel with VisitorAPI). BP 100→~78 on Target pages from ECID ID-sync cookies (A4T side effect).
 - **Pending:** activity inventory + VEC re-pointing (selector guide in docs), Tags cutover, flag flip.
 
+### 2026-09-28 — DA content sync from aemdemos/foundation-usta (`npm run da:sync`)
+- **Why:** content was updated in `aemdemos/foundation-usta` after the 18 Sep copy (75 `/en/home` pages incl.
+  news/our-impact/what-we-do/who-we-are, `nav.html`, drafts, 4 new files).
+- **Gotcha:** DA's copy API refuses cross-org copies (`Destination must be in the same org as the source`) →
+  `tools/da-sync/` does GET `/source` + POST `/source` per file, then one Admin API bulk preview job.
+- **Run 2026-09-28 (user chose mirror everything):** full backup of the destination (231 files) first, then 234
+  files copied, 0 failures; SHA-256 check 234/234 identical (211 html, 22 pdf, 1 json); bulk preview 234/234
+  success. Overwrote 5 destination-only edits (home, index, get-involved, chris-evert-50th-anniversary,
+  black-history-month…john-borde) — originals in `migration-work/da-sync/backup-2026-09-28/`.
+  `/en/priyesh/test1.html` (destination-only) kept. Side effect: `/en/home/our-impact` title now "Our Impact"
+  (matches live pageName).
+- **Trigger:** user triggers it by asking in AEM Coder; `tools/da-sync/` is in `.hlxignore` (not served).
+
 ### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
 Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
 which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,
