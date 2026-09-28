@@ -1,117 +1,122 @@
+
 /**
- * Delayed-phase analytics from site-config keys:
- *   launch.production | launch.development
- *   hotjarId.production | hotjarId.development
- *   hotjarHostUrl.production | hotjarHostUrl.development
+ * Loads analytics integrations from the shared site configuration.
+ *
+ * Expected configuration:
+ *   launch
+ *   hotjarId
+ *   hotjarHostUrl
  *   hotjarVersion
  *
- * Host URL is the full prefix (e.g. https://static.hotjar.com/c/hotjar-);
- * final src = `${hotjarHostUrl}${hotjarId}.js?sv=${hotjarVersion}`.
+ * Hotjar source URL:
+ *   `${hotjarHostUrl}${hotjarId}.js?sv=${hotjarVersion}`
+ *
+ * Configuration is loaded by site-config.js during the early phase.
+ * This module waits for the shared configuration Promise and does not
+ * initiate another request for site-config.json.
  */
 
 import { whenSiteConfigReady, getSetting } from './site-config.js';
 
-const DEFAULT_HOTJAR_SV = 6;
+const DEFAULT_HOTJAR_VERSION = 6;
 
 /**
- * @param {string} src Full https URL
+ * Adds an external HTTPS script to the page if it has not already
+ * been loaded.
+ *
+ * @param {string} src Full HTTPS script URL
  */
 function injectScript(src) {
   const trimmed = String(src || '').trim();
-  if (!trimmed) return;
 
-  if (!URL.canParse(trimmed)) {
-    // eslint-disable-next-line no-console
-    console.error('[analytics] invalid script URL:', trimmed);
-    return;
-  }
+  if (!trimmed || !URL.canParse(trimmed)) return;
 
   const url = new URL(trimmed);
-  if (url.protocol !== 'https:') {
-    // eslint-disable-next-line no-console
-    console.error('[analytics] script URL must be https:', trimmed);
-    return;
-  }
 
-  if ([...document.scripts].some((s) => s.src === url.href)) return;
+  if (url.protocol !== 'https:') return;
+
+  if ([...document.scripts].some((script) => script.src === url.href)) return;
 
   const script = document.createElement('script');
   script.src = url.href;
   script.async = true;
+
   document.head.appendChild(script);
 }
 
 /**
- * @param {number} hjid
- * @param {number} hjsv
- * @param {string} src
+ * Initializes the Hotjar queue and loads the Hotjar script.
+ *
+ * @param {number} hjid Hotjar site ID
+ * @param {number} hjsv Hotjar script version
+ * @param {string} src Hotjar script URL
  */
-function injectInlineHotjar(hjid, hjsv, src) {
+function injectHotjar(hjid, hjsv, src) {
   /* eslint-disable no-underscore-dangle -- Hotjar public API */
   if (window.hj && window._hjSettings) return;
 
   window.hj = window.hj || function hj() {
-    // eslint-disable-next-line prefer-rest-params -- Hotjar queue expects Arguments
+    // Hotjar queues calls until the library has finished loading.
+    // eslint-disable-next-line prefer-rest-params
     (window.hj.q = window.hj.q || []).push(arguments);
   };
-  window._hjSettings = { hjid, hjsv };
-  /* eslint-enable no-underscore-dangle */
+
+  window._hjSettings = {
+    hjid,
+    hjsv,
+  };
 
   injectScript(src);
 }
 
 /**
- * @returns {{ hjid: number, hjsv: number, src: string }|null}
+ * Reads and validates the Hotjar configuration.
+ *
+ * @returns {{ hjid: number, hjsv: number, src: string } | null}
  */
 function readHotjarConfig() {
   const rawId = getSetting('hotjarId').trim();
-  if (!rawId) return null;
-
   const hostUrl = getSetting('hotjarHostUrl').trim();
-  if (!hostUrl) {
-    // eslint-disable-next-line no-console
-    console.error('[analytics] hotjarId set but hotjarHostUrl is missing');
-    return null;
-  }
+
+  if (!rawId || !hostUrl) return null;
 
   const hjid = Number(rawId);
-  if (!Number.isFinite(hjid) || hjid <= 0) {
-    // eslint-disable-next-line no-console
-    console.error('[analytics] hotjarId must be a positive number:', rawId);
-    return null;
-  }
 
-  const rawSv = getSetting('hotjarVersion').trim();
-  const hjsv = rawSv ? Number(rawSv) : DEFAULT_HOTJAR_SV;
-  if (!Number.isFinite(hjsv) || hjsv <= 0) {
-    // eslint-disable-next-line no-console
-    console.error('[analytics] hotjarVersion must be a positive number:', rawSv);
-    return null;
-  }
+  if (!Number.isFinite(hjid) || hjid <= 0) return null;
+
+  const rawVersion = getSetting('hotjarVersion').trim();
+  const hjsv = rawVersion
+    ? Number(rawVersion)
+    : DEFAULT_HOTJAR_VERSION;
+
+  if (!Number.isFinite(hjsv) || hjsv <= 0) return null;
 
   const src = `${hostUrl}${hjid}.js?sv=${hjsv}`;
-  if (!URL.canParse(src) || !src.startsWith('https:')) {
-    // eslint-disable-next-line no-console
-    console.error('[analytics] invalid Hotjar script URL:', src);
-    return null;
-  }
 
-  return { hjid, hjsv, src };
+  if (!URL.canParse(src) || !src.startsWith('https:')) return null;
+
+  return {
+    hjid,
+    hjsv,
+    src,
+  };
 }
 
+/**
+ * Loads configured analytics integrations after the shared site
+ * configuration becomes available.
+ */
 async function loadAnalyticsFromSiteConfig() {
-  try {
-    await whenSiteConfigReady();
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[analytics] site-config unavailable; skipping Launch/Hotjar', error);
-    return;
-  }
+  await whenSiteConfigReady();
 
   injectScript(getSetting('launch'));
 
   const hotjar = readHotjarConfig();
-  if (hotjar) injectInlineHotjar(hotjar.hjid, hotjar.hjsv, hotjar.src);
+
+  if (hotjar) {
+    injectHotjar(hotjar.hjid, hotjar.hjsv, hotjar.src);
+  }
 }
 
 loadAnalyticsFromSiteConfig();
+
