@@ -13,7 +13,7 @@
  * The Tags ECID extension reuses this instance (Visitor.getInstance per org).
  */
 import { loadScript } from './aem.js';
-import { resolveSite } from './site-config.js';
+import { getSiteConfig } from './site-config.js';
 
 const VENDOR = `${window.hlx.codeBasePath}/scripts/vendor`;
 
@@ -95,7 +95,7 @@ function addLink(rel, href, crossOrigin) {
  * @returns {Promise<void>} resolves once at.js has loaded (or is skipped)
  */
 export default async function initTarget() {
-  const site = resolveSite()?.site;
+  const { site } = await getSiteConfig();
   const config = site?.target;
   // consent-gated sites: at.js sets cookies before any CMP could answer
   if (!config?.enabled || site.consentRequired) return;

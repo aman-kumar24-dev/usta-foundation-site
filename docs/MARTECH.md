@@ -46,6 +46,49 @@ custom-code/Hotjar injection through (verified: no CSP/TT errors).
 | any host in `productionHosts` | exact hostname | `production` |
 | anything else / empty URL | — | nothing loads |
 
+## Authored configuration: the `/site-config` sheet (DA)
+
+Martech settings are **edited by admins in DA**, not in code. Each site's DA repo has a sheet document
+**`/site-config`** (e.g. `da.live/sheet#/aman-kumar24-dev/usta-foundation-site/site-config`), served as
+`/site-config.json` after **Preview** (aem.page) / **Publish** (aem.live). `scripts/site-config.js`
+`getSiteConfig()` fetches it once per page and applies it over the code defaults (the `SITES` entries,
+kept as a fallback). Changes go live on publish — no code deploy.
+
+**Tab `settings`** — columns `key | value | notes`:
+
+| key | value | validation |
+|---|---|---|
+| `launch.production` | Tags embed for aem.live + production domain | `https://assets.adobedtm.com/….js` or empty |
+| `launch.development` | Tags embed for aem.page + localhost | same |
+| `consentRequired` | `true` / `false` | boolean |
+| `target.enabled` | `true` / `false` — only after Target is removed from Tags | boolean |
+| `target.clientCode` | `unitedstatestennisas` | letters/digits/`-` |
+| `target.serverDomain` | `unitedstatestennisas.tt.omtrdc.net` | `….tt.omtrdc.net` |
+| `target.imsOrgId` | `A6D83F7A5347FCE90A490D44@AdobeOrg` | `…@AdobeOrg` |
+| `target.a4t` | `true` / `false` | boolean |
+
+**Tab `donate-beacons`** — one row per donate.js event, columns `event | linkName | events | set | map`:
+
+| event | linkName | events | set | map |
+|---|---|---|---|---|
+| checkoutOpen | Fundraise Up Donation Checkout Open | event9 | `pageName=ustafoundation:fundraiseup:DONATE` | `campaignId=prop61,eVar61; campaignName=prop62,eVar62` |
+| donationComplete | Fundraise Up Donation Complete | event67 | | `amount=eVar76` |
+
+`set`/`map` use `name=value; name=value`; variables must be `eVarN`, `propN`, `pageName`, `channel`
+or `campaign`. If the tab exists it replaces the code default mapping; if absent, the default is used.
+
+**Rules:** an unknown key, an invalid value or an invalid beacon row is **ignored with a console warning
+`[site-config] …`** and the code default is used for it; a missing/unpublished sheet (404) means all
+code defaults. Tags URLs are restricted to `assets.adobedtm.com` so a typo can never load another
+host's script. Everything in the sheet is public (like the code) — never put secrets in it.
+
+**Admin-only editing:** in the DA org config (`da.live/config#/aman-kumar24-dev/`) → `permissions`,
+give `write` on `/site-config` to the admin group only and `read` to everyone else.
+
+**New repoless site:** create its own `/site-config` sheet in its DA repo (copy the layout above) and
+preview/publish it — no code change needed. A `SITES` code entry is only needed for fallback defaults
+or for its `productionHosts`/`edsSites` if you want defaults to apply.
+
 ## Adding site 2 / site 3 (repoless)
 
 Fill in the placeholder entry in `scripts/site-config.js`:
