@@ -166,7 +166,6 @@ fetchSiteConfig().then(
   () => resolveReady(),
   (error) => {
     const err = error instanceof Error ? error : new Error(String(error));
-    // eslint-disable-next-line no-console -- config failure must be visible
     console.error('[site-config]', err);
     rejectReady(err);
   },
