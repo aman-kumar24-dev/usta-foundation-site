@@ -1,16 +1,16 @@
 let consentedLoaded = false;
 
 /**
- * Dummy consent / CMP stand-in (OneTrust later).
+ * Dummy consent implementation.
  *
  * `consentRequired` from site-config.json:
  *   false → skip this workflow entirely; load consented scripts with no prompt
  *   true  → enter the workflow; visitor must accept before consented scripts load
  *           (default inside the workflow = declined until they accept)
  *
- * Test override when the workflow is active:
- *   ?consent=accept   grant
- *   ?consent=decline  deny
+ * `consentRequired` from site-config.json controls whether consent is needed:
+ *   false → load consented scripts without a prompt (ustafoundation.com)
+ *   true  → require consent (query override below until OneTrust is wired)
  *
  * @returns {boolean} true only if the visitor has accepted (workflow path)
  */
@@ -24,7 +24,7 @@ function hasUserAcceptedConsent() {
 }
 
 /**
- * Loads consented scripts once (analytics, martech, etc.).
+ * Loads consented scripts once consent is available.
  */
 function loadConsented() {
   if (consentedLoaded) return;
@@ -33,7 +33,8 @@ function loadConsented() {
 }
 
 /**
- * Reads site-config, then either skips consent or runs the consent workflow.
+ * Notifies listeners of the current consent state and loads consented
+ * scripts if consent has been granted.
  */
 async function onConsentUpdate() {
   const { whenSiteConfigReady, getSetting } = await import('./site-config.js');
