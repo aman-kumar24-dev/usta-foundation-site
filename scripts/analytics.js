@@ -2,12 +2,12 @@
  * Adobe Analytics loader (Adobe Experience Platform Tags with the Analytics
  * extension). Loaded in the delayed phase from scripts.js.
  *
- * Resolves the current site + environment from the hostname (see
- * martech-config.js), waits for consent when that site requires it, then
+ * Reads the site's config (authored /site-config sheet over code defaults, see
+ * site-config.js), waits for consent when that site requires it, then
  * injects the site's Tags embed code once, asynchronously. Donation events from
  * donate.js are sent as Analytics link beacons (site's `donateBeacons`).
  */
-import { resolveSite } from './martech-config.js';
+import { getSiteConfig } from './martech-config.js';
 import { onConsent } from './consent-check.js';
 
 const TRACKER_POLL_MS = 500;
@@ -94,15 +94,15 @@ function loadTags(src) {
   document.head.append(script);
 }
 
-const match = resolveSite();
-const src = match?.site.launch?.[match.env];
-if (src) {
-  const { donateBeacons } = match.site;
+getSiteConfig().then(({ site, env }) => {
+  const src = site.launch?.[env];
+  if (!src) return;
+  const { donateBeacons } = site;
   if (donateBeacons) {
-    // events emitted before this module loaded, then live ones
+    // events emitted before this point (buffered by donate.js), then live ones
     (window.donateEvents || []).forEach((detail) => handleDonateEvent(donateBeacons, detail));
     window.addEventListener('donate', (e) => handleDonateEvent(donateBeacons, e.detail));
   }
-  if (match.site.consentRequired) onConsent(() => loadTags(src));
+  if (site.consentRequired) onConsent(() => loadTags(src));
   else loadTags(src);
-}
+});

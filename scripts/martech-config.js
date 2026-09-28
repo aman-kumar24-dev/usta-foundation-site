@@ -2,6 +2,12 @@
  * Per-site martech settings: Adobe Analytics (Adobe Experience Platform Tags /
  * Launch) and Adobe Target (at.js).
  *
+ * The SOURCE OF TRUTH is each site's authored `/site-config` sheet in DA
+ * (served as /site-config.json once previewed/published) — admins edit it there;
+ * see getSiteConfig() below. The SITES entries in this file are only FALLBACK
+ * DEFAULTS, used for any key that the sheet doesn't set (or sets invalidly) and
+ * when the sheet is missing.
+ *
  * This codebase is shared (repoless) by several sites. Each entry describes one
  * site; resolveSite() picks the entry matching the current hostname:
  *   - localhost / 127.0.0.1        → the entry with `local: true`, `development` env
@@ -113,6 +119,119 @@ export function resolveSite(hostname = window.location.hostname) {
   }
   const site = SITES.find((s) => s.productionHosts.includes(hostname));
   return site ? { site, env: 'production' } : null;
+}
+
+/* ---------- authored /site-config sheet ---------- */
+
+const SHEET_URL = '/site-config.json';
+
+/** Environment from the hostname alone (sites without a code entry). */
+function envFromHost(hostname) {
+  return LOCAL_HOSTS.includes(hostname) || hostname.endsWith('.aem.page') ? 'development' : 'production';
+}
+
+const toBool = (v) => ({ true: true, false: false })[String(v).trim().toLowerCase()];
+
+// key → [validator/parser returning undefined when invalid, setter]
+const SETTINGS = {
+  'launch.production': [(v) => (/^https:\/\/assets\.adobedtm\.com\/[\w./-]+\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.launch.production = v; }],
+  'launch.development': [(v) => (/^https:\/\/assets\.adobedtm\.com\/[\w./-]+\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.launch.development = v; }],
+  consentRequired: [toBool, (c, v) => { c.consentRequired = v; }],
+  'target.enabled': [toBool, (c, v) => { c.target.enabled = v; }],
+  'target.clientCode': [(v) => (/^[\w-]+$/.test(v) ? v : undefined), (c, v) => { c.target.clientCode = v; }],
+  'target.serverDomain': [(v) => (/^[\w-]+\.tt\.omtrdc\.net$/.test(v) ? v : undefined), (c, v) => { c.target.serverDomain = v; }],
+  'target.imsOrgId': [(v) => (/^[A-F0-9]+@AdobeOrg$/i.test(v) ? v : undefined), (c, v) => { c.target.imsOrgId = v; }],
+  'target.a4t': [toBool, (c, v) => { c.target.a4t = v; }],
+};
+
+function warn(message) {
+  // eslint-disable-next-line no-console
+  console.warn(`[site-config] ${message}`);
+}
+
+/** "a=b; c=d" → { a: 'b', c: 'd' } */
+function parsePairs(text) {
+  return String(text || '').split(';').map((p) => p.trim()).filter(Boolean)
+    .reduce((acc, pair) => {
+      const [k, ...rest] = pair.split('=');
+      if (k && rest.length) acc[k.trim()] = rest.join('=').trim();
+      return acc;
+    }, {});
+}
+
+const VARIABLE = /^(eVar\d+|prop\d+|pageName|channel|campaign)$/;
+
+/** donate-beacons tab rows → donateBeacons object (invalid rows skipped). */
+function parseDonateBeacons(rows) {
+  return rows.reduce((beacons, row) => {
+    const event = String(row.event || '').trim();
+    const events = String(row.events || '').replace(/\s/g, '');
+    const set = parsePairs(row.set);
+    const map = Object.fromEntries(Object.entries(parsePairs(row.map))
+      .map(([field, vars]) => [field, vars.split(',').map((v) => v.trim()).filter(Boolean)]));
+    const varsOk = Object.keys(set).every((k) => VARIABLE.test(k))
+      && Object.values(map).every((vars) => vars.length && vars.every((v) => VARIABLE.test(v)));
+    if (!/^\w+$/.test(event) || !/^event\d+(,event\d+)*$/.test(events) || !varsOk || !Object.keys(map).length) {
+      warn(`donate-beacons: ignoring invalid row "${event}"`);
+      return beacons;
+    }
+    beacons[event] = {
+      linkName: String(row.linkName || event).trim(), events, set, map,
+    };
+    return beacons;
+  }, {});
+}
+
+/** Apply the sheet over a copy of the defaults. */
+function applySheet(defaults, json) {
+  const config = {
+    ...defaults,
+    launch: { production: '', development: '', ...defaults.launch },
+    target: { enabled: false, ...defaults.target },
+  };
+  const settings = json?.settings?.data || (json?.[':type'] === 'sheet' ? json.data : []) || [];
+  settings.forEach(({ key, value }) => {
+    const k = String(key || '').trim();
+    if (!k) return;
+    const entry = SETTINGS[k];
+    if (!entry) { warn(`unknown key "${k}"`); return; }
+    const parsed = entry[0](String(value ?? '').trim());
+    if (parsed === undefined) { warn(`invalid value for "${k}" — using default`); return; }
+    entry[1](config, parsed);
+  });
+  const beaconRows = json?.['donate-beacons']?.data;
+  if (beaconRows?.length) config.donateBeacons = parseDonateBeacons(beaconRows);
+  return config;
+}
+
+let siteConfigPromise;
+
+/**
+ * The current site's martech config: code defaults (by hostname) overridden by
+ * the authored /site-config sheet. Fetched once per page.
+ * @returns {Promise<{site: object, env: 'development'|'production'}>}
+ */
+export function getSiteConfig() {
+  if (!siteConfigPromise) {
+    siteConfigPromise = (async () => {
+      const { hostname } = window.location;
+      const match = resolveSite(hostname);
+      const env = match?.env || envFromHost(hostname);
+      const defaults = match?.site || { id: hostname };
+      try {
+        const resp = await fetch(SHEET_URL);
+        if (!resp.ok) {
+          if (resp.status !== 404) warn(`${SHEET_URL}: HTTP ${resp.status} — using code defaults`);
+          return { site: defaults, env };
+        }
+        return { site: applySheet(defaults, await resp.json()), env };
+      } catch (e) {
+        warn(`${SHEET_URL} unreadable — using code defaults`);
+        return { site: defaults, env };
+      }
+    })();
+  }
+  return siteConfigPromise;
 }
 
 export default SITES;

@@ -3906,6 +3906,20 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   (matches live pageName).
 - **Trigger:** user triggers it by asking in AEM Coder; `tools/da-sync/` is in `.hlxignore` (not served).
 
+### 2026-09-28 — Martech config moved to an authored DA sheet (`/site-config`)
+- **Why:** admins must edit Tags URLs, consent, Target and donation-beacon settings without a code deploy.
+- **Where:** a normal DA **sheet document** `/site-config` in each site's DA repo (served `/site-config.json`),
+  NOT the DA org/site config (`da.live/config#…`) — that is admin-API-only (needs an IMS token) and contains the
+  `permissions` sheet with emails, so the live site can't/shouldn't read it.
+- **Code:** `scripts/site-config.js` `getSiteConfig()` (one fetch per page, cached promise) applies tab `settings`
+  (key/value, validated per key) and tab `donate-beacons` over the `SITES` code defaults (kept as fallback, per user
+  decision). analytics.js / target.js now await it. Invalid entries → `[site-config]` console warning + default.
+- **Created:** `/site-config` in `aman-kumar24-dev/usta-foundation-site` with today's values, previewed (both tabs are
+  served on aem.page and through `aem up`). Not published to aem.live yet.
+- **Verified local (sheet variants served via Playwright):** published values = parity (page view, beacons);
+  emptied `launch.development` → no Tags; invalid values (incl. a non-adobedtm script URL) ignored with warnings;
+  edited `linkName` reaches the beacon; 404 → defaults; `target.enabled=true` → our at.js delivery call.
+
 ### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
 Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
 which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,
