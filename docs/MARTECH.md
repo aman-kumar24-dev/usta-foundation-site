@@ -82,11 +82,23 @@ or `campaign`. If the tab exists it replaces the code default mapping; if absent
 code defaults. Tags URLs are restricted to `assets.adobedtm.com` so a typo can never load another
 host's script. Everything in the sheet is public (like the code) — never put secrets in it.
 
-**Admin-only editing:** in the DA org config (`da.live/config#/aman-kumar24-dev/`) → `permissions`,
-give `write` on `/site-config` to the admin group only and `read` to everyone else.
+**Admin-only editing (in place since 2026-09-28):** DA org config (`da.live/config#/aman-kumar24-dev/`)
+→ `permissions` has two rows for the sheet. The path must be **org-relative with the `.json` extension**,
+because DA matches non-HTML files by exact path:
+
+| path | groups | actions |
+|---|---|---|
+| `/usta-foundation-site/site-config.json` | aman.kumar@…, vishal.sharma@… | write |
+| `/usta-foundation-site/site-config.json` | udit.upmanyu@…, victor.deb@…, ravishankar.ramamurthy@…, sri.priyesh.dash@…, naveen.kambam@… | read |
+
+DA applies, per person/group, the **longest matching rule**. Anyone who can edit the site through
+`/usta-foundation-site/**` but is *not* on one of these rows can still edit the sheet, so **when you add an
+author to the site, also add them to the read row** (or an admin to the write row). Org `CONFIG` writers can
+change these rules themselves.
 
 **New repoless site:** create its own `/site-config` sheet in its DA repo (copy the layout above) and
-preview/publish it — no code change needed. A `SITES` code entry is only needed for fallback defaults
+preview/publish it — no code change needed. Add the same two permission rows for
+`/<site>/site-config.json`. A `SITES` code entry is only needed for fallback defaults
 or for its `productionHosts`/`edsSites` if you want defaults to apply.
 
 ## Adding site 2 / site 3 (repoless)
