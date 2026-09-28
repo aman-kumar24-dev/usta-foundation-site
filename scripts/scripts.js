@@ -898,6 +898,9 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  // Kick off site-config.json early (non-blocking). Delayed analytics / other
+  // modules await whenSiteConfigReady() when they need settings.
+  import('./site-config.js');
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Same casing gap as `template` (see getMetadataNormalized): the preview pane
@@ -982,10 +985,11 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
+  // Consent → consented.js → analytics-router (Launch / Hotjar from site-config).
+  // consentRequired comes from site-config; OneTrust can replace the query gate later.
   import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
-  // load anything that can be postponed to the latest here
 }
 
 /* Link targets: internal links open in the same tab; external links and file
