@@ -3,23 +3,22 @@ let consentedLoaded = false;
 /**
  * Dummy consent implementation.
  *
- * `consentRequired` from site-config.json:
- *   false → skip this workflow entirely; load consented scripts with no prompt
- *   true  → enter the workflow; visitor must accept before consented scripts load
- *           (default inside the workflow = declined until they accept)
+ * By default consent is declined, so consented scripts (analytics, martech, etc.)
+ * are not loaded. This stands in for a real CMP (OneTrust, etc.) and can be
+ * swapped out later.
  *
- * `consentRequired` from site-config.json controls whether consent is needed:
- *   false → load consented scripts without a prompt (ustafoundation.com)
- *   true  → require consent (query override below until OneTrust is wired)
+ * The default can be overridden with a query parameter for testing:
+ *   ?consent=accept   grant consent (loads consented.js)
+ *   ?consent=decline  decline consent (default behavior)
  *
- * @returns {boolean} true only if the visitor has accepted (workflow path)
+ * @returns {boolean} true if the user has consented
  */
-function hasUserAcceptedConsent() {
+function hasConsent() {
   const consent = new URLSearchParams(window.location.search).get('consent');
   if (consent !== null) {
     return ['accept', 'true', '1', 'yes'].includes(consent.toLowerCase());
   }
-  // Inside the consent workflow, default is declined until the user accepts.
+  // default: decline
   return false;
 }
 
@@ -36,36 +35,36 @@ function loadConsented() {
  * Notifies listeners of the current consent state and loads consented
  * scripts if consent has been granted.
  */
-async function onConsentUpdate() {
-  const { whenSiteConfigReady, getSetting } = await import('./site-config.js');
-
-  try {
-    await whenSiteConfigReady();
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[consent] site-config unavailable; consented scripts not loaded', error);
-    return;
-  }
-
-  const consentRequired = getSetting('consentRequired').toLowerCase() === 'true';
-
-  // Config says consent is not required → bail out of the consent workflow.
-  if (!consentRequired) {
-    window.dispatchEvent(new CustomEvent('consent.update', {
-      detail: { consentRequired: false, consented: true },
-    }));
-    loadConsented();
-    return;
-  }
-
-  // consentRequired === true → enter workflow; acceptance is decided here.
-  const consented = hasUserAcceptedConsent();
-  window.dispatchEvent(new CustomEvent('consent.update', {
-    detail: { consentRequired: true, consented },
-  }));
+function onConsentUpdate() {
+  const consented = hasConsent();
+  window.dispatchEvent(new CustomEvent('consent.update', { detail: { consented } }));
   if (consented) {
     loadConsented();
   }
 }
 
-onConsentUpdate();
+/**
+ * If site-config `consentRequired` is false, skip the consent workflow and load
+ * consented scripts immediately. If true, run the existing consent flow unchanged.
+ */
+async function initFromSiteConfig() {
+  const { whenSiteConfigReady, getConfig } = await import('./site-config.js');
+  try {
+    await whenSiteConfigReady();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[consent] site-config unavailable; using consent workflow', error);
+    onConsentUpdate();
+    return;
+  }
+
+  const consentRequired = getConfig('consentRequired').toLowerCase() === 'true';
+  if (!consentRequired) {
+    loadConsented();
+    return;
+  }
+
+  onConsentUpdate();
+}
+
+initFromSiteConfig();

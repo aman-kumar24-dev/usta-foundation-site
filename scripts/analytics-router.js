@@ -1,4 +1,3 @@
-
 /**
  * Loads analytics integrations from the shared site configuration.
  *
@@ -16,7 +15,7 @@
  * initiate another request for site-config.json.
  */
 
-import { whenSiteConfigReady, getSetting } from './site-config.js';
+import { whenSiteConfigReady, getConfig } from './site-config.js';
 
 const DEFAULT_HOTJAR_VERSION = 6;
 
@@ -52,12 +51,11 @@ function injectScript(src) {
  * @param {string} src Hotjar script URL
  */
 function injectHotjar(hjid, hjsv, src) {
-  /* eslint-disable no-underscore-dangle -- Hotjar public API */
+  /* eslint-disable no-underscore-dangle */
   if (window.hj && window._hjSettings) return;
 
   window.hj = window.hj || function hj() {
-    // Hotjar queues calls until the library has finished loading.
-    // eslint-disable-next-line prefer-rest-params
+    /* eslint-disable-next-line prefer-rest-params */
     (window.hj.q = window.hj.q || []).push(arguments);
   };
 
@@ -75,8 +73,8 @@ function injectHotjar(hjid, hjsv, src) {
  * @returns {{ hjid: number, hjsv: number, src: string } | null}
  */
 function readHotjarConfig() {
-  const rawId = getSetting('hotjarId').trim();
-  const hostUrl = getSetting('hotjarHostUrl').trim();
+  const rawId = getConfig('hotjarId').trim();
+  const hostUrl = getConfig('hotjarHostUrl').trim();
 
   if (!rawId || !hostUrl) return null;
 
@@ -84,7 +82,7 @@ function readHotjarConfig() {
 
   if (!Number.isFinite(hjid) || hjid <= 0) return null;
 
-  const rawVersion = getSetting('hotjarVersion').trim();
+  const rawVersion = getConfig('hotjarVersion').trim();
   const hjsv = rawVersion
     ? Number(rawVersion)
     : DEFAULT_HOTJAR_VERSION;
@@ -109,7 +107,7 @@ function readHotjarConfig() {
 async function loadAnalyticsFromSiteConfig() {
   await whenSiteConfigReady();
 
-  injectScript(getSetting('launch'));
+  injectScript(getConfig('launch'));
 
   const hotjar = readHotjarConfig();
 
@@ -119,4 +117,3 @@ async function loadAnalyticsFromSiteConfig() {
 }
 
 loadAnalyticsFromSiteConfig();
-
