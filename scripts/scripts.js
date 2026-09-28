@@ -312,20 +312,23 @@ async function loadEager(doc) {
   // H1 render delay on slow mobile. Resolve `templateName` for loadLazy's JS.
   const templateCssPromise = loadTemplateCSS();
   // Adobe Target (at.js) only on pages with `Target` metadata; the site's
-  // target.enabled flag lives in site-config.js (see target.js).
+  // target.enabled flag lives in the authored /site-config sheet (see target.js).
   const targetValue = getMetadataNormalized('target').toLowerCase();
-  const targetPromise = targetValue && !['off', 'false', 'no'].includes(targetValue)
+  const isTargetPage = !!targetValue && !['off', 'false', 'no'].includes(targetValue);
+  // Martech config: start the request now so Target (below) and Analytics
+  // (delayed phase) share one fetch. Low priority unless the first render waits on it.
+  window.hlx.siteConfigFetch = fetch('/site-config.json', { priority: isTargetPage ? 'high' : 'low' })
+    .catch(() => null);
+  const targetPromise = isTargetPage
     ? import('./target.js').then(({ default: initTarget }) => initTarget()).catch(() => {})
     : null;
   const main = doc.querySelector('main');
   if (main) {
     decorateMain(main);
     document.body.classList.add('appear');
-    if (targetPromise) {
-      await targetPromise;
-      // let the at.js page-load request start before the first section renders
-      await new Promise((resolve) => { setTimeout(resolve, 0); });
-    }
+    // Target pages: hold the first section until the offers are in (or the
+    // flicker timeout passes), so its first paint already shows the offer.
+    if (targetPromise) await targetPromise;
     await loadSection(main.querySelector('.section'), waitForFirstImage);
   }
   templateName = await templateCssPromise;

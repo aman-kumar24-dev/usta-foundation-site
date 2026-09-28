@@ -3,9 +3,11 @@
  * pattern (https://www.aem.live/developer/target-integration).
  *
  * scripts.js imports this module in the eager phase only on pages with `Target`
- * metadata, and waits for the returned promise (at.js loaded — NOT the offers)
- * before rendering the first section. The page-load request is fired as soon as
- * at.js is ready; offers are applied whenever sections/blocks finish decorating.
+ * metadata, and waits for the returned promise before rendering the first
+ * section. The promise resolves once the page-load offers have arrived (or after
+ * the site's `target.flickerTimeout`, default 1000 ms; 0 = only wait for at.js,
+ * the plain aem.live behaviour). Offers are applied whenever sections/blocks
+ * finish decorating, so the first section's first paint already shows them.
  *
  * With the site's `target.a4t`, the Experience Cloud ID service (VisitorAPI) is
  * created first, so at.js and the Analytics page view (Tags, delayed phase) share
@@ -132,11 +134,23 @@ export default async function initTarget() {
     deviceIdLifetime: 63244800000,
     sessionIdLifetime: 1860000,
   };
+  let offersSettled;
+  const offersReady = new Promise((resolve) => { offersSettled = resolve; });
   document.addEventListener('at-library-loaded', () => {
-    getAndApplyOffers().catch((e) => {
-      // eslint-disable-next-line no-console
-      console.error('Adobe Target offers failed', e);
-    });
+    getAndApplyOffers()
+      .catch((e) => {
+        // eslint-disable-next-line no-console
+        console.error('Adobe Target offers failed', e);
+      })
+      .finally(offersSettled);
   }, { once: true });
   await import(`${VENDOR}/at.min.js`);
+
+  // Anti-flicker: hold the caller (the first section's render) until the offers
+  // are in, capped by target.flickerTimeout. Offers are applied as each section
+  // finishes loading; late offers (after the cap) still apply when they arrive.
+  const cap = Number(config.flickerTimeout ?? 1000);
+  if (cap > 0) {
+    await Promise.race([offersReady, new Promise((resolve) => { setTimeout(resolve, cap); })]);
+  }
 }
