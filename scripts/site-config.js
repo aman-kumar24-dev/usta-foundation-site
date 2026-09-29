@@ -71,7 +71,7 @@ const SITES = [
     // property. Cutover: remove that extension + the "Load Target" rule from Tags,
     // publish, then set `enabled: true`.
     target: {
-      enabled: true,
+      enabled: false,
       clientCode: 'unitedstatestennisas',
       serverDomain: 'unitedstatestennisas.tt.omtrdc.net',
       imsOrgId: 'A6D83F7A5347FCE90A490D44@AdobeOrg',
