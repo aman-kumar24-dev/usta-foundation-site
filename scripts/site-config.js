@@ -27,7 +27,7 @@ const ready = new Promise((resolve, reject) => {
 });
 
 /**
- * Prod = customer domain, or EDS `main--*` on aem.page / aem.live.
+ * Prod = customer domain, or EDS `main--*` on  aem.live.
  * @param {string} [hostname]
  * @returns {boolean}
  */
@@ -36,7 +36,10 @@ export function isProdEnvironment(hostname = window.location.hostname) {
   if (host === 'localhost' || host.endsWith('.localhost')) {
     return false;
   }
-  if (host.endsWith('.aem.page') || host.endsWith('.aem.live')) {
+  if (host.endsWith('.aem.page')) {
+    return false;
+  }
+  if (host.endsWith('.aem.live')) {
     return host.startsWith('main--');
   }
   return true;
