@@ -17,7 +17,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  syncRepos, previewPaths, toSitePath, parseRepo, listFiles,
+  syncRepos, previewPaths, toSitePath, parseRepo, listFiles, HIDDEN_FOLDERS, isPreviewable,
 } from './da-sync.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -40,7 +40,10 @@ async function backupDestination() {
   const out = join(ROOT, 'migration-work', 'da-sync', 'backups', stamp);
   const inScope = (f) => !folders.length
     || folders.some((p) => f.path === p || f.path.startsWith(`${p.replace(/\/$/, '')}/`));
-  const files = (await listFiles(destination, { token })).filter(inScope);
+  const hidden = await Promise.all(HIDDEN_FOLDERS.map((folder) => listFiles(destination, {
+    token, folder,
+  }).catch(() => [])));
+  const files = [...await listFiles(destination, { token }), ...hidden.flat()].filter(inScope);
   for (let i = 0; i < files.length; i += 8) {
     // eslint-disable-next-line no-await-in-loop
     await Promise.all(files.slice(i, i + 8).map(async ({ path }) => {
@@ -71,8 +74,9 @@ const { total, copied, failed } = result;
 console.log(JSON.stringify({ total, copied: copied.length, failed }, null, 1));
 if (dryRun) result.files.forEach((p) => console.log(' ', p));
 
-if (!dryRun && !flag('no-preview') && result.copied.length) {
-  const { job } = await previewPaths(destination, result.copied.map(toSitePath), { token });
+const previewable = result.copied.filter(isPreviewable);
+if (!dryRun && !flag('no-preview') && previewable.length) {
+  const { job } = await previewPaths(destination, previewable.map(toSitePath), { token });
   console.log(`preview job ${job?.name} (${job?.data?.paths?.length} paths): ${job?.state}`);
 }
 if (result.failed.length) process.exitCode = 1;
