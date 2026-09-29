@@ -3951,6 +3951,23 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   Hotjar keys (`hotjarId.*`, `hotjarVersion`, `hotjarHostUrl.*`) outside this work — site-config.js doesn't know them
   yet and logs `[site-config] unknown key` warnings.
 
+### 2026-09-28 — Sheet: Target enabled on preview, A4T off (VisitorAPI LCP cost)
+- Sheet now (previewed, not published): `target.enabled=true`, test account `codeandtheoryamerpar` /
+  `6ED976C95CFFA6810A495C73@AdobeOrg`, `target.a4t=false`. A4T can't stitch across orgs (Analytics is USTA's org) and
+  VisitorAPI cost the Target page −0.65 s mobile LCP and BP 75→96 (ID-sync cookies). Launch still loads its own
+  Target (2.11.7) at ~2 s and takes over `window.adobe.target` until removed from Launch.
+
+### 2026-09-29 — DA Library (`/.da/library`) copied from aemdemos; sync now includes it
+- **Problem:** the site config's `library` sheet points at `/.da/library/blocks.json` and `templates.json`, but that
+  folder was empty in this repo (DA's listing hides dot-folders, so the content sync never copied it). A separate
+  `/.da/blocks.json` + `/.da/blocks/` existed but isn't referenced by the config (left as-is). `content.da.live` returns
+  401 without a login — expected; the DA editor sends the token.
+- **Fix:** `tools/da-sync` now also lists `HIDDEN_FOLDERS = ['/.da/library']`, rewrites `/<source>/` → `/<destination>/`
+  inside the Library `.json` sheets, and skips dot-folder paths in preview. Ran `npm run da:sync -- --folders=/.da/library`:
+  24 files copied (14-block `blocks.json` with an `options` tab, 5 templates, 17 block docs, 5 template docs), 0 failed.
+- **Verified:** all 19 Library entries resolve to existing docs in this repo; none still point at aemdemos. Block docs'
+  images still load from `content.da.live/aemdemos/…` (same as pages).
+
 ### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
 Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
 which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,

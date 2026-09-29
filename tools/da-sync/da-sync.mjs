@@ -52,18 +52,37 @@ export async function listFiles(repo, { token, folder = '', fetchImpl = fetch } 
   return nested.flat();
 }
 
+/**
+ * Hidden (dot) folders that DA's listing omits but are copied explicitly —
+ * the DA Library (blocks/templates sheets + their example documents).
+ */
+export const HIDDEN_FOLDERS = ['/.da/library'];
+
+/**
+ * Library sheets reference their documents by absolute content.da.live URL, so
+ * they are rewritten to point at the destination repo. Documents themselves are
+ * copied byte-for-byte (their images keep loading from the source, like pages).
+ */
+const shouldRewrite = (path) => path.startsWith('/.da/library/') && path.endsWith('.json');
+
 async function copyFile(source, destination, path, { srcToken, dstToken, fetchImpl }) {
   const got = await fetchImpl(`${DA}/source/${source}${path}`, { headers: authHeaders(srcToken) });
   if (!got.ok) throw new Error(`GET ${path}: HTTP ${got.status}`);
   const ext = path.split('.').pop().toLowerCase();
   const type = TYPES[ext] || got.headers.get('content-type') || 'application/octet-stream';
+  const body = shouldRewrite(path)
+    ? (await got.text()).split(`/${source}/`).join(`/${destination}/`)
+    : await got.arrayBuffer();
   const form = new FormData();
-  form.append('data', new Blob([await got.arrayBuffer()], { type }), path.split('/').pop());
+  form.append('data', new Blob([body], { type }), path.split('/').pop());
   const put = await fetchImpl(`${DA}/source/${destination}${path}`, {
     method: 'POST', headers: authHeaders(dstToken), body: form,
   });
   if (!put.ok) throw new Error(`POST ${path}: HTTP ${put.status}`);
 }
+
+/** Paths inside dot-folders (e.g. /.da/library) are not served on the site — never previewed. */
+export const isPreviewable = (daPath) => !daPath.split('/').some((seg) => seg.startsWith('.') && seg.length > 1);
 
 /** DA path → site path for preview (/en/home.html → /en/home, /index.html → /). */
 export function toSitePath(daPath) {
@@ -104,7 +123,11 @@ export async function syncRepos({
 }) {
   const src = parseRepo(source);
   const dst = parseRepo(destination);
-  let files = await listFiles(src, { token: srcToken, fetchImpl });
+  // hidden folders may not exist in the source → treat as empty
+  const hidden = await Promise.all(HIDDEN_FOLDERS.map((folder) => listFiles(src, {
+    token: srcToken, folder, fetchImpl,
+  }).catch(() => [])));
+  let files = [...await listFiles(src, { token: srcToken, fetchImpl }), ...hidden.flat()];
   if (folders?.length) {
     files = files.filter((f) => folders.some((p) => f.path === p || f.path.startsWith(`${p.replace(/\/$/, '')}/`)));
   }
