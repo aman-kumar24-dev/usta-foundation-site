@@ -3810,3 +3810,17 @@ change (`left` sequence moved from ~-133 to -991 over samples) even with the pri
 - **Verification:** frame sampling now shows `nav-sections` `leftSpan: 0` across all
   post-resize samples (no animated drift), while intentional menu open still animates
   with `transitionDuration: 0.3s`.
+
+### 2026-09-28 — Port Adobe Analytics Tags + Target/A4T implementation
+Ported the final martech implementation from `aem-coder-branch` to
+`feature/adobeAnalytics` without modifying the source branch.
+- Adobe Analytics now loads through the configured Adobe Experience Platform Tags
+  (Launch) embed; the self-hosted `AppMeasurement.js` integration was removed.
+- Adobe Target uses the vendored `at.min.js`; A4T initializes the vendored
+  `VisitorAPI.min.js` first so Target and Analytics share the ECID.
+- Target remains metadata- and site-config-driven, with authored `/site-config.json`
+  overrides and duplicate at.js protection when Tags already includes Target.
+- Only the Target + Analytics files were ported; the Fundraise Up changes
+  (`donate.js`, `donate-embed`) stay as on this branch, so donation checkout/complete
+  events are not sent from site code. `analytics.js` still listens for `donate`
+  events and will send them if `donate.js` starts emitting them later.

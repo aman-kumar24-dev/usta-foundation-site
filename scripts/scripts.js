@@ -302,88 +302,6 @@ async function loadTemplateJS(name, main) {
 // Template name resolved in loadEager (via CSS load), consumed in loadLazy for JS.
 let templateName = null;
 
-// Adobe Target (at.js 2.0), per aem.live's own EDS-specific pattern:
-// https://www.aem.live/developer/target-integration
-// Uses at.js's headless getOffers()/applyOffers() API instead of triggerView()'s
-// automatic DOM rendering, so offer application can wait for EDS's own async
-// block/section decoration instead of racing it - see onDecoratedElement below.
-function initATJS(path, config) {
-  window.targetGlobalSettings = config;
-  return new Promise((resolve) => {
-    import(path).then(resolve);
-  });
-}
-
-function onDecoratedElement(fn) {
-  // Apply propositions to all already decorated blocks/sections
-  if (document.querySelector('[data-block-status="loaded"],[data-section-status="loaded"]')) {
-    fn();
-  }
-
-  const observer = new MutationObserver((mutations) => {
-    if (mutations.some((m) => m.target.tagName === 'BODY'
-      || m.target.dataset.sectionStatus === 'loaded'
-      || m.target.dataset.blockStatus === 'loaded')) {
-      fn();
-    }
-  });
-  // Watch sections and blocks being decorated async
-  observer.observe(document.querySelector('main'), {
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['data-block-status', 'data-section-status'],
-  });
-  // Watch anything else added to the body
-  observer.observe(document.querySelector('body'), { childList: true });
-}
-
-function toCssSelector(selector) {
-  return selector.replace(/(\.\S+)?:eq\((\d+)\)/g, (_, clss, i) => `:nth-child(${Number(i) + 1}${clss ? ` of ${clss})` : ''}`);
-}
-
-function getElementForOffer(offer) {
-  const selector = offer.cssSelector || toCssSelector(offer.selector);
-  return document.querySelector(selector);
-}
-
-function getElementForMetric(metric) {
-  const selector = toCssSelector(metric.selector);
-  return document.querySelector(selector);
-}
-
-async function getAndApplyOffers() {
-  const response = await window.adobe.target.getOffers({ request: { execute: { pageLoad: {} } } });
-  const { options = [], metrics = [] } = response.execute.pageLoad;
-  onDecoratedElement(() => {
-    window.adobe.target.applyOffers({ response });
-    // keeping track of offers that were already applied
-    options.forEach((o) => { o.content = o.content.filter((c) => !getElementForOffer(c)); });
-    // keeping track of metrics that were already applied
-    metrics.map((m, i) => (getElementForMetric(m) ? i : -1))
-      .filter((i) => i >= 0)
-      .reverse()
-      .forEach((i) => metrics.splice(i, 1));
-  });
-}
-
-// Testing Target only, on the Code & Theory account - not USTA's. Swap back to
-// // USTA's real clientCode/serverDomain/imsOrgId before this ships for real.
-let atjsPromise = Promise.resolve();
-if (getMetadata('target')) {
-  atjsPromise = initATJS('./at.js', {
-    clientCode: 'codeandtheoryamerpar',
-    serverDomain: 'codeandtheoryamerpar.tt.omtrdc.net',
-    imsOrgId: '6ED976C95CFFA6810A495C73@AdobeOrg',
-    bodyHidingEnabled: false,
-    cookieDomain: window.location.hostname,
-    pageLoadEnabled: false,
-    secureOnly: true,
-    viewsEnabled: false,
-    withWebGLRenderer: false,
-  });
-  document.addEventListener('at-library-loaded', () => getAndApplyOffers());
-}
-
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   preloadDisplayFont();
@@ -393,19 +311,22 @@ async function loadEager(doc) {
   // spacing) isn't LCP-critical. Awaiting it added a full CSS round-trip to the
   // H1 render delay on slow mobile. Resolve `templateName` for loadLazy's JS.
   const templateCssPromise = loadTemplateCSS();
+  // Adobe Target (at.js) only on pages with `Target` metadata; the site's
+  // target.enabled flag lives in site-config.js (see target.js).
+  const targetValue = getMetadataNormalized('target').toLowerCase();
+  const targetPromise = targetValue && !['off', 'false', 'no'].includes(targetValue)
+    ? import('./target.js').then(({ default: initTarget }) => initTarget()).catch(() => {})
+    : null;
   const main = doc.querySelector('main');
   if (main) {
     decorateMain(main);
     document.body.classList.add('appear');
-    // wait for at.js to finish loading
-    await atjsPromise;
-    // break up possible long tasks before showing the LCP block to reduce TBT
-    await new Promise((resolve) => {
-      window.setTimeout(async () => {
-        await loadSection(main.querySelector('.section'), waitForFirstImage);
-        resolve();
-      }, 0);
-    });
+    if (targetPromise) {
+      await targetPromise;
+      // let the at.js page-load request start before the first section renders
+      await new Promise((resolve) => { setTimeout(resolve, 0); });
+    }
+    await loadSection(main.querySelector('.section'), waitForFirstImage);
   }
   templateName = await templateCssPromise;
 
@@ -445,11 +366,11 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
-  // This site has no consent-management requirement, so Analytics loads
-  // unconditionally instead of going through a consent check first.
-  import('./consented.js');
+  import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
+  // Adobe Analytics (Tags).
+  import('./analytics.js');
   // load anything that can be postponed to the latest here
 }
 
@@ -457,8 +378,8 @@ async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   // Defer the delayed phase ~3s (EDS convention) so non-critical third parties
-  // (the FundraiseUp donate tab, the consent gate) load well after the page is
-  // interactive — keeps them out of the initial critical path / "unused JS".
+  // (analytics, the FundraiseUp donate tab, the consent gate) load well after the
+  // page is interactive — keeps them out of the initial critical path / "unused JS".
   window.setTimeout(() => loadDelayed(), 3000);
 }
 
