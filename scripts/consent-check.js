@@ -43,4 +43,28 @@ function onConsentUpdate() {
   }
 }
 
-onConsentUpdate();
+/**
+ * If site-config `consentRequired` is false, skip the consent workflow and load
+ * consented scripts immediately. If true, run the existing consent flow unchanged.
+ */
+async function initFromSiteConfig() {
+  const { whenSiteConfigReady, getConfig } = await import('./site-config.js');
+  try {
+    await whenSiteConfigReady();
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('[consent] site-config unavailable; using consent workflow', error);
+    onConsentUpdate();
+    return;
+  }
+
+  const consentRequired = getConfig('consentRequired').toLowerCase() === 'true';
+  if (!consentRequired) {
+    loadConsented();
+    return;
+  }
+
+  onConsentUpdate();
+}
+
+initFromSiteConfig();

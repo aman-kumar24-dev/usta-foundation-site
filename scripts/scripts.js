@@ -347,6 +347,7 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  import('./site-config.js');
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Kick off template CSS but DON'T block the eager render on it — the LCP H1's
