@@ -3810,3 +3810,113 @@ change (`left` sequence moved from ~-133 to -991 over samples) even with the pri
 - **Verification:** frame sampling now shows `nav-sections` `leftSpan: 0` across all
   post-resize samples (no animated drift), while intentional menu open still animates
   with `transitionDuration: 0.3s`.
+
+### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
+Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
+which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,
+Privacy, Donor PDF). The source keeps header nav, internal links, related-article cards and article-body externals
+in the same tab. The customer chose "every link" when shown this.
+- **Implementation (scripts/scripts.js only):** `openLinksInNewTab()` is one delegated, capture-phase `click`
+  listener on `document`, registered first in `loadPage()`. On click it sets `target="_blank"` + `rel="noopener"`
+  on the clicked `a[href]` just before the browser navigates. This covers links built at ANY time (header, footer,
+  blocks, the related-articles feed) with no per-block changes.
+- **Skipped on purpose:** in-page `#` anchors, `javascript:`/`mailto:`/`tel:` links, and `?form=` donate links. Those
+  open the FundraiseUp overlay on the current page, so a new tab would break the donate flow. Links that already
+  set a target (social share, Instagram fallback) are left alone.
+- Verified: dev server serves the new function; skip rules checked against the site's real link shapes (nav, internal,
+  external portal, atptour, careers, PDF → new tab; `?form=DONATE`/`?form=JLLI`, `#…`, mailto, tel → same tab).
+  Gates: lint 0 errors (7 pre-existing a11y no-console warnings) · breakpoint-check ✓. NOT browser-clicked this
+  session: the Playwright tool failed to connect. JS-only; deploys via git push.
+
+### 2026-09-29 — New `library-metadata` block (DA block-library variant labels)
+On the DA library pages (`/.da/library/blocks/*`, e.g. `.da/library/blocks/cards`), each variant is followed by a
+`library-metadata` table (`name` / `description` rows). There was no block for it, so the preview and the DA
+"Insert block" preview showed the raw key/value text ("name / Content Cards / description / …").
+- **Block (`blocks/library-metadata/`)**, display-only. It reads the rows by key (case-insensitive, trimmed; either
+  row may be missing), rebuilds the block as `<p class="library-metadata-name">` + `<p class="library-metadata-description">`
+  with the values only, and moves the label's wrapper to the **top of its section**, above the example. It uses `<p>`,
+  not headings, so heading order, a11y and the TOC are unaffected. If neither row has a value, the block is `hidden`.
+  No hard-coded strings; all text comes from the table.
+- **Authoring contract unchanged:** the library documents are NOT modified. The DA Library panel still reads
+  name/description from the source tables; this decoration only affects the rendered preview.
+- **Styling:** light-grey panel (`--light-color`), 4px `--brand-blue` left accent, 4px radius, padding from `--grid-gap`
+  (15/20 → 20/30 from 768). Name: `--heading-semibold-font-family`, `--body-font-size-m` × 1.125 (18 → 20.25px).
+  Description: `--body-font-size-xs`, `--text-color` (#333 on #f5f5f5, axe contrast ✓). The site has NO radius or
+  border-width tokens, so those two values are block-local custom props (`--library-metadata-radius` /
+  `--library-metadata-accent-width`).
+- **Spacing (gotcha):** the global wrapper rule (`main .section > div[class$="-wrapper"]:not(…) + div[class$="-wrapper"]`,
+  specificity 0,4,3) put 40px between the label and its example, the same as the 40px between sections, so a label
+  looked equally attached to the variant above it. Fix, scoped to the block's own EDS hooks
+  (`.library-metadata-container` section / `.library-metadata-wrapper`): variant sections get `--grid-gap × 2` (60px)
+  margin, the first gets `--grid-gap` (30px) under the breadcrumb, and label → example is `--grid-gap × 2/3` (20px) via
+  `…> .library-metadata-wrapper:first-child + div[class$="-wrapper"]` (0,5,2, which beats the global rule; `:first-child`
+  is true once decorate() has moved the label).
+- **Cards library check (all 7):** content, news, profile, stats, tiles, support and expand all render correctly
+  at 390/768/1440, and all images load (blank areas in a full-page screenshot were only lazy loading). Labels match
+  the section content column (336/720/962–1170); profile and expand are intentionally narrower, centered by
+  their own source layout. The content (16px) and support (32px) variants keep their own list top padding, so their
+  first card sits a little further below the label. That padding matches the source site and is left as is,
+  because changing cards.css would change real pages.
+- **Verified:** lint 0 errors (7 pre-existing no-console warnings in tests/a11y) · breakpoint-check ✓ · axe-core
+  4.10.3 with the project's a11y config (WCAG 2.0–2.2 A/AA, color-contrast off as configured) → 0 violations on
+  `/.da/library/blocks/cards`, and the label passes color-contrast when checked separately. No horizontal overflow at
+  320/390/768/992/1199/1200/1440/1920. NOTE: `npm run test:a11y` / `check:overflow` could not launch here because the
+  scripts expect Playwright's chromium_headless_shell-1187, but only 1205/1208 are installed. The same axe scan and
+  overflow sweep were run in the preview browser instead.
+- Code-only; deploys via git push. No content changes.
+
+### 2026-09-29 — `library-metadata` v2: consistent rhythm on ALL 17 library pages (hero fix)
+After the first pass, the user reported bad spacing on the hero library page. A sweep of all 17
+`/.da/library/blocks/*` pages at 390/992/1440 found the section-margin approach was being overridden:
+- **hero** (`main > .section.hero-container:has(.hero.banner|.text-up) { margin: 0 }`, plus a desktop
+  `+ .section { margin-top: 0 }`): labels had **0px** above them and touched the breadcrumb or the previous hero.
+- **columns-stats** (17px section top margin, 0 below) and **spacer** (`margin: 0; padding: 0` section) also own
+  their section margins, so their pages had uneven gaps at the top and bottom.
+- **toc-profile**: the block's own `margin-top: 48px/77px` pushed the tabs 48–77px below the label.
+- **Fix:** decorate() sets `section.style.marginBlock = '0'` on labelled sections. An inline style is the reliable
+  way to beat those block rules (up to 0,8,2 specificity) without `!important`. The rhythm moved to section
+  PADDING (`--grid-gap` top and bottom, so 30px under the breadcrumb and 60px between variants; the last section
+  gets `--grid-gap × 2` before the footer). `:has(> .library-metadata-wrapper)` beats spacer's `padding: 0`. The
+  example block's own `margin-top` is also zeroed in labelled sections, so label → example is always 20px.
+- **Result (measured, all 17 pages × 390/992/1440):** 30px above the first label · 60px between variants · 20px
+  label → example · ~60px before the footer · no horizontal overflow. Real pages are unaffected; these rules only
+  match sections that contain a library-metadata label.
+- **Library CONTENT issues found (not changed; the docs were left as-is on purpose):**
+  1. `widget`: the example points to `/widgets/sample-widget`. The repo has no `widgets/` folder, so it renders a
+     "404 Page Not Found" box.
+  2. `custom-form-donate`: the block was retired in favour of `donate-embed` (see the donate entries above) and has
+     no code. The library still lists it (404 on the block JS/CSS). It should be replaced by a donate-embed entry.
+  3. `hero` Banner Hero example has no image, so it shows the block's solid-blue no-image fallback.
+- Gates: lint 0 errors · stylelint ✓ · breakpoint ✓ · axe (project config) 0 serious/critical violations on hero,
+  cards, columns, toc-profile, spacer, quote and table library pages, and the label passes color-contrast.
+
+### 2026-09-29 — Home: blue strip above "Your support makes a difference" merged into the band (parity fix)
+Reported on aem.page: the 17px light-blue strip (a `spacer` block) was not visible; it ran straight into the
+light-blue support band below. Removing the band's padding in devtools revealed the strip but left far too much space.
+- **Root cause 1 (stale selector):** every spacer-spacing rule in styles.css matched `.spacer[style*='cards-band-bg']`,
+  but the root `index` spacers are authored `color: section-blue-bg`, so NONE of the rules applied. The spacer section
+  had 0 margin and the band had 0 top margin, so the strip sat flush on the same-color band. The first blue strip
+  (above "For decades…") was hit by the same bug (40px below it instead of 76).
+- **Root cause 2 (dead token):** `/en/home` still authors `color: cards-band-bg`, and the 2026-09-24 perf cleanup
+  deleted `--cards-band-bg` as "dead". So on `/en/home` the strips rendered TRANSPARENT.
+- **Root cause 3 (band rhythm):** inside the band, the global h2 `margin-top: 0.8em` (61px) stacked on the 56px band
+  padding, and the card list had 32px of top padding.
+- **Fix (styles.css):** restored `--cards-band-bg` as an alias of `--section-blue-bg` (legacy content). The blue-spacer
+  rules now match BOTH names via `:is(...)`. Strip before a blue band: margin 34/17 (<768) → 50/17 (>=768), and the
+  preceding section's bottom margin is zeroed so it can't collapse with (and on mobile out-size) the strip margin.
+  GOTCHA: `:has()` cannot nest, so that rule keys on `section + spacer-container + (.highlight|.section-blue)`.
+  Floating strip below-gap 76 now starts at 768 (was 992), matching the source.
+- **Fix (cards.css, support band):** band padding 49/8 (<768), 65/40 (>=768). Intro h2 margin 0 and subtitle
+  margin-top 0 (flush, as on the source). Card list top padding 32 → 0. Cards wrapper margin-top 24 (<768) / 40.
+- **Measured source vs ours (390 / 768 / 992 / 1440), `/` and `/en/home` identical:**
+  LEARN MORE→strip 34/50/50/50 vs 34/53/51/50 (768/992 residual = the collage cell is 1–3px taller than the
+  LEARN MORE column) · strip 17 ✓ · white gap 17 ✓ · band→h2 49/65/65/65 ✓ · h2→subtitle 0 ✓ ·
+  subtitle→cards 32/48/48/48 ✓ · last LEARN MORE→band bottom 52/82/94/82 vs 52/82/106/82 (992 = card text wrap
+  height, pre-existing) · first strip→"For decades" 60/76/76/76 ✓.
+- **Gates:** lint 0 errors (7 pre-existing no-console warnings) · stylelint ✓ · breakpoint ✓. `check:overflow`,
+  `check:typography` and `test:a11y` could not launch (Playwright expects chromium_headless_shell-1187; not installed).
+  Ran equivalents in the preview browser: 0px horizontal overflow at 320/390/768/992/1199/1200/1440/1920 on both
+  pages; support h2 44/48.4 (<768), 76/83.6 (>=768), weight 500, unchanged. axe (WCAG 2.x A/AA, all rules): only
+  `color-contrast` on the existing white-on-#0373f3 brand buttons / nav Donate. That was pre-existing, and the
+  project a11y config turns this rule off.
+- CSS-only; deploys via git push. No content changes needed (both token names are supported).
