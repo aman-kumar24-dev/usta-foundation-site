@@ -1,8 +1,7 @@
 /**
- * Loads analytics integrations from the shared site configuration.
+ * Loads Hotjar from the shared site configuration.
  *
  * Expected configuration:
- *   launch
  *   hotjarId
  *   hotjarHostUrl
  *   hotjarVersion
@@ -101,13 +100,10 @@ function readHotjarConfig() {
 }
 
 /**
- * Loads configured analytics integrations after the shared site
- * configuration becomes available.
+ * Loads Hotjar after the shared site configuration becomes available.
  */
-async function loadAnalyticsFromSiteConfig() {
+async function loadHotjarFromSiteConfig() {
   await whenSiteConfigReady();
-
-  injectScript(getConfig('launch'));
 
   const hotjar = readHotjarConfig();
 
@@ -116,4 +112,4 @@ async function loadAnalyticsFromSiteConfig() {
   }
 }
 
-loadAnalyticsFromSiteConfig();
+loadHotjarFromSiteConfig();
