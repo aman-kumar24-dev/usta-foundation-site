@@ -3824,6 +3824,3 @@ Ported the final martech implementation from `aem-coder-branch` to
   (`donate.js`, `donate-embed`) stay as on this branch, so donation checkout/complete
   events are not sent from site code. `analytics.js` still listens for `donate`
   events and will send them if `donate.js` starts emitting them later.
-
-### 2026-10-01 — Test override: force site Target off
-`getSiteConfig()` calls `forceTargetOffForTest()`, so `target.enabled` from the `/site-config` sheet is ignored and site at.js does not load. Remove that function and its three call sites to restore sheet control. The USTA Foundation Launch library can still load its own Target extension.
