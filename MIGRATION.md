@@ -3831,3 +3831,4 @@ USTA OneTrust SDK `43383d2d-67e6-4d4a-99cb-3ff760b82737` (same property as www.u
 - `scripts/analytics.js` is unchanged: with `consentRequired`, Launch waits on `onConsent()` (Performance).
 - `scripts/target.js` no longer skips Target when consent is required. It returns immediately so first paint is not blocked, and loads at.js only after Targeting consent.
 - Code default `consentRequired` is now `true`. A published `/site-config` sheet value still wins, so the sheet row must be `true` or the gate stays off.
+- OneTrust SDK id and stub URL are `onetrust.sdk` and `onetrust.src` in `site-config.js`, overridable from the `/site-config` sheet. The URL is accepted only from `cdn.cookielaw.org`.

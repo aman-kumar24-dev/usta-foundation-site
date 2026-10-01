@@ -61,6 +61,8 @@ kept as a fallback). Changes go live on publish — no code deploy.
 | `launch.production` | Tags embed for aem.live + production domain | `https://assets.adobedtm.com/….js` or empty |
 | `launch.development` | Tags embed for aem.page + localhost | same |
 | `consentRequired` | `true` / `false` | boolean |
+| `onetrust.sdk` | OneTrust domain-script id | UUID, or empty |
+| `onetrust.src` | OneTrust stub URL | `https://cdn.cookielaw.org/scripttemplates/otSDKStub.js` only |
 | `target.enabled` | `true` / `false` — only after Target is removed from Tags | boolean |
 | `target.clientCode` | `unitedstatestennisas` | letters/digits/`-` |
 | `target.serverDomain` | `unitedstatestennisas.tt.omtrdc.net` | `….tt.omtrdc.net` |

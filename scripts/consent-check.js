@@ -1,17 +1,17 @@
+import { getSiteConfig } from './site-config.js';
+
 /**
  * OneTrust consent gate for Adobe Analytics and Adobe Target.
  *
- * Uses the USTA OneTrust property (same SDK as www.usta.com). The banner and
- * category copy come from OneTrust. This module only reads the visitor's choice
- * and tells Analytics (Performance, C0002) and Target (Targeting, C0004) when
- * they may load. Until OneTrust has reported, both stay off.
+ * SDK id and stub URL come from site config (`onetrust.sdk`, `onetrust.src`),
+ * including the authored /site-config sheet. The banner copy comes from OneTrust.
+ * This module reads the visitor's choice and tells Analytics (Performance, C0002)
+ * and Target (Targeting, C0004) when they may load. Until OneTrust has reported,
+ * both stay off.
  *
  * `?consent=accept` or `?consent=decline` overrides OneTrust for testing.
  * Do not use that query in production.
  */
-
-const ONETRUST_SDK = '43383d2d-67e6-4d4a-99cb-3ff760b82737';
-const ONETRUST_SRC = 'https://cdn.cookielaw.org/scripttemplates/otSDKStub.js';
 
 /** Performance Cookies — Adobe Analytics. */
 const ANALYTICS_GROUP = 'C0002';
@@ -107,15 +107,19 @@ function publish() {
   }));
 }
 
-function loadOneTrust() {
-  if (document.querySelector(`script[src="${ONETRUST_SRC}"]`)) return;
+/**
+ * @param {string} src OneTrust stub URL from site config
+ * @param {string} sdk OneTrust domain-script id from site config
+ */
+function loadOneTrust(src, sdk) {
+  if (document.querySelector('script[data-domain-script]')) return;
   window.OptanonWrapper = () => publish();
   window.addEventListener('OneTrustGroupsUpdated', () => publish());
   const script = document.createElement('script');
   const policy = window.trustedTypes && window.trustedTypes.defaultPolicy;
-  script.src = policy ? policy.createScriptURL(ONETRUST_SRC) : ONETRUST_SRC;
+  script.src = policy ? policy.createScriptURL(src) : src;
   script.async = true;
-  script.setAttribute('data-domain-script', ONETRUST_SDK);
+  script.setAttribute('data-domain-script', sdk);
   script.setAttribute('charset', 'UTF-8');
   document.head.append(script);
 }
@@ -156,5 +160,9 @@ export function onTargetConsent(callback) {
 }
 
 installConsentModeDefault();
-loadOneTrust();
+getSiteConfig().then(({ site }) => {
+  const { sdk, src } = site.onetrust || {};
+  if (!sdk || !src) return;
+  loadOneTrust(src, sdk);
+});
 if (queryOverride() !== null) publish();
