@@ -41,10 +41,6 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
   });
 }
 
-// After the default Trusted Types policy. A static import would run first and
-// assigning the OneTrust URL would throw TrustedScriptURL, which blanks the page.
-import('./consent-check.js');
-
 /**
  * Preload the condensed display font (Graphik XXCond Bold) used by h1/h2 at up to
  * 100px. It's the LCP headline face and an ultra-condensed cut, so a fallback
@@ -370,6 +366,7 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
+  import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
   // Adobe Analytics (Tags).
@@ -381,9 +378,8 @@ async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   // Defer the delayed phase ~3s (EDS convention) so non-critical third parties
-  // (analytics, the FundraiseUp donate tab) load well after the page is
-  // interactive — keeps them out of the initial critical path / "unused JS".
-  // OneTrust itself loads with scripts.js, before either phase.
+  // (analytics, the FundraiseUp donate tab, the consent gate) load well after the
+  // page is interactive — keeps them out of the initial critical path / "unused JS".
   window.setTimeout(() => loadDelayed(), 3000);
 }
 

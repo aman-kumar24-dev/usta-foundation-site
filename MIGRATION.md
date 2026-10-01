@@ -3824,14 +3824,3 @@ Ported the final martech implementation from `aem-coder-branch` to
   (`donate.js`, `donate-embed`) stay as on this branch, so donation checkout/complete
   events are not sent from site code. `analytics.js` still listens for `donate`
   events and will send them if `donate.js` starts emitting them later.
-
-### 2026-09-30 — OneTrust gate for Analytics and Target
-USTA OneTrust SDK `43383d2d-67e6-4d4a-99cb-3ff760b82737` (same property as www.usta.com). Five categories; this code uses Performance `C0002` for Launch/Analytics and Targeting `C0004` for at.js. `OtAutoBlock.js` is not used: `head.html` is unchanged and the CSP `strict-dynamic` policy only allows scripts injected by the nonce'd modules.
-- `scripts/consent-check.js` loads the OneTrust stub at startup, defaults Google Consent Mode v2 to denied, then updates it from the active groups. `?consent=accept` / `?consent=decline` still overrides for testing.
-- `scripts/analytics.js` is unchanged: with `consentRequired`, Launch waits on `onConsent()` (Performance).
-- `scripts/target.js` no longer skips Target when consent is required. It returns immediately so first paint is not blocked, and loads at.js only after Targeting consent.
-- Code default `consentRequired` is now `true`. A published `/site-config` sheet value still wins, so the sheet row must be `true` or the gate stays off.
-- OneTrust SDK id and stub URL are `onetrust.sdk` and `onetrust.src` in `site-config.js`, overridable from the `/site-config` sheet. The URL is accepted only from `cdn.cookielaw.org`.
-
-### 2026-10-01 — Test override: ignore sheet consentRequired
-`getSiteConfig()` forces `consentRequired: true` after the sheet is read (`forceConsentForTest`). The `/site-config` sheet still says `false`. Remove the override when that row is set to `true`.
