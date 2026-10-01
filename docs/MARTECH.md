@@ -11,7 +11,7 @@ Analytics extension sends beacons straight to Adobe Analytics.
 | `scripts/site-config.js` | One entry per site: hosts, EDS site names, Tags embed URL per environment, `consentRequired`, optional `donateBeacons` |
 | `scripts/analytics.js` | Resolves site + environment from the hostname, gates on consent if required, injects the embed once (`async`); turns `donate` events into link beacons |
 | `scripts/consent-check.js` | Exposes `onConsent(callback)`; placeholder consent (`?consent=accept`) until a real CMP is wired per site |
-| `scripts/scripts.js` → `loadDelayed()` | `import('./analytics.js')` — ~3s after load, independent of the donate widget |
+| `scripts/scripts.js` → `loadDelayed()` | `import('./analytics.js')` — 3 s after the lazy phase (≈4.4 s after navigation locally), independent of the donate widget. At 2 s Tags fell inside standard Lighthouse runs (BP 96 → 75) |
 | `scripts/donate.js` (from `loadLazy()`) | Normalises donate links immediately; loads Fundraise Up on first deliberate interaction (pointerdown/keydown/touchstart/wheel/scroll — no timer, no pointermove) or immediately with `?form=`; re-emits its donation events as a `donate` window event (buffered in `window.donateEvents`) |
 
 ### Donation events (Fundraise Up → Analytics)
@@ -67,7 +67,7 @@ by Target (eager) and Analytics (delayed) — one request per page, issued befor
 | `target.clientCode` | `unitedstatestennisas` | letters/digits/`-` |
 | `target.serverDomain` | `unitedstatestennisas.tt.omtrdc.net` | `….tt.omtrdc.net` |
 | `target.imsOrgId` | `A6D83F7A5347FCE90A490D44@AdobeOrg` | `…@AdobeOrg` |
-| `target.a4t` | `true` / `false` | boolean |
+| `target.a4t` | `false`, `true` / `server` (VisitorAPI, server-side), `client` (client-side, no VisitorAPI) | one of those |
 | `target.flickerTimeout` | `1000` — max ms the first section waits for Target offers (0 = don't wait) | integer 0–3000 |
 
 **Tab `donate-beacons`** — one row per donate.js event, columns `event | linkName | events | set | map`:
@@ -190,7 +190,8 @@ Target is moved **out of the Tags library** into site code; Tags keeps Analytics
 | `scripts/scripts.js` → `loadEager()` | Only when the page has `Target` metadata (any value except off/false/no): imports `target.js` and awaits it — i.e. until the **offers have arrived** (or `target.flickerTimeout`, default 1 s) — then renders the first section, so its first paint already shows the offer |
 | `scripts/target.js` | Checks the site flag (and skips consent-required sites), preconnects to the edge, modulepreloads at.js, creates the ECID instance (A4T), sets `targetGlobalSettings`, imports at.js, fires `getOffers` (pageLoad) on `at-library-loaded`, applies offers as sections/blocks decorate |
 | `scripts/vendor/at.min.js` | at.js **2.11.4**, the aem.live-optimised build (loadable with `import()`). Tags used 2.11.7; a 2.11.7 download from Target → Administration → Implementation can replace it later **if it still works with `import()`** (the stock download may not; test it before swapping) |
-| `scripts/vendor/VisitorAPI.min.js` | Experience Cloud ID service 5.5.0 (same version Tags uses), loaded as a classic script |
+| `scripts/vendor/VisitorAPI.min.js` | Experience Cloud ID service 5.5.0 (same version Tags uses), loaded as a classic script — **only in `target.a4t = true/server` mode** |
+| `scripts/target-a4t.js` | **Client-side A4T** (`target.a4t = client`): exposes the at.js payload as `window.targetA4TPayload` + `target-a4t` event, and sends a single fallback link hit if the Tags page view went out without it |
 
 ### Settings (`window.targetGlobalSettings`)
 
@@ -206,7 +207,41 @@ pass. `target.js` uses a synchronous `findTarget()` so offers whose elements dec
 
 ### A4T (Analytics for Target)
 
-`target.js` calls `Visitor.getInstance(imsOrgId)` before at.js. The Tags ECID extension later reuses that
+Mode per site via the sheet key `target.a4t`:
+
+| value | at.js `analyticsLogging` | VisitorAPI | how the data reaches Analytics |
+|---|---|---|---|
+| `false` | (default) | no | not at all |
+| `true` / `server` | `server_side` | yes, before at.js | Adobe stitches the at.js call and the Tags page view by `mid` + `sdid` |
+| `client` | `client_side` | **no** | `target-a4t.js` → `window.targetA4TPayload` → Tags page view context data `a4t.payload` → Analytics processing rule |
+
+**Client mode (`scripts/target-a4t.js`).** at.js returns `execute.pageLoad.analytics.payload.tnta` in
+the page-load response; `captureA4T()` stores it as `window.targetA4TPayload` and fires `target-a4t`
+(eager phase, before first paint — no extra request, no DOM work). The Tags page view (3 s delayed
+phase) attaches it in the rule that sets global variables before the page view:
+
+```js
+if (window.targetA4TPayload) {
+  s.contextData = s.contextData || {};
+  s.contextData['a4t.payload'] = window.targetA4TPayload;
+  window.targetA4TPayloadSent = true;
+}
+```
+
+It is serialized as `c.&a4t.&payload=…&.a4t&.c`; an Analytics **processing rule** on the report suite
+maps the context data variable `a4t.payload`. **Why context data:** AppMeasurement 2.27.0 drops a raw
+`s.tnta` (unknown variable), `s.tnt` is the legacy Test&Target format, and `pe` is overwritten by `s.tl`
+(all verified on intercepted beacons). **Check:** that the processing rule can write to the A4T/Target
+dimension for the report suite — if it can't, the payload lands in a prop/eVar but the built-in A4T
+reports stay empty. **Fallback:** if the first page view went out without the payload (late Target
+response, or the Tags line missing), `target-a4t.js` sends **one** link hit `Target A4T` with the same
+context data variable; de-duplicated by `window.targetA4TPayloadSent` / the page-view URL.
+
+Measured (interleaved Lighthouse, localhost proxy): `client` costs nothing vs `false` (mobile LCP 5.71
+vs 6.01 s, BP 96 both); `server` +~1 s mobile LCP (6.74 s) and BP 75 (ID-sync cookies). First paint in
+the simulated-offer test: `client` ~1.1–1.4 s, `server` ~3.3 s.
+
+**Server mode.** `target.js` calls `Visitor.getInstance(imsOrgId)` before at.js. The Tags ECID extension later reuses that
 instance (one `Visitor` in `s_c_il`), so the at.js delivery call and the Analytics page view carry the
 **same `mid` and `sdid`** — verified locally. Side effect: the ECID ID syncs (demdex, everesttech,
 doubleclick, crwdcntrl — third-party cookies) now start early on Target pages instead of at ~3s; they are

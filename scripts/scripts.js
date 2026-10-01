@@ -451,10 +451,12 @@ async function loadPage() {
   openLinksInNewTab();
   await loadEager(document);
   await loadLazy(document);
-  // Defer the delayed phase ~3s (EDS convention) so non-critical third parties
-  // (analytics, the consent gate) load well after the page is
+  // Defer the delayed phase 3s (EDS convention) so non-critical third parties
+  // (Adobe Tags / Analytics, the consent gate) load well after the page is
   // interactive — keeps them out of the initial critical path / "unused JS".
-  window.setTimeout(() => loadDelayed(), 2000);
+  // Client-side A4T relies on this: the Target payload captured in the eager
+  // phase is waiting when the Tags page view goes out (see target-a4t.js).
+  window.setTimeout(() => loadDelayed(), 3000);
 }
 
 loadPage();

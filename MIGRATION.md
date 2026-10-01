@@ -4077,3 +4077,21 @@ light-blue support band below. Removing the band's padding in devtools revealed 
   `color-contrast` on the existing white-on-#0373f3 brand buttons / nav Donate. That was pre-existing, and the
   project a11y config turns this rule off.
 - CSS-only; deploys via git push. No content changes needed (both token names are supported).
+
+### 2026-10-01 — Client-side A4T (no VisitorAPI) + delayed phase back to 3 s
+- **Timer:** `loadDelayed` back to 3000 ms (was 2000 since `1b701f7`). At 2 s Tags fell inside standard Lighthouse runs
+  (BP 96 → 75 from ID-sync cookies; perf unchanged). Tags now starts ≈4.4 s after navigation locally.
+- **A4T modes (`target.a4t`):** `false` | `true`/`server` (VisitorAPI + `sdid`, unchanged) | **`client`** — new
+  `scripts/target-a4t.js`: at.js `analyticsLogging: 'client_side'`, no VisitorAPI, payload `execute.pageLoad.analytics.
+  payload.tnta` → `window.targetA4TPayload` + `target-a4t` event; one de-duplicated fallback link hit if the Tags page
+  view went out without it. `VisitorAPI.min.js` kept (user decision).
+- **Gotcha (verified on intercepted beacons):** AppMeasurement 2.27.0 drops `s.tnta` (unknown var), `s.tnt` is legacy
+  T&T, and `pe` is overwritten by `s.tl`. Per user decision the Tags rule maps the payload to context data
+  `s.contextData['a4t.payload']` (serialized `c.&a4t.&payload=…&.a4t&.c`) for an Analytics processing rule — confirm the
+  rule can target the A4T dimension, else only a prop/eVar gets it.
+- **Tests (simulated delivery, beacons answered locally):** client mode → payload captured, no VisitorAPI, delivery
+  `client_side`; no Tags rule → exactly one fallback hit; Tags rule simulated → none; no payload → nothing; payload after
+  the page view → one fallback hit; server mode unchanged (`mid`+`sdid`); off → nothing. First paint shows the offer in
+  all modes (client ~1.1–1.4 s, server ~3.3 s). Interleaved Lighthouse: client ≈ off; server +~1 s mobile LCP, BP 75.
+- **Pending (user):** test-org Launch embed + report suite, no Target extension in that property, the Set Variables
+  line, the processing rule; then sheet `target.a4t = client` + `launch.development` and end-to-end check.

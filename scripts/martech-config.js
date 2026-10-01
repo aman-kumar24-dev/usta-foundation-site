@@ -29,10 +29,12 @@
  * when at least one mapped field has a value.
  *
  * `target` configures Adobe Target (scripts/target.js). at.js only runs when
- * `enabled` is true AND the page has `Target` metadata. `a4t: true` loads the
- * Experience Cloud ID service (VisitorAPI) before at.js so Target activities
- * report through Analytics. Never enable it while the site's Tags library still
- * contains the Adobe Target extension — two at.js instances conflict.
+ * `enabled` is true AND the page has `Target` metadata. `a4t: true` (or
+ * `server`) loads the Experience Cloud ID service (VisitorAPI) before at.js so
+ * Target activities report through Analytics; `a4t: 'client'` uses client-side
+ * logging instead (scripts/target-a4t.js, no VisitorAPI). Never enable Target
+ * while the site's Tags library still contains the Adobe Target extension —
+ * two at.js instances conflict.
  */
 const SITES = [
   {
@@ -141,7 +143,13 @@ const SETTINGS = {
   'target.clientCode': [(v) => (/^[\w-]+$/.test(v) ? v : undefined), (c, v) => { c.target.clientCode = v; }],
   'target.serverDomain': [(v) => (/^[\w-]+\.tt\.omtrdc\.net$/.test(v) ? v : undefined), (c, v) => { c.target.serverDomain = v; }],
   'target.imsOrgId': [(v) => (/^[A-F0-9]+@AdobeOrg$/i.test(v) ? v : undefined), (c, v) => { c.target.imsOrgId = v; }],
-  'target.a4t': [toBool, (c, v) => { c.target.a4t = v; }],
+  // false | true / server (VisitorAPI, server-side logging) | client (target-a4t.js)
+  'target.a4t': [(v) => {
+    const s = String(v).trim().toLowerCase();
+    if (s === 'client') return 'client';
+    if (s === 'server') return true;
+    return toBool(s);
+  }, (c, v) => { c.target.a4t = v; }],
   'target.flickerTimeout': [(v) => (/^\d+$/.test(v) && Number(v) <= 3000 ? Number(v) : undefined), (c, v) => { c.target.flickerTimeout = v; }],
 };
 
