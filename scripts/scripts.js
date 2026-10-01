@@ -15,7 +15,6 @@ import {
   toCamelCase,
   getMetadata,
 } from './aem.js';
-import './consent-check.js';
 
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
   const innerTT = window.trustedTypes.createPolicy('tt-inner', {
@@ -41,6 +40,10 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
     createScript: (input) => input,
   });
 }
+
+// After the default Trusted Types policy. A static import would run first and
+// assigning the OneTrust URL would throw TrustedScriptURL, which blanks the page.
+import('./consent-check.js');
 
 /**
  * Preload the condensed display font (Graphik XXCond Bold) used by h1/h2 at up to

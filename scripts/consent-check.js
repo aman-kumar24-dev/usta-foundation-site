@@ -112,7 +112,8 @@ function loadOneTrust() {
   window.OptanonWrapper = () => publish();
   window.addEventListener('OneTrustGroupsUpdated', () => publish());
   const script = document.createElement('script');
-  script.src = ONETRUST_SRC;
+  const policy = window.trustedTypes && window.trustedTypes.defaultPolicy;
+  script.src = policy ? policy.createScriptURL(ONETRUST_SRC) : ONETRUST_SRC;
   script.async = true;
   script.setAttribute('data-domain-script', ONETRUST_SDK);
   script.setAttribute('charset', 'UTF-8');
