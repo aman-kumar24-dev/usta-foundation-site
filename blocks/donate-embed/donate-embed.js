@@ -10,7 +10,7 @@
  * donate.js). So the widget never finds its element ID and the form never
  * appears. This block instead carries the FundraiseUp element ID as plain TEXT
  * (which survives publishing) and re-creates the `#<ElementID>` anchor at
- * decorate time — before the delayed-phase FRU loader runs — so the widget
+ * decorate time — before the FRU loader runs — so the widget
  * hydrates it exactly as on the source.
  *
  * Authoring contract — a single cell holding the FundraiseUp element ID:
@@ -57,9 +57,9 @@ export default function decorate(block) {
   block.append(anchor);
 
   // Load the FundraiseUp widget EAGERLY. The donation form is this page's
-  // primary content, so we don't wait for the delayed phase (scripts.js loads
-  // donate.js ~3s in for perf on OTHER pages) — here the block itself kicks the
-  // loader now so the form hydrates as soon as possible. loadFundraiseUp() is
-  // idempotent, so the delayed-phase call later is a harmless no-op.
+  // primary content, so we don't wait for the first interaction (how donate.js
+  // loads it on OTHER pages) — here the block itself kicks the loader now so the
+  // form hydrates as soon as possible. loadFundraiseUp() is idempotent, so the
+  // interaction-triggered call later is a harmless no-op.
   loadFundraiseUp();
 }

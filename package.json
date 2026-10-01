@@ -18,6 +18,7 @@
     "check:overflow": "node tools/quality/overflow-sweep.mjs",
     "discover:typography": "node tools/quality/typography-discover.mjs",
     "check:typography": "node tools/quality/typography-check.mjs",
+    "da:sync": "node tools/da-sync/cli.mjs",
     "postinstall": "playwright install chromium || true"
   },
   "repository": {

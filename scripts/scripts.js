@@ -312,20 +312,23 @@ async function loadEager(doc) {
   // H1 render delay on slow mobile. Resolve `templateName` for loadLazy's JS.
   const templateCssPromise = loadTemplateCSS();
   // Adobe Target (at.js) only on pages with `Target` metadata; the site's
-  // target.enabled flag lives in site-config.js (see target.js).
+  // target.enabled flag lives in the authored /site-config sheet (see target.js).
   const targetValue = getMetadataNormalized('target').toLowerCase();
-  const targetPromise = targetValue && !['off', 'false', 'no'].includes(targetValue)
+  const isTargetPage = !!targetValue && !['off', 'false', 'no'].includes(targetValue);
+  // Martech config: start the request now so Target (below) and Analytics
+  // (delayed phase) share one fetch. Low priority unless the first render waits on it.
+  window.hlx.siteConfigFetch = fetch('/site-config.json', { priority: isTargetPage ? 'high' : 'low' })
+    .catch(() => null);
+  const targetPromise = isTargetPage
     ? import('./target.js').then(({ default: initTarget }) => initTarget()).catch(() => {})
     : null;
   const main = doc.querySelector('main');
   if (main) {
     decorateMain(main);
     document.body.classList.add('appear');
-    if (targetPromise) {
-      await targetPromise;
-      // let the at.js page-load request start before the first section renders
-      await new Promise((resolve) => { setTimeout(resolve, 0); });
-    }
+    // Target pages: hold the first section until the offers are in (or the
+    // flicker timeout passes), so its first paint already shows the offer.
+    if (targetPromise) await targetPromise;
     await loadSection(main.querySelector('.section'), waitForFirstImage);
   }
   templateName = await templateCssPromise;
@@ -345,6 +348,9 @@ async function loadEager(doc) {
  * @param {Element} doc The container element
  */
 async function loadLazy(doc) {
+  // Before the header renders, so donate links never point off-site; the Fundraise
+  // Up widget itself loads on the visitor's first interaction (see donate.js).
+  import('./donate.js').then(({ default: initDonate }) => initDonate());
   loadHeader(doc.querySelector('body > header'));
 
   const main = doc.querySelector('main');
@@ -367,9 +373,8 @@ async function loadLazy(doc) {
  */
 function loadDelayed() {
   import('./consent-check.js');
-  // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
-  import('./donate.js');
-  // Adobe Analytics (Tags).
+  // Adobe Analytics (Tags). Donation events reach it via donate.js's `donate`
+  // window event, so there is no load-order dependency on the donate widget.
   import('./analytics.js');
   // load anything that can be postponed to the latest here
 }
@@ -378,9 +383,9 @@ async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   // Defer the delayed phase ~3s (EDS convention) so non-critical third parties
-  // (analytics, the FundraiseUp donate tab, the consent gate) load well after the
-  // page is interactive — keeps them out of the initial critical path / "unused JS".
-  window.setTimeout(() => loadDelayed(), 3000);
+  // (analytics, the consent gate) load well after the page is
+  // interactive — keeps them out of the initial critical path / "unused JS".
+  window.setTimeout(() => loadDelayed(), 2000);
 }
 
 loadPage();

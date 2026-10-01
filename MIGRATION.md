@@ -3811,6 +3811,163 @@ change (`left` sequence moved from ~-133 to -991 over samples) even with the pri
   post-resize samples (no animated drift), while intentional menu open still animates
   with `transitionDuration: 0.3s`.
 
+### 2026-09-27 — Analytics: interim old Launch, multi-site config
+Adobe Analytics via **Tags + Analytics extension** (no Edge Network). Full details: `docs/ANALYTICS.md`.
+- **Source library read in full** (`launch-b4bd8f30c678.min.js`, property "USTA Foundation"
+  PR5c573c837d974d7ab833f62e00856bf6): Core, ECID, Analytics (AppMeasurement 2.27.0 + ActivityMap; prod
+  `usta.global`, dev/stage `usta.ustacomdev`), Target v2. Data elements `pageName` (`foundation:`+title),
+  `pageUrl`, `campaignId` (`?cid`). 8 rules — 2 (links, iframe buttons) depend on jQuery + old AEM classes.
+- **Interim decision:** use the old library unchanged; later swap to an Analytics-only library (config URL only).
+- **Multi-site (repoless) config:** `scripts/analytics-config.js` — per site: `productionHosts`, `edsSites`
+  (`{site}--{org}`), `launch.{production,development}`, `consentRequired`. ustafoundation filled
+  (`consentRequired:false`); `site-2`/`site-3` are placeholders (empty URLs, `consentRequired:true`).
+  localhost + `*.aem.page` → development URL; `*.aem.live` + prod hosts → production URL.
+- **Loader:** `scripts/analytics.js` (delayed phase, after donate.js so the FundraiseUp stub exists before the
+  Tags FundraiseUp rules attach). `consent-check.js` gained `onConsent(callback)`. head.html untouched.
+- **Gotchas:** no `-development`/`-staging` embed exists under that name (404) → preview uses prod library
+  (preview traffic hits `usta.global`) until the dev embed URL is provided. Page Bottom rules DO still fire with
+  async injection (verified in `_satellite` debug log) — no `_satellite.pageBottom()` needed. Rule errors are
+  swallowed by Tags (only visible in debug) → console stays clean.
+- **Verified local:** beacon `usta.global`, `pageName=foundation:Home`, v17/c17 URL, v0=`test`, mid, UTF-8/USD;
+  consent-required path blocks until `?consent=accept`; unknown host loads nothing.
+- **pageName continuity gap:** titles differ from live on who-we-are ("About the USTA Foundation" vs "Who We
+  Are"), what-we-do, our-impact, special-funds (H1 used, no Title metadata) → fix Title metadata via importer.
+- **Perf (Lighthouse 12, localhost, 3 runs, noisy):** standard mode usually finishes before the 3s delayed
+  phase (desktop never captured Launch; mobile captured it 2/3). When captured, Launch costs ~3.5s main-thread
+  on throttled mobile (~70ms desktop) and Best Practices drops 100→~61 (third-party cookies demdex/everesttech;
+  http-only-on-localhost beacons). Scripts: `migration-work/perf/` (`run.sh`, `summarize.mjs`, `inspect.mjs`).
+
+### 2026-09-27 — Fundraise Up on first interaction; donation analytics decoupled from load order
+Lighthouse Best Practices flagged "third-party cookies" from `cdn.fundraiseup.com` (loaded at ~3s in delayed).
+- **donate.js** is now side-effect-free with a default `initDonate()` called at the START of `loadLazy()`:
+  normalises `a[href*="form="]` to `{path}?form=CODE` immediately + a capture-phase click handler (authored
+  hrefs are absolute to www.ustafoundation.com — an early click would otherwise leave the site), then loads the
+  widget on first `pointerdown/pointermove/keydown/scroll/touchstart`, 8s fallback, or immediately when the URL
+  has `?form=` (overlay deep link). `donate-embed` still calls `loadFundraiseUp()` eagerly.
+- **Donation analytics moved to code:** donate.js bridges `FundraiseUp.on('checkoutOpen'|'donationComplete')` to
+  a `donate` window event (+ `window.donateEvents` buffer); analytics.js maps them via the site's
+  `donateBeacons` config to `s.tl(true,'o',name,overrides)` — same vars as the old Tags rules (event9 + p/v61,
+  p/v62 + DONATE pageName; event67 + v76). No load-order dependency (analytics.js no longer waits on donate.js).
+- **Gotcha / interim dedupe:** the old library's own FRU rules attach only if `window.FundraiseUp` exists when it
+  runs (interaction < ~3s) → analytics.js skips post-load events then (`tags.handlesDonate`). Drop with the rules.
+- **Verified local:** no interaction → Launch + page view at ~3s, FRU at fallback; simulated events → correct
+  beacons, empty checkout skipped, tracker pageName not polluted; early interaction → 0 duplicate beacons;
+  `?form=DONATE` loads FRU immediately; early DONATE click → `/en/home?form=DONATE` (stays on site).
+- **Lighthouse (localhost, median of 3):** std-mobile 67→96 (BP 61→100), std-desktop 99 (BP 100);
+  extended-wait mobile 65→82, TBT 26.8s→0.6s. Remaining BP cookies are Adobe ECID sync (demdex/everesttech),
+  only when Launch is captured.
+
+### 2026-09-27 — Fundraise Up: drop the 8s fallback and the pointermove trigger
+DevTools Lighthouse on the branch still listed FRU cookies (fundraiseup_cid/_session from cdn.fundraiseup.com,
+plus first-party fundraiseup_stat/_func) → the widget loaded during the audit without a real interaction.
+- **Causes:** (1) the 8s fallback — once Tags loads (~3s) Target/ID-sync/Hotjar requests keep the network busy,
+  so Lighthouse waits past 8s (reproduced: FRU started at 8.2s in an extended run); (2) `pointermove` — real
+  Chrome fires synthetic mouse moves under a resting cursor on layout/viewport changes (DevTools emulation).
+- **Fix:** FRU loads only on `pointerdown/keydown/touchstart/wheel/scroll` (or immediately with `?form=`). No timer.
+  Trade-off: the floating Donate tab appears after the first interaction; DONATE links still work before that
+  (normalised href → `?form=` reload opens the overlay). Verified: idle 14s → no FRU; wheel → FRU loads.
+- **Not changed (user decision):** Hotjar cookies still appear in long runs (Tags "PS-5502 HotJar" rule, ~3s) until
+  the Analytics-only library ships; header/footer `/content/*.plain.html` 404s left as-is.
+- **Note:** `aem.page`/`aem.live` are on the Public Suffix List — each branch host is its own site. Own-host
+  `SameSite=None` cookies (fundraiseup_stat/_func, _hj*) are flagged as third-party only when the page is framed
+  cross-site (reproduced via iframe); a top-level clean run passes the cookie audit.
+
+### 2026-09-27 — Adobe Target moved to site code (at.js 2.x, aem.live pattern), behind a flag
+Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
+- **Config:** `scripts/analytics-config.js` → **`scripts/site-config.js`** (now also exports `resolveSite()`, used by
+  analytics.js and target.js). New per-site `target` block; ustafoundation copied from the Tags "Adobe Target
+  v2" extension (clientCode `unitedstatestennisas`, A4T), **`enabled: false`** until Tags drops Target.
+- **Loading:** `loadEager` imports `scripts/target.js` only on pages with `Target` metadata and awaits at.js
+  (not offers) before the first section. target.js: ECID (VisitorAPI 5.5.0) → targetGlobalSettings → import
+  `scripts/vendor/at.min.js` (aem.live optimised at.js 2.11.4; Tags had 2.11.7) → getOffers/applyOffers as
+  sections decorate. Guard: skips if `window.adobe.target` already exists; consent-required sites skipped.
+- **Gotchas:** (1) the aem.live snippet's async `getElementForOffer` makes its filter drop all offers after the
+  first pass → sync `findTarget()`. (2) at.js must be the `import()`-compatible build; VisitorAPI must be a
+  classic `loadScript`. (3) with the flag on while Tags still has Target, Tags' at.js replaces
+  `window.adobe.target` at ~3s → cutover order matters. (4) Playwright MCP `run_code` crashed on long runs —
+  use `migration-work/target/*.mjs` scripts instead.
+- **Verified local:** one delivery call with `mid` + `sdid` + `server_side`; with Tags, the page view carries the
+  same `mid`/`sdid` and Tags reuses our single Visitor instance (A4T OK); fake HTML offer with `<script>` runs,
+  `:eq()` works, no Trusted Types/CSP errors; no metadata or flag off → no vendor files, no delivery.
+- **Perf (localhost proxy):** mobile 82→69, LCP 4.2→6.0 s; desktop 96→94, LCP 1.3→1.5 s (after modulepreload of
+  at.js in parallel with VisitorAPI). BP 100→~78 on Target pages from ECID ID-sync cookies (A4T side effect).
+- **Pending:** activity inventory + VEC re-pointing (selector guide in docs), Tags cutover, flag flip.
+
+### 2026-09-28 — DA content sync from aemdemos/foundation-usta (`npm run da:sync`)
+- **Why:** content was updated in `aemdemos/foundation-usta` after the 18 Sep copy (75 `/en/home` pages incl.
+  news/our-impact/what-we-do/who-we-are, `nav.html`, drafts, 4 new files).
+- **Gotcha:** DA's copy API refuses cross-org copies (`Destination must be in the same org as the source`) →
+  `tools/da-sync/` does GET `/source` + POST `/source` per file, then one Admin API bulk preview job.
+- **Run 2026-09-28 (user chose mirror everything):** full backup of the destination (231 files) first, then 234
+  files copied, 0 failures; SHA-256 check 234/234 identical (211 html, 22 pdf, 1 json); bulk preview 234/234
+  success. Overwrote 5 destination-only edits (home, index, get-involved, chris-evert-50th-anniversary,
+  black-history-month…john-borde) — originals in `migration-work/da-sync/backup-2026-09-28/`.
+  `/en/priyesh/test1.html` (destination-only) kept. Side effect: `/en/home/our-impact` title now "Our Impact"
+  (matches live pageName).
+- **Trigger:** user triggers it by asking in AEM Coder; `tools/da-sync/` is in `.hlxignore` (not served).
+
+### 2026-09-28 — Martech config moved to an authored DA sheet (`/site-config`)
+- **Why:** admins must edit Tags URLs, consent, Target and donation-beacon settings without a code deploy.
+- **Where:** a normal DA **sheet document** `/site-config` in each site's DA repo (served `/site-config.json`),
+  NOT the DA org/site config (`da.live/config#…`) — that is admin-API-only (needs an IMS token) and contains the
+  `permissions` sheet with emails, so the live site can't/shouldn't read it.
+- **Code:** `scripts/site-config.js` `getSiteConfig()` (one fetch per page, cached promise) applies tab `settings`
+  (key/value, validated per key) and tab `donate-beacons` over the `SITES` code defaults (kept as fallback, per user
+  decision). analytics.js / target.js now await it. Invalid entries → `[site-config]` console warning + default.
+- **Created:** `/site-config` in `aman-kumar24-dev/usta-foundation-site` with today's values, previewed (both tabs are
+  served on aem.page and through `aem up`). Not published to aem.live yet.
+- **Verified local (sheet variants served via Playwright):** published values = parity (page view, beacons);
+  emptied `launch.development` → no Tags; invalid values (incl. a non-adobedtm script URL) ignored with warnings;
+  edited `linkName` reaches the beacon; 404 → defaults; `target.enabled=true` → our at.js delivery call.
+
+### 2026-09-28 — `/site-config` sheet made admin-only (DA org permissions)
+- **Where rules live:** the **org** config (`admin.da.live/config/aman-kumar24-dev/`), org-relative paths
+  (`/usta-foundation-site/**`). The site config's own permissions sheet (vishal, naveen) is separate; left as-is.
+- **Added 2 rows** (existing 3 rows + `data` sheet unchanged; backup `migration-work/da-permissions/backup-2026-09-28/`):
+  `/usta-foundation-site/site-config.json` write → aman.kumar@, vishal.sharma@; read → udit.upmanyu@, victor.deb@,
+  ravishankar.ramamurthy@, sri.priyesh.dash@, naveen.kambam@.
+- **Gotchas (da-admin `src/utils/auth.js`):** non-HTML files match only their exact path, so the rule must be
+  `…/site-config.json` (extension-less only works for `.html`); per identity the longest rule wins, so every non-admin
+  author must be on the read row or `/usta-foundation-site/**` write still applies. Config POST takes form field
+  `config` and refuses a config without a `CONFIG` write row.
+- **Verified:** stored config = intended; own account `x-da-actions` still read,write on the sheet, pages and CONFIG;
+  simulated evaluation (same algorithm, `migration-work/da-permissions/simulate.mjs`) → admins write, 5 others read on
+  the sheet, page access unchanged. naveen.kambam@ has no page access at org level (already the case before).
+- **Undo:** re-POST `backup-2026-09-28/org-config.json` as form field `config`.
+
+### 2026-09-28 — Site config fetched eagerly; Target waits for offers (anti-flicker)
+- **Problem:** `/site-config.json` was only fetched when first needed — by analytics.js in the delayed phase on
+  every normal page. Target (site at.js) only waited for at.js, so offers landed after the first paint (flicker).
+  The flicker visible today is Launch's own Target (delayed phase, body hiding off) — stays until the cutover.
+- **Fix:** `loadEager` starts `fetch('/site-config.json')` first thing (`window.hlx.siteConfigFetch`, priority low /
+  high on Target pages); `getSiteConfig()` reuses it. `initTarget()` now resolves after the page-load offers arrive,
+  capped by the new sheet key `target.flickerTimeout` (default 1000 ms, 0–3000; added to the DA sheet + previewed).
+  Removed the `setTimeout(0)` hack in loadEager.
+- **Verified (`migration-work/target/test-eager.mjs`):** config requested at ~96 ms (before the LCP image), one
+  request per page shared with Analytics; simulated offer → first visible frame already shows it; delivery at 2 s →
+  first section at the 1 s cap, offer applied later; flag off → no at.js. Lighthouse: normal page unchanged; Target
+  page +0.4–0.5 s LCP vs at.js-only wait (one Target round trip).
+- **Gotcha:** at.js's own `timeout` (3000 ms, from Tags) drops slower offers entirely. The sheet also gained
+  Hotjar keys (`hotjarId.*`, `hotjarVersion`, `hotjarHostUrl.*`) outside this work — site-config.js doesn't know them
+  yet and logs `[site-config] unknown key` warnings.
+
+### 2026-09-28 — Sheet: Target enabled on preview, A4T off (VisitorAPI LCP cost)
+- Sheet now (previewed, not published): `target.enabled=true`, test account `codeandtheoryamerpar` /
+  `6ED976C95CFFA6810A495C73@AdobeOrg`, `target.a4t=false`. A4T can't stitch across orgs (Analytics is USTA's org) and
+  VisitorAPI cost the Target page −0.65 s mobile LCP and BP 75→96 (ID-sync cookies). Launch still loads its own
+  Target (2.11.7) at ~2 s and takes over `window.adobe.target` until removed from Launch.
+
+### 2026-09-29 — DA Library (`/.da/library`) copied from aemdemos; sync now includes it
+- **Problem:** the site config's `library` sheet points at `/.da/library/blocks.json` and `templates.json`, but that
+  folder was empty in this repo (DA's listing hides dot-folders, so the content sync never copied it). A separate
+  `/.da/blocks.json` + `/.da/blocks/` existed but isn't referenced by the config (left as-is). `content.da.live` returns
+  401 without a login — expected; the DA editor sends the token.
+- **Fix:** `tools/da-sync` now also lists `HIDDEN_FOLDERS = ['/.da/library']`, rewrites `/<source>/` → `/<destination>/`
+  inside the Library `.json` sheets, and skips dot-folder paths in preview. Ran `npm run da:sync -- --folders=/.da/library`:
+  24 files copied (14-block `blocks.json` with an `options` tab, 5 templates, 17 block docs, 5 template docs), 0 failed.
+- **Verified:** all 19 Library entries resolve to existing docs in this repo; none still point at aemdemos. Block docs'
+  images still load from `content.da.live/aemdemos/…` (same as pages).
+
 ### 2026-09-28 — Port Adobe Analytics Tags + Target/A4T implementation
 Ported the final martech implementation from `aem-coder-branch` to
 `feature/adobeAnalytics` without modifying the source branch.
@@ -3824,3 +3981,10 @@ Ported the final martech implementation from `aem-coder-branch` to
   (`donate.js`, `donate-embed`) stay as on this branch, so donation checkout/complete
   events are not sent from site code. `analytics.js` still listens for `donate`
   events and will send them if `donate.js` starts emitting them later.
+
+### 2026-10-01 — Merge `aem-coder-branch` into `feature/adobeAnalytics`
+Merged to clear the PR conflicts. The martech files (`scripts.js`, `site-config.js`, `target.js`,
+`docs/MARTECH.md`) take the `aem-coder-branch` versions: the eager `/site-config.json` fetch, the
+`target.flickerTimeout` anti-flicker wait, a 2000 ms delayed phase, and `donate.js` loaded from
+`loadLazy` (first-interaction Fundraise Up widget, which emits `donate` events again). This supersedes the
+note above about donation events not being sent.

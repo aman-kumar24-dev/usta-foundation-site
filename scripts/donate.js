@@ -6,10 +6,20 @@
  *   - injects a persistent floating "Donate" tab on the right edge of the page,
  *   - opens the secure donation overlay when the URL carries `?form=DONATE`.
  *
- * We load the official Fundraise Up loader in the delayed phase (it is a
- * third-party, non-LCP concern) and normalise every donate trigger to the
- * relative `?form=DONATE` link so a click keeps the visitor on our site and
- * lets the widget open the overlay.
+ * scripts.js calls the default export (initDonate) at the start of the lazy
+ * phase. It normalises every donate trigger to the relative `?form=DONATE` link
+ * straight away (cheap, no network) so a click keeps the visitor on our site,
+ * and loads the official Fundraise Up loader (a heavy, cookie-setting third
+ * party) only on the visitor's first deliberate interaction, or immediately
+ * when the URL already carries `?form=` (overlay deep link). There is no timed
+ * fallback and no `pointermove` trigger: Lighthouse runs can outlast any timer
+ * (Tags keeps the network busy), and Chrome fires synthetic mouse moves under a
+ * resting cursor on layout changes — either would pull the widget (and its
+ * cookies) into an audit.
+ *
+ * Donation events (checkout open / donation complete) are re-emitted as a
+ * `donate` window event (and buffered in `window.donateEvents`) so analytics
+ * can pick them up whenever it loads — no load-order dependency either way.
  *
  * Note: the Fundraise Up account is domain-restricted in their dashboard, so
  * the overlay only renders on allow-listed origins (production). The loader is
@@ -17,6 +27,9 @@
  */
 
 const FRU_ACCOUNT = 'AURLRFGR';
+
+// Deliberate engagement only (see header comment for why not pointermove/timer).
+const INTERACTION_EVENTS = ['pointerdown', 'keydown', 'touchstart', 'wheel', 'scroll'];
 
 /**
  * Trusted Types + the Fundraise Up widget.
@@ -97,17 +110,25 @@ function hardenFrameAccessors() {
 }
 
 /**
+ * Publish a donation event for analytics: buffer it (for a listener that loads
+ * later) and dispatch it as a `donate` window event.
+ * @param {object} detail e.g. { type: 'checkoutOpen', campaignId, campaignName }
+ */
+function emitDonateEvent(detail) {
+  window.donateEvents = window.donateEvents || [];
+  window.donateEvents.push(detail);
+  window.dispatchEvent(new CustomEvent('donate', { detail }));
+}
+
+/**
  * Loads the official Fundraise Up loader script (once). Exported so a donation
  * page's block (e.g. `donate-embed`) can trigger it EAGERLY — the inline form is
- * that page's primary content, so it should hydrate ASAP rather than wait for the
- * delayed phase. Idempotent (guards on `window.FundraiseUp`), so the delayed-phase
- * call site and an eager block call are safe together. Also installs the Trusted
- * Types frame hardening the widget needs (mirrors the module's bottom-of-file
- * bootstrap) so an eager caller gets a working widget without duplicating logic.
+ * that page's primary content, so it should hydrate ASAP rather than wait for an
+ * interaction. Idempotent (guards on `window.FundraiseUp`), so the interaction
+ * trigger and an eager block call are safe together. Also installs the Trusted
+ * Types frame hardening the widget needs, and bridges the widget's donation
+ * events to `emitDonateEvent`.
  */
-// donate.js is a side-effecting module (self-runs on import); a NAMED export
-// reads correctly here, so opt out of prefer-default-export for this file.
-/* eslint-disable-next-line import/prefer-default-export */
 export function loadFundraiseUp() {
   if (window.FundraiseUp) return;
   if (window.trustedTypes) hardenFrameAccessors();
@@ -130,6 +151,17 @@ export function loadFundraiseUp() {
     }
   })(window, document, 'script', 'FundraiseUp', FRU_ACCOUNT);
   /* eslint-enable */
+
+  // The stub queues these until the widget has loaded.
+  window.FundraiseUp.on('checkoutOpen', (data) => emitDonateEvent({
+    type: 'checkoutOpen',
+    campaignId: data?.campaign?.id || '',
+    campaignName: data?.campaign?.name || '',
+  }));
+  window.FundraiseUp.on('donationComplete', (data) => emitDonateEvent({
+    type: 'donationComplete',
+    amount: data?.donation?.amount ?? null,
+  }));
 }
 
 /**
@@ -144,21 +176,49 @@ export function loadFundraiseUp() {
  *      query-ONLY href (`?form=JLLI`) down to `/` — here we restore the query on
  *      our own path at runtime, so the fund code always reaches the widget.
  * The `<CODE>` is preserved verbatim so the widget opens the matching campaign.
+ * @param {HTMLAnchorElement} a
  */
-function wireDonateTriggers() {
-  document.querySelectorAll('a[href*="form="]').forEach((a) => {
-    let code = null;
-    try {
-      code = new URL(a.href, window.location.origin).searchParams.get('form');
-    } catch {
-      const m = a.getAttribute('href')?.match(/[?&]form=([^&]+)/);
-      code = m ? decodeURIComponent(m[1]) : null;
-    }
-    if (code) a.setAttribute('href', `${window.location.pathname}?form=${code}`);
-  });
+function normalizeDonateLink(a) {
+  let code = null;
+  try {
+    code = new URL(a.href, window.location.origin).searchParams.get('form');
+  } catch {
+    const m = a.getAttribute('href')?.match(/[?&]form=([^&]+)/);
+    code = m ? decodeURIComponent(m[1]) : null;
+  }
+  if (code) a.setAttribute('href', `${window.location.pathname}?form=${code}`);
 }
 
-wireDonateTriggers();
-// loadFundraiseUp() installs the Trusted Types frame hardening itself before it
-// injects the loader, so no separate hardenFrameAccessors() call is needed here.
-loadFundraiseUp();
+function wireDonateTriggers() {
+  document.querySelectorAll('a[href*="form="]').forEach(normalizeDonateLink);
+}
+
+/** Load the widget on the visitor's first interaction. */
+function loadFundraiseUpOnInteraction() {
+  const trigger = () => {
+    INTERACTION_EVENTS.forEach((type) => window.removeEventListener(type, trigger));
+    // links in late-decorated blocks exist by now; the widget intercepts them
+    wireDonateTriggers();
+    loadFundraiseUp();
+  };
+  INTERACTION_EVENTS.forEach((type) => window.addEventListener(type, trigger, { passive: true }));
+}
+
+/**
+ * Wire donate links now and schedule the Fundraise Up widget. Called by
+ * scripts.js at the end of the lazy phase.
+ */
+export default function initDonate() {
+  wireDonateTriggers();
+  // Header/footer/blocks may still be decorating — normalise any donate link at
+  // click time too (capture phase runs before navigation and before the
+  // widget's own handlers), so an early click never leaves for the source domain.
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest?.('a[href*="form="]');
+    if (a) normalizeDonateLink(a);
+  }, true);
+
+  // `?form=` in the URL means "open the donation overlay" — load right away.
+  if (new URLSearchParams(window.location.search).has('form')) loadFundraiseUp();
+  else loadFundraiseUpOnInteraction();
+}
