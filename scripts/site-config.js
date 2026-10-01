@@ -215,6 +215,16 @@ function applySheet(defaults, json) {
 let siteConfigPromise;
 
 /**
+ * Temporary test override. The /site-config sheet still says consentRequired
+ * false; ignore that and require OneTrust before Launch and Target.
+ * Remove this when the sheet is set to true.
+ * @param {object} site
+ */
+function forceConsentForTest(site) {
+  return { ...site, consentRequired: true };
+}
+
+/**
  * The current site's martech config: code defaults (by hostname) overridden by
  * the authored /site-config sheet. Fetched once per page.
  * @returns {Promise<{site: object, env: 'development'|'production'}>}
@@ -230,12 +240,12 @@ export function getSiteConfig() {
         const resp = await fetch(SHEET_URL);
         if (!resp.ok) {
           if (resp.status !== 404) warn(`${SHEET_URL}: HTTP ${resp.status} — using code defaults`);
-          return { site: defaults, env };
+          return { site: forceConsentForTest(defaults), env };
         }
-        return { site: applySheet(defaults, await resp.json()), env };
+        return { site: forceConsentForTest(applySheet(defaults, await resp.json())), env };
       } catch (e) {
         warn(`${SHEET_URL} unreadable — using code defaults`);
-        return { site: defaults, env };
+        return { site: forceConsentForTest(defaults), env };
       }
     })();
   }
