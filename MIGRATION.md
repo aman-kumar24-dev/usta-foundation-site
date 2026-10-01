@@ -3967,24 +3967,3 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   24 files copied (14-block `blocks.json` with an `options` tab, 5 templates, 17 block docs, 5 template docs), 0 failed.
 - **Verified:** all 19 Library entries resolve to existing docs in this repo; none still point at aemdemos. Block docs'
   images still load from `content.da.live/aemdemos/…` (same as pages).
-
-### 2026-09-28 — Port Adobe Analytics Tags + Target/A4T implementation
-Ported the final martech implementation from `aem-coder-branch` to
-`feature/adobeAnalytics` without modifying the source branch.
-- Adobe Analytics now loads through the configured Adobe Experience Platform Tags
-  (Launch) embed; the self-hosted `AppMeasurement.js` integration was removed.
-- Adobe Target uses the vendored `at.min.js`; A4T initializes the vendored
-  `VisitorAPI.min.js` first so Target and Analytics share the ECID.
-- Target remains metadata- and site-config-driven, with authored `/site-config.json`
-  overrides and duplicate at.js protection when Tags already includes Target.
-- Only the Target + Analytics files were ported; the Fundraise Up changes
-  (`donate.js`, `donate-embed`) stay as on this branch, so donation checkout/complete
-  events are not sent from site code. `analytics.js` still listens for `donate`
-  events and will send them if `donate.js` starts emitting them later.
-
-### 2026-10-01 — Merge `aem-coder-branch` into `feature/adobeAnalytics`
-Merged to clear the PR conflicts. The martech files (`scripts.js`, `site-config.js`, `target.js`,
-`docs/MARTECH.md`) take the `aem-coder-branch` versions: the eager `/site-config.json` fetch, the
-`target.flickerTimeout` anti-flicker wait, a 2000 ms delayed phase, and `donate.js` loaded from
-`loadLazy` (first-interaction Fundraise Up widget, which emits `donate` events again). This supersedes the
-note above about donation events not being sent.
