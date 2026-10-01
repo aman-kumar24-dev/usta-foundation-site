@@ -14,6 +14,7 @@
  */
 import { loadScript } from './aem.js';
 import { getSiteConfig } from './site-config.js';
+import { onTargetConsent } from './consent-check.js';
 
 const VENDOR = `${window.hlx.codeBasePath}/scripts/vendor`;
 
@@ -90,20 +91,20 @@ function addLink(rel, href, crossOrigin) {
   document.head.append(link);
 }
 
+let targetStarted = false;
+
 /**
- * Load at.js for the current site (if enabled) and request page-load offers.
- * @returns {Promise<void>} resolves once at.js has loaded (or is skipped)
+ * Load at.js and request page-load offers. Runs at most once.
+ * @param {object} config site target settings
  */
-export default async function initTarget() {
-  const { site } = await getSiteConfig();
-  const config = site?.target;
-  // consent-gated sites: at.js sets cookies before any CMP could answer
-  if (!config?.enabled || site.consentRequired) return;
+async function startTarget(config) {
+  if (targetStarted) return;
   if (window.adobe?.target) {
     // eslint-disable-next-line no-console
     console.warn('Adobe Target already loaded (Tags?) — skipping site at.js');
     return;
   }
+  targetStarted = true;
 
   addLink('preconnect', `https://${config.serverDomain}`, 'use-credentials');
   // fetch at.js in parallel with VisitorAPI; it only runs once imported below
@@ -139,4 +140,22 @@ export default async function initTarget() {
     });
   }, { once: true });
   await import(`${VENDOR}/at.min.js`);
+}
+
+/**
+ * Load at.js for the current site (if enabled) and request page-load offers.
+ * When consent is required, returns immediately and loads only after the
+ * visitor accepts Targeting cookies, so the banner does not block first paint.
+ * @returns {Promise<void>} resolves once at.js has loaded, or once the wait
+ * for consent has been registered
+ */
+export default async function initTarget() {
+  const { site } = await getSiteConfig();
+  const config = site?.target;
+  if (!config?.enabled) return;
+  if (site.consentRequired) {
+    onTargetConsent(() => { startTarget(config); });
+    return;
+  }
+  await startTarget(config);
 }

@@ -15,6 +15,7 @@ import {
   toCamelCase,
   getMetadata,
 } from './aem.js';
+import './consent-check.js';
 
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
   const innerTT = window.trustedTypes.createPolicy('tt-inner', {
@@ -366,7 +367,6 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
-  import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
   // Adobe Analytics (Tags).
@@ -378,8 +378,9 @@ async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   // Defer the delayed phase ~3s (EDS convention) so non-critical third parties
-  // (analytics, the FundraiseUp donate tab, the consent gate) load well after the
-  // page is interactive — keeps them out of the initial critical path / "unused JS".
+  // (analytics, the FundraiseUp donate tab) load well after the page is
+  // interactive — keeps them out of the initial critical path / "unused JS".
+  // OneTrust itself loads with scripts.js, before either phase.
   window.setTimeout(() => loadDelayed(), 3000);
 }
 

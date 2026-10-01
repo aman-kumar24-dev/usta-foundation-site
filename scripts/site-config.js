@@ -19,9 +19,10 @@
  *
  * Tags embed URLs are public (served to every visitor) — they are not secrets.
  *
- * `consentRequired: true` defers loading until consent is granted (see
- * scripts/consent-check.js `onConsent`). Sites that don't need a consent gate
- * load Tags straight away in the delayed phase.
+ * `consentRequired: true` defers Launch until OneTrust Performance consent
+ * (C0002) and defers at.js until Targeting consent (C0004). See
+ * scripts/consent-check.js. Sites that don't need a consent gate load Tags
+ * straight away in the delayed phase.
  *
  * `donateBeacons` (optional) maps donate.js events (see scripts/donate.js) to
  * Analytics link beacons: `events`, fixed `set` variables, and `map` from an
@@ -51,7 +52,7 @@ const SITES = [
       // Development environment embed URL (report suite usta.ustacomdev) when available.
       development: 'https://assets.adobedtm.com/15c795eb812c/e99b4446eb17/launch-b4bd8f30c678.min.js',
     },
-    consentRequired: false,
+    consentRequired: true,
     // Same variables as the source site's "FundraiseUp Donation Checkout Open" /
     // "FundraiseUp Donation Complete" Tags rules.
     donateBeacons: {
