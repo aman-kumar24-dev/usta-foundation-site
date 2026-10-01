@@ -9,10 +9,14 @@
  * the plain aem.live behaviour). Offers are applied whenever sections/blocks
  * finish decorating, so the first section's first paint already shows them.
  *
- * With the site's `target.a4t`, the Experience Cloud ID service (VisitorAPI) is
- * created first, so at.js and the Analytics page view (Tags, delayed phase) share
- * the same visitor ID and supplemental data ID — Analytics for Target (A4T).
- * The Tags ECID extension reuses this instance (Visitor.getInstance per org).
+ * Analytics for Target (A4T), per the site's `target.a4t`:
+ * - `true` / `server`: the Experience Cloud ID service (VisitorAPI) is created
+ *   first, so at.js and the Analytics page view (Tags, delayed phase) share the
+ *   same visitor ID and supplemental data ID. The Tags ECID extension reuses this
+ *   instance (Visitor.getInstance per org).
+ * - `client`: no VisitorAPI; at.js logs client-side and target-a4t.js hands the
+ *   returned payload to the Tags page view.
+ * - `false`: no A4T.
  */
 import { loadScript } from './aem.js';
 import { getSiteConfig } from './site-config.js';
@@ -62,8 +66,21 @@ function findTarget(item) {
   }
 }
 
-async function getAndApplyOffers() {
+/**
+ * A4T mode from the site config: `client` (client-side logging, target-a4t.js,
+ * no VisitorAPI), `server` (true; VisitorAPI + server-side logging) or `off`.
+ */
+function a4tMode(config) {
+  if (config.a4t === 'client') return 'client';
+  return config.a4t ? 'server' : 'off';
+}
+
+async function getAndApplyOffers(mode) {
   const response = await window.adobe.target.getOffers({ request: { execute: { pageLoad: {} } } });
+  if (mode === 'client') {
+    // expose the Analytics payload for the Tags page view (delayed phase)
+    import('./target-a4t.js').then(({ captureA4T }) => captureA4T(response));
+  }
   const pageLoad = response?.execute?.pageLoad;
   if (!pageLoad) return;
   const { options = [], metrics = [] } = pageLoad;
@@ -107,10 +124,11 @@ export default async function initTarget() {
     return;
   }
 
+  const mode = a4tMode(config);
   addLink('preconnect', `https://${config.serverDomain}`, 'use-credentials');
   // fetch at.js in parallel with VisitorAPI; it only runs once imported below
   addLink('modulepreload', `${VENDOR}/at.min.js`);
-  if (config.a4t) await initVisitor(config.imsOrgId);
+  if (mode === 'server') await initVisitor(config.imsOrgId);
 
   window.targetGlobalSettings = {
     clientCode: config.clientCode,
@@ -129,7 +147,8 @@ export default async function initTarget() {
     visitorApiTimeout: 2000,
     globalMboxName: 'target-global-mbox',
     decisioningMethod: 'server-side',
-    analyticsLogging: 'server_side',
+    // client: payload returned to the page (target-a4t.js); server: via sdid
+    analyticsLogging: mode === 'client' ? 'client_side' : 'server_side',
     supplementalDataIdParamTimeout: 30,
     deviceIdLifetime: 63244800000,
     sessionIdLifetime: 1860000,
@@ -137,7 +156,7 @@ export default async function initTarget() {
   let offersSettled;
   const offersReady = new Promise((resolve) => { offersSettled = resolve; });
   document.addEventListener('at-library-loaded', () => {
-    getAndApplyOffers()
+    getAndApplyOffers(mode)
       .catch((e) => {
         // eslint-disable-next-line no-console
         console.error('Adobe Target offers failed', e);
