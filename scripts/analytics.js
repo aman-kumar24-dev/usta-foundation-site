@@ -4,8 +4,11 @@
  *
  * Reads the site's config (authored /site-config sheet over code defaults, see
  * site-config.js), waits for consent when that site requires it, then
- * injects the site's Tags embed code once, asynchronously. Donation events from
- * donate.js are sent as Analytics link beacons (site's `donateBeacons`).
+ * injects the site's Tags embed code once, asynchronously. Donation events
+ * from donate.js arrive via `window.adobeDataLayer` (the Adobe Client Data
+ * Layer, initialized by scripts.js) and are sent as Analytics link beacons
+ * (site's `donateBeacons`). ACDL replays past events to a new listener by
+ * default, so this module has no load-order dependency on donate.js.
  */
 import { getSiteConfig } from './site-config.js';
 import { onConsent } from './consent-check.js';
@@ -99,9 +102,14 @@ getSiteConfig().then(({ site, env }) => {
   if (!src) return;
   const { donateBeacons } = site;
   if (donateBeacons) {
-    // events emitted before this point (buffered by donate.js), then live ones
-    (window.donateEvents || []).forEach((detail) => handleDonateEvent(donateBeacons, detail));
-    window.addEventListener('donate', (e) => handleDonateEvent(donateBeacons, e.detail));
+    window.adobeDataLayer = window.adobeDataLayer || [];
+    // addEventListener's default scope ('all') replays events already pushed
+    // (e.g. by donate.js before this ran) as well as future ones.
+    Object.keys(donateBeacons).forEach((type) => {
+      window.adobeDataLayer.addEventListener(type, (e) => {
+        handleDonateEvent(donateBeacons, e.eventInfo);
+      });
+    });
   }
   if (site.consentRequired) onConsent(() => loadTags(src));
   else loadTags(src);

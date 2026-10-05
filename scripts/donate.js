@@ -17,9 +17,11 @@
  * resting cursor on layout changes — either would pull the widget (and its
  * cookies) into an audit.
  *
- * Donation events (checkout open / donation complete) are re-emitted as a
- * `donate` window event (and buffered in `window.donateEvents`) so analytics
- * can pick them up whenever it loads — no load-order dependency either way.
+ * Donation events (checkout open / donation complete) are pushed onto
+ * `window.adobeDataLayer` (the Adobe Client Data Layer, initialized by
+ * scripts.js) so analytics.js can pick them up whenever it loads — ACDL
+ * replays past events to a listener by default, so there's no load-order
+ * dependency either way.
  *
  * Note: the Fundraise Up account is domain-restricted in their dashboard, so
  * the overlay only renders on allow-listed origins (production). The loader is
@@ -110,14 +112,14 @@ function hardenFrameAccessors() {
 }
 
 /**
- * Publish a donation event for analytics: buffer it (for a listener that loads
- * later) and dispatch it as a `donate` window event.
+ * Publish a donation event onto the Adobe Client Data Layer. `detail.type`
+ * (e.g. 'checkoutOpen', 'donationComplete') becomes the ACDL event name, so
+ * analytics.js can listen for it specifically.
  * @param {object} detail e.g. { type: 'checkoutOpen', campaignId, campaignName }
  */
 function emitDonateEvent(detail) {
-  window.donateEvents = window.donateEvents || [];
-  window.donateEvents.push(detail);
-  window.dispatchEvent(new CustomEvent('donate', { detail }));
+  window.adobeDataLayer = window.adobeDataLayer || [];
+  window.adobeDataLayer.push({ event: detail.type, eventInfo: detail });
 }
 
 /**

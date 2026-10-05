@@ -302,8 +302,21 @@ async function loadTemplateJS(name, main) {
 // Template name resolved in loadEager (via CSS load), consumed in loadLazy for JS.
 let templateName = null;
 
+/**
+ * Initialize the Adobe Client Data Layer (window.adobeDataLayer) and load the
+ * library that drains it (ACDL's documented init order: the array must exist
+ * before the library runs). Producers (e.g. donate.js) push onto it in the
+ * lazy phase; analytics.js (delayed phase) attaches listeners — both run
+ * after this, so there's no load-order race either way.
+ */
+function initDataLayer() {
+  window.adobeDataLayer = window.adobeDataLayer || [];
+  import(`${window.hlx.codeBasePath}/scripts/vendor/adobe-client-data-layer.min.js`);
+}
+
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  initDataLayer();
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Kick off template CSS but DON'T block the eager render on it — the LCP H1's

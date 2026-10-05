@@ -3985,3 +3985,36 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   all modes (client ~1.1–1.4 s, server ~3.3 s). Interleaved Lighthouse: client ≈ off; server +~1 s mobile LCP, BP 75.
 - **Pending (user):** test-org Launch embed + report suite, no Target extension in that property, the Set Variables
   line, the processing rule; then sheet `target.a4t = client` + `launch.development` and end-to-end check.
+
+### 2026-10-05 — Adobe Client Data Layer (ACDL) replaces the ad-hoc `donate` event/buffer
+- **Why:** donate.js previously emitted a bespoke `donate` window `CustomEvent` plus a manual
+  `window.donateEvents` buffer array so analytics.js (delayed phase) could replay events it missed. That's exactly
+  what Adobe's own data layer (`window.adobeDataLayer`, driven by the Adobe Client Data Layer library) is designed
+  to do, so formalized it instead of maintaining a hand-rolled equivalent.
+- **Added:** `scripts/vendor/adobe-client-data-layer.min.js` (official build v3.0.1, Apache-2.0, ~6.2KB, from
+  `unpkg.com/@adobe/adobe-client-data-layer@3.0.1` — same vendoring pattern as `VisitorAPI.min.js`/`at.min.js`).
+  `scripts.js` now sets `window.adobeDataLayer = window.adobeDataLayer || []` and dynamically imports the library as
+  the very first thing in `loadEager` (tiny, non-blocking, must exist before any producer/consumer runs).
+- **donate.js:** `emitDonateEvent` now does `window.adobeDataLayer.push({ event: detail.type, eventInfo: detail })`
+  instead of the custom event + buffer. `detail.type` (`checkoutOpen` / `donationComplete`) becomes the ACDL event
+  name directly.
+- **analytics.js:** listens via `window.adobeDataLayer.addEventListener(type, handler)` for each key in the site's
+  `donateBeacons` config. ACDL's default `scope: 'all'` replays events pushed before the listener attached — so the
+  manual `window.donateEvents` replay loop was deleted outright, not kept alongside. `handleDonateEvent` /
+  `buildDonateBeacon` / the tracker-poll `flushBeacons` logic (unrelated concern — AppMeasurement tracker readiness,
+  not event delivery) is unchanged.
+- **Verified** (dev server + browser console): `window.adobeDataLayer` resolves to the real ACDL instance
+  (`push`/`getState`/`addEventListener` present, `version` `3.0.1`), and both `checkoutOpen`/`donationComplete`
+  pushes — including one pushed *before* analytics.js's listener was attached, to test replay — produced the correct
+  `prop`/`eVar`/`event` beacon via a mocked `s_c_il` tracker, matching `site-config.js`'s `donateBeacons` mapping
+  exactly.
+- **Explicit scope decision — `target-a4t.js` untouched.** Its `tnta` payload is internal plumbing (bridging
+  Target's response to the Tags page-view beacon, with `PerformanceObserver`-based fallback timing) rather than
+  business/event data a data layer models — converting it added risk for no benefit.
+- **Explicit scope decision — no invented page-level schema** (e.g. `page.pageInfo.pageName`). No Launch rule or
+  `donateBeacons`-style config reads page-level data yet; adding pushes nothing maps to would be speculative.
+- **Still pending (Adobe Tags UI, not this repo):** this only does the client-side half. The existing donate
+  beacons still bypass Launch Rules entirely (analytics.js calls the AppMeasurement tracker directly — see the
+  `tags.handlesDonate` interim note in analytics.js). To have Launch Rules themselves read `adobeDataLayer`, someone
+  needs to add Data Elements (JS Variable, e.g. `adobeDataLayer[...].eventInfo.campaignId`) and Rules in the
+  property referenced by `site-config.js`'s `launch.production` — out of scope for this change.
