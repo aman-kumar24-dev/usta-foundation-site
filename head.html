@@ -4,6 +4,18 @@
   move-to-http-header="true"
 />
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<script nonce="aem">
+  (function () {
+    if (location.pathname !== '/en/home/donate') return;
+    var link = document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = 'https://pg.feroot.com';
+    document.head.appendChild(link);
+    var script = document.createElement('script');
+    script.src = 'https://pg.feroot.com/v1/bundle/4191fead-56c2-4b5b-9799-4f9e72006d42';
+    document.head.appendChild(script);
+  }());
+</script>
 <script nonce="aem" src="/scripts/aem.js" type="module"></script>
 <script nonce="aem" src="/scripts/scripts.js" type="module"></script>
 <link rel="stylesheet" href="/styles/styles.css"/>
