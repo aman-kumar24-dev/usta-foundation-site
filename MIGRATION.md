@@ -3985,3 +3985,34 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   all modes (client ~1.1–1.4 s, server ~3.3 s). Interleaved Lighthouse: client ≈ off; server +~1 s mobile LCP, BP 75.
 - **Pending (user):** test-org Launch embed + report suite, no Target extension in that property, the Set Variables
   line, the processing rule; then sheet `target.a4t = client` + `launch.development` and end-to-end check.
+
+### 2026-10-06 — `window.dataLayer` (GTM convention) replaces the ad-hoc `donate` event/buffer
+- **Why / decision:** an earlier pass on a sibling branch implemented this with Adobe's Client Data Layer
+  (`window.adobeDataLayer`, ACDL). Explicit user decision: use `window.dataLayer` (the Google Tag Manager
+  convention) instead, because this site plans to add GTM and a Meta-Pixel-style vendor later, and GTM's own
+  `gtm.js` reads `window.dataLayer` natively (confirmed by inspecting both `ustafoundation.com` live — which
+  currently has NO GTM container, just Fundraise Up auto-seeding `dataLayer` with `FundraiseUp.*` events — and
+  `usta.com`, which uses direct `gtag.js` + a direct Meta Pixel snippet, no GTM container either). Standardizing on
+  `dataLayer` now avoids running two parallel data layers later.
+- **Added `scripts/data-layer.js`** — first-party, no vendor file (plain `dataLayer` has no listener API of its
+  own, unlike ACDL, so this wraps `push` once, additively, to give first-party code `onDataLayerEvent(type,
+  handler)` with the same replay-past-and-future guarantee ACDL provides out of the box). `scripts.js` calls
+  `initDataLayer()` first thing in `loadEager`.
+- **donate.js:** `emitDonateEvent` now does `window.dataLayer.push({ event: detail.type, ...detail })` instead of
+  the old `CustomEvent('donate')` + `window.donateEvents` buffer array.
+- **analytics.js:** listens via `onDataLayerEvent(type, handler)` for each key in `site.donateBeacons` — replay is
+  handled by `data-layer.js`, so the old manual `window.donateEvents` replay loop was deleted, not kept alongside.
+  `handleDonateEvent` / `buildDonateBeacon` / the tracker-poll `flushBeacons` logic (AppMeasurement tracker
+  readiness — unrelated to event delivery) is unchanged.
+- **Verified** (dev server + browser console): `window.dataLayer` is a real array with `push` wrapped (not the
+  native `Array.prototype.push`); pushing `checkoutOpen` *before* `analytics.js`'s listener existed and then
+  loading `analytics.js` still produced the correct replayed beacon (`prop61`/`eVar61`/`prop62`/`eVar62`/`event9`
+  via a mocked `s_c_il` tracker); a live `donationComplete` push produced `eVar76`/`event67` correctly — both
+  matching `site-config.js`'s `donateBeacons` config exactly.
+- **Compatibility note for when GTM is actually added:** the `push` wrap here only adds a side effect — it always
+  calls through to the real array push — so `gtm.js`'s own init (which drains whatever is already in `dataLayer`
+  into its queue, then layers its own `push` on top) still sees every item pushed before it loads. First-party
+  listeners registered via `onDataLayerEvent` keep working either way.
+- **Same explicit scope decisions as the ACDL attempt, carried over:** `target-a4t.js` is untouched (its `tnta`
+  payload is internal plumbing, not business/event data); no page-level schema invented (nothing maps page-level
+  data to an Analytics variable yet, so nothing was pushed for it).

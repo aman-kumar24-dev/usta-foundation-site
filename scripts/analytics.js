@@ -4,11 +4,15 @@
  *
  * Reads the site's config (authored /site-config sheet over code defaults, see
  * site-config.js), waits for consent when that site requires it, then
- * injects the site's Tags embed code once, asynchronously. Donation events from
- * donate.js are sent as Analytics link beacons (site's `donateBeacons`).
+ * injects the site's Tags embed code once, asynchronously. Donation events
+ * from donate.js arrive via `window.dataLayer` (see data-layer.js) and are
+ * sent as Analytics link beacons (site's `donateBeacons`). `onDataLayerEvent`
+ * replays events already pushed, so this module has no load-order dependency
+ * on donate.js.
  */
 import { getSiteConfig } from './site-config.js';
 import { onConsent } from './consent-check.js';
+import { onDataLayerEvent } from './data-layer.js';
 
 const TRACKER_POLL_MS = 500;
 const TRACKER_POLL_MAX = 40;
@@ -99,9 +103,11 @@ getSiteConfig().then(({ site, env }) => {
   if (!src) return;
   const { donateBeacons } = site;
   if (donateBeacons) {
-    // events emitted before this point (buffered by donate.js), then live ones
-    (window.donateEvents || []).forEach((detail) => handleDonateEvent(donateBeacons, detail));
-    window.addEventListener('donate', (e) => handleDonateEvent(donateBeacons, e.detail));
+    // onDataLayerEvent replays items already pushed (e.g. by donate.js before
+    // this ran) as well as future ones.
+    Object.keys(donateBeacons).forEach((type) => {
+      onDataLayerEvent(type, (item) => handleDonateEvent(donateBeacons, item));
+    });
   }
   if (site.consentRequired) onConsent(() => loadTags(src));
   else loadTags(src);

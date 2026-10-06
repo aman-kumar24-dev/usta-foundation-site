@@ -15,6 +15,7 @@ import {
   toCamelCase,
   getMetadata,
 } from './aem.js';
+import { initDataLayer } from './data-layer.js';
 
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
   const innerTT = window.trustedTypes.createPolicy('tt-inner', {
@@ -304,6 +305,9 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  // Must exist before any producer (donate.js, lazy phase) or consumer
+  // (analytics.js, delayed phase) runs — see data-layer.js.
+  initDataLayer();
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Kick off template CSS but DON'T block the eager render on it — the LCP H1's
@@ -373,8 +377,8 @@ async function loadLazy(doc) {
  */
 function loadDelayed() {
   import('./consent-check.js');
-  // Adobe Analytics (Tags). Donation events reach it via donate.js's `donate`
-  // window event, so there is no load-order dependency on the donate widget.
+  // Adobe Analytics (Tags). Donation events reach it via window.dataLayer (see
+  // data-layer.js), so there is no load-order dependency on the donate widget.
   import('./analytics.js');
   // load anything that can be postponed to the latest here
 }
