@@ -377,6 +377,30 @@ main > .section.hero-container:has(.hero.text-up) {
   padding-bottom: 250px;
 }
 
+/* NO-CTA heroes (special-funds: h1 + subhead only) — the source keeps a much taller
+   band under the subhead (spacer components in its hero container): measured
+   subhead-bottom→hero-bottom 356px mobile / 468px desktop (hero 678@390,
+   926@992, 816@1280, 792@1440). The CTA heroes are untouched. Its text panel is
+   ALSO laid out differently below 992: 50vw wide at 8.333vw left on mobile too
+   (not the CTA heroes' 56vw at 32px), with a 4px inner gutter (<768) / 6px
+   (768–991) instead of 15px — measured h1 L31/W152 @320, L36/W187 @390,
+   L68/W376 @767, L70/W372 @768, L81/W438 @900. Matching it keeps the h1 and
+   subhead wrapping (and so the hero height) identical at every width. */
+.hero.text-up.block:not(:has(.button-container)) {
+  padding: 48px 0 356px;
+}
+
+.hero.text-up.block:not(:has(.button-container)) > div {
+  box-sizing: border-box;
+  width: 50vw;
+  max-width: none;
+  margin-left: 8.333vw;
+}
+
+.hero.text-up.block:not(:has(.button-container)) > div > div {
+  padding: 0 4px;
+}
+
 /* Text panel — top-left column. Mobile: the source constrains the text to a
    NARROW column ≈ 56vw (202px @360, 220 @390, 241 @430, 284 @500), so the h1
    wraps to "About the USTA / Foundation" and the subhead wraps to 4–5 lines
@@ -468,6 +492,14 @@ main > .section.hero-container:has(.hero.text-up) {
     padding-bottom: 378px;
   }
 
+  .hero.text-up.block:not(:has(.button-container)) {
+    padding: 80px 0 468px;
+  }
+
+  .hero.text-up.block:not(:has(.button-container)) > div > div {
+    padding: 0 6px;
+  }
+
   /* Source text-up panel is FLUID across the whole ≥768 range: width exactly
      50vw, left exactly 8.333vw (768→384/64, 900→450/75, 991→496/83, 1280→640/107,
      1440→720/120, 1920→960/160). One formula for the entire desktop range. */
@@ -521,6 +553,11 @@ main > .section.hero-container:has(.hero.text-up) {
     width: 14.5vw;
     padding: 14px;
   }
+
+  /* no-CTA hero: back to the shared 15px panel gutter from 992 (h1 L98/W466 @992). */
+  .hero.text-up.block:not(:has(.button-container)) > div > div {
+    padding: 0 15px;
+  }
 }
 
 /* text-up, tall — YPI's hero is a FIXED-height box in the source (~601px mobile,
@@ -541,6 +578,61 @@ main > .section.hero-container:has(.hero.text-up) {
   }
 }
 
+
+/* text-up, medium — YPI's hero, measured on the source at 390/768/992/1200/1440/
+   1600/1728/1920. Height follows the content (h1 + subhead + JOIN US) plus a fixed
+   band below the button: 258px (<768) / 386px (>=768) — so it is 601 @390,
+   814 @768, 790 @992–1536 and 656 from ~1600 where the subhead fits on one line.
+   (`tall` used a 601/790 min-height floor, which is too tall on wide screens.)
+   Panel = the source AEM grid: 1/12 left offset, 6/12 wide, inner inset 4px (<768)
+   / 6px (768–991) / 15px (>=992). The button is a grid column of that 6-col panel,
+   never narrower than its label: 4/6 (<768), 3/6 offset 3/6 (768–991), 2/6 (>=992). */
+.hero.text-up.medium.block {
+  min-height: 0;
+  padding: 48px 0 258px;
+}
+
+.hero.text-up.medium.block > div {
+  box-sizing: border-box;
+  width: 50vw;
+  max-width: none;
+  margin-left: 8.333vw;
+}
+
+.hero.text-up.medium.block > div > div {
+  padding: 0 4px;
+}
+
+.hero.text-up.medium a.button:any-link {
+  width: calc(50vw * 4 / 6 - 8px);
+  min-width: max-content;
+}
+
+@media (width >= 768px) {
+  .hero.text-up.medium.block {
+    padding: 80px 0 386px;
+  }
+
+  .hero.text-up.medium.block > div > div {
+    padding: 0 6px;
+  }
+
+  .hero.text-up.medium a.button:any-link {
+    width: calc(50vw * 3 / 6 - 12px);
+    margin-left: calc(50vw * 3 / 6);
+  }
+}
+
+@media (width >= 992px) {
+  .hero.text-up.medium.block > div > div {
+    padding: 0 15px;
+  }
+
+  .hero.text-up.medium a.button:any-link {
+    width: calc(50vw * 2 / 6 - 30px);
+    margin-left: 0;
+  }
+}
 
 /* ==================================================================
    Variant: error

@@ -142,18 +142,6 @@
   text-align: left;
 }
 
-/* Source separates the tweet's sentences with a double <br> (one BLANK line);
-   our body is authored as separate <p>, so reproduce that blank line as a
-   one-line-height gap BETWEEN body paragraphs (not after the last one). */
-.quote.tweet .quote-tweet-body p + p {
-  margin-top: 22.857px;
-}
-
-/* blank line between the tweet body and the handle/date line (source rhythm) */
-.quote.tweet .quote-tweet-footer {
-  margin-top: 22.857px;
-}
-
 /* Links: @mentions, #hashtags, pic.twitter, handle + date — blue, weight 400. */
 .quote.tweet a:any-link {
   color: var(--link-color); /* #0357b8 */
@@ -161,18 +149,9 @@
   text-decoration: none;
 }
 
+/* source: hover only darkens the color — no underline */
 .quote.tweet a:hover {
   color: var(--link-hover-color);
-  text-decoration: underline;
-}
-
-/* Inline links inside the tweet body sit within a text block, so they must be
-   distinguished by more than color (WCAG link-in-text-block); underline them.
-   (The source uses color-only links — a source a11y quirk; we underline the
-   in-text ones to pass axe, a minimal, defensible deviation.) The standalone
-   handle/date links are their own line and stay clean. */
-.quote.tweet .quote-tweet-body a:any-link {
-  text-decoration: underline;
 }
 
 @media (width >= 768px) {
@@ -181,9 +160,52 @@
     font-size: 18px;
     line-height: 25.714px;
   }
+}
 
-  .quote.tweet .quote-tweet-body p + p,
-  .quote.tweet .quote-tweet-footer {
-    margin-top: 25.714px;
+/* --- tweet beside article text in a `split-left` section ---
+   The source starts the text column level with the tweet column (both AEM grid
+   columns top-aligned, text <p> margin 0), so the body text's first line sits
+   10px ABOVE the tweet's (the blockquote's 10px top padding). Drop the global
+   40px block→next-wrapper margin (styles.css) on the text column beside the
+   tweet, and its first paragraph's top margin (matching sibling selector). */
+@media (width >= 768px) {
+  main > .section.split-left:has(.quote.tweet) > div[class$='-wrapper'] + div.default-content-wrapper,
+  main > .section.split-left:has(.quote.tweet) > div[class$='-wrapper'] + div.default-content-wrapper > :first-child {
+    margin-top: 0;
+  }
+}
+
+/* Quote in a `split-even` section (Chris Evert campaign page) — source widths:
+   the source <blockquote> sits in an AEM grid column with a 4px (<768) / 6px
+   (768–991) side margin → 328 / 708 wide when stacked; from 992 it fills its
+   half of the 1170 grid (570 @1200). The source blockquote pads 20px BOTH sides. */
+.section.split-even .quote {
+  max-width: 328px;
+  margin-inline: auto;
+}
+
+/* each source <blockquote>: padding 10px 20px, margin-bottom 20px */
+.section.split-even .quote .quote-quotation {
+  padding-right: 20px;
+  margin-bottom: 20px;
+}
+
+.section.split-even .quote .quote-quotation p {
+  padding: 10px 0;
+}
+
+.section.split-even .quote .quote-quotation p + p {
+  margin-top: 20px;
+}
+
+@media (width >= 768px) {
+  .section.split-even .quote {
+    max-width: 708px;
+  }
+}
+
+@media (width >= 992px) {
+  .section.split-even .quote {
+    max-width: none;
   }
 }
