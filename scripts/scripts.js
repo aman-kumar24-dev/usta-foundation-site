@@ -41,6 +41,10 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
   });
 }
 
+// After the default Trusted Types policy. A static import would run first and
+// assigning the OneTrust URL would throw TrustedScriptURL, which blanks the page.
+import('./consent-check.js');
+
 /**
  * Preload the condensed display font (Graphik XXCond Bold) used by h1/h2 at up to
  * 100px. It's the LCP headline face and an ultra-condensed cut, so a fallback
@@ -372,8 +376,8 @@ async function loadLazy(doc) {
  * without impacting the user experience.
  */
 function loadDelayed() {
-  import('./consent-check.js');
-  // Adobe Analytics (Tags). Donation events reach it via donate.js's `donate`
+  // Adobe Analytics (Tags). OneTrust is already loaded (see the import above).
+  // Donation events reach it via donate.js's `donate`
   // window event, so there is no load-order dependency on the donate widget.
   import('./analytics.js');
   // load anything that can be postponed to the latest here
@@ -383,8 +387,9 @@ async function loadPage() {
   await loadEager(document);
   await loadLazy(document);
   // Defer the delayed phase 3s (EDS convention) so non-critical third parties
-  // (Adobe Tags / Analytics, the consent gate) load well after the page is
+  // (Adobe Tags / Analytics) load well after the page is
   // interactive — keeps them out of the initial critical path / "unused JS".
+  // OneTrust itself loads with scripts.js, before either phase.
   // Client-side A4T relies on this: the Target payload captured in the eager
   // phase is waiting when the Tags page view goes out (see target-a4t.js).
   window.setTimeout(() => loadDelayed(), 3000);

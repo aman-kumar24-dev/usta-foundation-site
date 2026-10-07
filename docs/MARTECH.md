@@ -8,9 +8,9 @@ Analytics extension sends beacons straight to Adobe Analytics.
 
 | File | Role |
 |---|---|
-| `scripts/site-config.js` | One entry per site: hosts, EDS site names, Tags embed URL per environment, `consentRequired`, optional `donateBeacons` |
+| `scripts/site-config.js` | One entry per site: hosts, EDS site names, Tags embed URL per environment, `consentRequired`, OneTrust SDK, optional `donateBeacons` |
 | `scripts/analytics.js` | Resolves site + environment from the hostname, gates on consent if required, injects the embed once (`async`); turns `donate` events into link beacons |
-| `scripts/consent-check.js` | Exposes `onConsent(callback)`; placeholder consent (`?consent=accept`) until a real CMP is wired per site |
+| `scripts/consent-check.js` | Loads the USTA OneTrust stub. `onConsent` fires for Performance (`C0002`); `onTargetConsent` fires for Targeting (`C0004`). `?consent=accept` overrides for testing |
 | `scripts/scripts.js` → `loadDelayed()` | `import('./analytics.js')` — 3 s after the lazy phase (≈4.4 s after navigation locally), independent of the donate widget. At 2 s Tags fell inside standard Lighthouse runs (BP 96 → 75) |
 | `scripts/donate.js` (from `loadLazy()`) | Normalises donate links immediately; loads Fundraise Up on first deliberate interaction (pointerdown/keydown/touchstart/wheel/scroll — no timer, no pointermove) or immediately with `?form=`; re-emits its donation events as a `donate` window event (buffered in `window.donateEvents`) |
 
@@ -63,6 +63,8 @@ by Target (eager) and Analytics (delayed) — one request per page, issued befor
 | `launch.production` | Tags embed for aem.live + production domain | `https://assets.adobedtm.com/….js` or empty |
 | `launch.development` | Tags embed for aem.page + localhost | same |
 | `consentRequired` | `true` / `false` | boolean |
+| `onetrust.sdk` | OneTrust domain-script id, e.g. `43383d2d-67e6-4d4a-99cb-3ff760b82737` | UUID or empty |
+| `onetrust.src` | `https://cdn.cookielaw.org/scripttemplates/otSDKStub.js` | that host, path ending in `otSDKStub.js`, or empty |
 | `target.enabled` | `true` / `false` — only after Target is removed from Tags | boolean |
 | `target.clientCode` | `unitedstatestennisas` | letters/digits/`-` |
 | `target.serverDomain` | `unitedstatestennisas.tt.omtrdc.net` | `….tt.omtrdc.net` |
@@ -121,9 +123,9 @@ Fill in the placeholder entry in `scripts/site-config.js`:
 },
 ```
 
-If `consentRequired: true`, wire the site's CMP into `scripts/consent-check.js`
-(`hasConsent()` + dispatch `consent.update` when the visitor decides). Until then
-Tags only loads with `?consent=accept` (testing only).
+If `consentRequired: true`, Launch waits for OneTrust Performance (`C0002`) and
+at.js waits for Targeting (`C0004`). Set `onetrust.sdk` and `onetrust.src` for
+that site. `?consent=accept` grants both categories for testing only.
 
 ## ustafoundation — current (interim) setup
 
@@ -135,7 +137,10 @@ Tags only loads with `?consent=accept` (testing only).
   (`-development`/`-staging` 404) → preview + local also use the production
   library, so **preview traffic lands in `usta.global`**. Replace the `development`
   URL with the Development environment embed when available.
-- `consentRequired: false` (no consent gate on ustafoundation.com).
+- `consentRequired: true`. OneTrust SDK `43383d2d-67e6-4d4a-99cb-3ff760b82737`
+  (same property as www.usta.com). Performance `C0002` gates Launch; Targeting
+  `C0004` gates at.js. The `/site-config` sheet overrides this — set
+  `consentRequired` to `true` there and preview, or the sheet value wins.
 
 ### What the library sends
 
@@ -171,8 +176,8 @@ Tags only loads with `?consent=accept` (testing only).
    - One `b/ss/…` request: `pageName=foundation:Home`, `v17`/`c17` = URL, `v0=test`, `mid` present.
 2. `_satellite.setDebug(true)` + reload → rule log shows "set global variables" before
    "page load" (Page Bottom rules still fire with async loading — no `_satellite.pageBottom()` needed).
-3. Consent path: set the site's `consentRequired: true` locally → no adobedtm/omtrdc/demdex
-   requests without `?consent=accept`; loads with it. Revert.
+3. Consent path: with `consentRequired: true`, no adobedtm/omtrdc/demdex requests
+   until Performance / Targeting are accepted (or `?consent=accept`).
 4. Unknown host (e.g. the machine's IP on port 3000) → nothing loads, no console errors.
 
 ---
@@ -188,7 +193,7 @@ Target is moved **out of the Tags library** into site code; Tags keeps Analytics
 |---|---|
 | `scripts/site-config.js` → `target` | Per site: `enabled`, `clientCode`, `serverDomain`, `imsOrgId`, `a4t`. ustafoundation filled in, **`enabled: false` until cutover**; placeholders `{ enabled: false }` |
 | `scripts/scripts.js` → `loadEager()` | Only when the page has `Target` metadata (any value except off/false/no): imports `target.js` and awaits it — i.e. until the **offers have arrived** (or `target.flickerTimeout`, default 1 s) — then renders the first section, so its first paint already shows the offer |
-| `scripts/target.js` | Checks the site flag (and skips consent-required sites), preconnects to the edge, modulepreloads at.js, creates the ECID instance (A4T), sets `targetGlobalSettings`, imports at.js, fires `getOffers` (pageLoad) on `at-library-loaded`, applies offers as sections/blocks decorate |
+| `scripts/target.js` | Checks the site flag. When `consentRequired`, returns immediately and loads at.js only after Targeting consent, so the banner does not block first paint. Otherwise preconnects to the edge, modulepreloads at.js, creates the ECID instance (A4T), sets `targetGlobalSettings`, imports at.js, fires `getOffers` (pageLoad) on `at-library-loaded`, applies offers as sections/blocks decorate |
 | `scripts/vendor/at.min.js` | at.js **2.11.4**, the aem.live-optimised build (loadable with `import()`). Tags used 2.11.7; a 2.11.7 download from Target → Administration → Implementation can replace it later **if it still works with `import()`** (the stock download may not; test it before swapping) |
 | `scripts/vendor/VisitorAPI.min.js` | Experience Cloud ID service 5.5.0 (same version Tags uses), loaded as a classic script — **only in `target.a4t = true/server` mode** |
 | `scripts/target-a4t.js` | **Client-side A4T** (`target.a4t = client`): exposes the at.js payload as `window.targetA4TPayload` + `target-a4t` event, and sends a single fallback link hit if the Tags page view went out without it |

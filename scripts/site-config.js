@@ -19,9 +19,11 @@
  *
  * Tags embed URLs are public (served to every visitor) — they are not secrets.
  *
- * `consentRequired: true` defers loading until consent is granted (see
- * scripts/consent-check.js `onConsent`). Sites that don't need a consent gate
- * load Tags straight away in the delayed phase.
+ * `consentRequired: true` defers Launch until OneTrust Performance consent
+ * (C0002) and defers at.js until Targeting consent (C0004). See
+ * scripts/consent-check.js. Sites that don't need a consent gate load Tags
+ * straight away in the delayed phase. `onetrust.sdk` / `onetrust.src` select
+ * the OneTrust property and stub.
  *
  * `donateBeacons` (optional) maps donate.js events (see scripts/donate.js) to
  * Analytics link beacons: `events`, fixed `set` variables, and `map` from an
@@ -53,7 +55,11 @@ const SITES = [
       // Development environment embed URL (report suite usta.ustacomdev) when available.
       development: 'https://assets.adobedtm.com/15c795eb812c/e99b4446eb17/launch-b4bd8f30c678.min.js',
     },
-    consentRequired: false,
+    consentRequired: true,
+    onetrust: {
+      sdk: '43383d2d-67e6-4d4a-99cb-3ff760b82737',
+      src: 'https://cdn.cookielaw.org/scripttemplates/otSDKStub.js',
+    },
     // Same variables as the source site's "FundraiseUp Donation Checkout Open" /
     // "FundraiseUp Donation Complete" Tags rules.
     donateBeacons: {
@@ -139,6 +145,8 @@ const SETTINGS = {
   'launch.production': [(v) => (/^https:\/\/assets\.adobedtm\.com\/[\w./-]+\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.launch.production = v; }],
   'launch.development': [(v) => (/^https:\/\/assets\.adobedtm\.com\/[\w./-]+\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.launch.development = v; }],
   consentRequired: [toBool, (c, v) => { c.consentRequired = v; }],
+  'onetrust.sdk': [(v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) || v === '' ? v : undefined), (c, v) => { c.onetrust.sdk = v; }],
+  'onetrust.src': [(v) => (/^https:\/\/cdn\.cookielaw\.org\/scripttemplates\/[\w./-]*otSDKStub\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.onetrust.src = v; }],
   'target.enabled': [toBool, (c, v) => { c.target.enabled = v; }],
   'target.clientCode': [(v) => (/^[\w-]+$/.test(v) ? v : undefined), (c, v) => { c.target.clientCode = v; }],
   'target.serverDomain': [(v) => (/^[\w-]+\.tt\.omtrdc\.net$/.test(v) ? v : undefined), (c, v) => { c.target.serverDomain = v; }],
@@ -196,6 +204,7 @@ function applySheet(defaults, json) {
   const config = {
     ...defaults,
     launch: { production: '', development: '', ...defaults.launch },
+    onetrust: { sdk: '', src: '', ...defaults.onetrust },
     target: { enabled: false, flickerTimeout: 1000, ...defaults.target },
   };
   const settings = json?.settings?.data || (json?.[':type'] === 'sheet' ? json.data : []) || [];

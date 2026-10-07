@@ -3985,3 +3985,9 @@ Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
   all modes (client ~1.1–1.4 s, server ~3.3 s). Interleaved Lighthouse: client ≈ off; server +~1 s mobile LCP, BP 75.
 - **Pending (user):** test-org Launch embed + report suite, no Target extension in that property, the Set Variables
   line, the processing rule; then sheet `target.a4t = client` + `launch.development` and end-to-end check.
+
+### 2026-10-07 — OneTrust gate for Analytics and Target
+USTA OneTrust SDK `43383d2d-67e6-4d4a-99cb-3ff760b82737` (same property as www.usta.com), stub `otSDKStub.js`. `OtAutoBlock.js` is not used: `head.html` is unchanged and the CSP `strict-dynamic` policy only allows scripts injected by the nonce'd modules.
+- `scripts/consent-check.js` loads the stub after the default Trusted Types policy (dynamic `import` in `scripts.js`, not a static import — a static import assigns the URL before `createPolicy` and blanks the page). Google Consent Mode v2 defaults to denied, then updates from the active groups. Performance `C0002` → `onConsent` (Launch). Targeting `C0004` → `onTargetConsent` (at.js). `?consent=accept` / `?consent=decline` overrides for testing. Denied categories expire `s_*` / `mbox` / `at_check` / `mboxEdgeCluster` (and `AMCV_*` only when both are denied).
+- Code default `consentRequired: true`, with `onetrust.sdk` and `onetrust.src` editable on the `/site-config` sheet. The sheet still wins: a published `consentRequired` of `false` turns the gate off.
+- When consent is required, `initTarget` returns before first paint and starts at.js only after Targeting consent, so the banner does not hold LCP. The flicker wait still applies once at.js actually starts.
