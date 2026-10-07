@@ -39,11 +39,20 @@ function heroRenditionWidth() {
   return buckets.find((w) => w >= needed) || 2000;
 }
 
-/** Set/replace the width= param on an EDS rendition URL (adds webp+optimize if absent). */
+/**
+ * Set/replace the width= param on an EDS rendition URL and always request WebP.
+ * The authored <img> src keeps the ORIGINAL format (e.g. `format=gif` for a GIF
+ * upload) as its fallback, but a CSS background needs no fallback — and a still
+ * GIF/PNG photo is 3–4× larger than its WebP rendition (college-scholarship hero:
+ * 228 KB gif vs 64 KB webply @750), which made it the mobile LCP bottleneck.
+ */
 function heroBgUrlAt(src, width) {
-  return (/([?&])width=\d+/.test(src))
+  const url = (/([?&])width=\d+/.test(src))
     ? src.replace(/([?&])width=\d+/, `$1width=${width}`)
-    : `${src}${src.includes('?') ? '&' : '?'}width=${width}&format=webply&optimize=medium`;
+    : `${src}${src.includes('?') ? '&' : '?'}width=${width}&optimize=medium`;
+  return /([?&])format=[^&]*/.test(url)
+    ? url.replace(/([?&])format=[^&]*/, '$1format=webply')
+    : `${url}&format=webply`;
 }
 
 /**
@@ -216,6 +225,19 @@ function decorateTextUp(block) {
       p.classList.add('button-container');
     }
   });
+
+  // `medium` (YPI): the source h1 binds its LAST two words with a non-breaking
+  // space ("Young Professional[NBSP]Initiative"), so it is always 2 lines — line 2
+  // overflows the narrow column instead of wrapping. The import pipeline drops
+  // that nbsp, so re-bind the last two words (same approach as the banner h1).
+  const h1 = block.classList.contains('medium') && block.querySelector('h1');
+  if (h1 && !h1.children.length && !h1.dataset.nbspBound) {
+    const words = h1.textContent.trim().split(/\s+/);
+    if (words.length >= 3) {
+      h1.textContent = `${words.slice(0, -1).join(' ')}${String.fromCharCode(160)}${words.at(-1)}`;
+      h1.dataset.nbspBound = 'true';
+    }
+  }
 }
 
 /**

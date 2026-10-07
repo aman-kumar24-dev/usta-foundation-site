@@ -72,12 +72,13 @@ body.news main .default-content-wrapper p {
   }
 }
 
-/* inline links in article body — brand blue, underline on hover */
-body.news main .default-content-wrapper a {
+/* inline links in article body — brand blue, underline on hover. Skip the
+   default-content `.cta-button`s, which set their own colors (styles.css). */
+body.news main .default-content-wrapper a:where(:not(.cta-button)) {
   color: var(--link-color, #0357b8);
 }
 
-body.news main .default-content-wrapper a:hover {
+body.news main .default-content-wrapper a:where(:not(.cta-button)):hover {
   text-decoration: underline;
 }
 
@@ -92,6 +93,27 @@ body.news main .default-content-wrapper p:has(> picture) + p {
   color: #333;
 }
 
+/* ---- Tables in articles (e.g. the 2023 NJTL Essay Contest winners) ---------
+   20px between the intro text and the table, at every width (the global
+   block rhythm would give 32px mobile / 40px from 768). */
+body.news main .section > .default-content-wrapper + div.table-wrapper {
+  margin-top: 20px;
+}
+
+/* ---- Section style: compact-headings -----------------------------------------
+   Some source articles end a paragraph with a bold+underlined "heading" line
+   (e.g. Kimmelman: "About the Kimmelman Family Foundation") and the source has
+   0 paragraph margin, so its text sits directly below (~2–4px). Drop the
+   paragraph gap after such a heading line. Opt-in per section via
+   section-metadata `Style | compact-headings` — other news pages are unaffected. */
+body.news main .section.compact-headings p:has(> :is(strong, b):last-child > u) {
+  margin-bottom: 0;
+}
+
+body.news main .section.compact-headings p:has(> :is(strong, b):last-child > u) + p {
+  margin-top: 0;
+}
+
 /* Related Articles feed (news.js) — card look comes from `.cards.news` in
    blocks/cards/cards.css; only the link deltas live here (the feed wraps image +
    title in <a>; keep them looking like the plain image/heading). */
@@ -103,4 +125,12 @@ body.news .cards.news .cards-news-card-image a {
 body.news .cards.news .cards-news-card-title a {
   color: inherit;
   text-decoration: none;
+}
+
+body.news div.section.columns-container .columns-wrapper, body.news div.section.columns-container div.default-content-wrapper {
+  margin-top: 16px;
+}
+
+body.news div.section.columns-container .columns-wrapper .columns.block > div > div > p:nth-child(1) {
+  margin-top: 0;
 }

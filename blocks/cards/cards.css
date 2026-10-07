@@ -96,35 +96,45 @@
 }
 
 /* From 768: cards across the shared grid, left-aligned text. Column-gap uses the
-   site --grid-gap so cards land on the 12-col lines. The grid ADAPTS to the card
-   count so the row always fills the full width (no empty trailing slot): a 3-card
-   feed spreads 3-up, a 4-card feed is 4-up. Default = 4-up. */
+   site --grid-gap so cards land on the 12-col lines. Default = 4-up. */
 @media (width >= 768px) {
   .cards.content > ul {
+    --cards-content-gap: 12px; /* source column gap at the 768 tier (image 168) */
+
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 32px 12px; /* source column gap is 12px at the 768 tier (image 168) */
+    gap: 32px var(--cards-content-gap);
     padding: 32px 0;
-  }
-
-  /* exactly 3 cards → 3-up spread */
-  .cards.content > ul:has(> li:nth-child(3):last-child) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  /* exactly 2 cards → 2-up spread */
-  .cards.content > ul:has(> li:nth-child(2):last-child) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .cards.content > ul > li {
     text-align: left;
+  }
+
+  /* Fewer than 4 cards (get-involved "Signature Events" = 3): the source keeps
+     each card at its 4-up width (an AEM 3/12 column: 25% of the row, half-gap
+     padding each side) and distributes the columns with space-around — cards do
+     NOT stretch to fill the row (source 1440: 270 wide at x185/585/985). Mirror
+     that: widen the list by one gap, 25% tracks, padded items, space-around. */
+  .cards.content > ul:has(> li:nth-child(3):last-child),
+  .cards.content > ul:has(> li:nth-child(2):last-child) {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 25%;
+    justify-content: space-around;
+    column-gap: 0;
+    margin-inline: calc(var(--cards-content-gap) / -2);
+  }
+
+  .cards.content > ul:has(> li:nth-child(3):last-child) > li,
+  .cards.content > ul:has(> li:nth-child(2):last-child) > li {
+    padding-inline: calc(var(--cards-content-gap) / 2);
   }
 }
 
 /* From 992 the source column gap opens to 30px (image 203 → 255). */
 @media (width >= 992px) {
   .cards.content > ul {
-    gap: 32px var(--grid-gap);
+    --cards-content-gap: var(--grid-gap);
   }
 }
 
@@ -439,6 +449,12 @@
   width: 100%;
   height: auto;
   border-radius: 0;
+}
+
+/* Card with no image: reserve a blank area the size of the source's 400×200
+   (2:1) card image so the body lines up below its siblings' image row. */
+.cards.news .cards-news-card-image-empty {
+  aspect-ratio: 2 / 1;
 }
 
 /* Title — Graphik Semibold, uppercase, black. Source uses 28px/36px here (its
@@ -783,6 +799,204 @@ main .section:has(.cards.profile) .default-content-wrapper {
 main .section:has(.cards.profile) .default-content-wrapper p {
   margin: 0;
   line-height: 24px;
+}
+
+/* cards (profile, bio) — Board of Directors leader cards: a rounded photo panel
+   above a separate rounded grey text panel (name, bold role, bio paragraph).
+   Source: leadership-and-staff.html#tab=boardofdirectors, measured live at
+   390/768/992/1200/1440.
+
+   Source geometry (AEM containers): each card column carries 8px + 8px vertical
+   padding (16px above the photo and below the text panel) and a side inset of
+   4px (<768) / 6px (768–991) / 15px (>=992), so the photo edges sit 4/6/15px in
+   from the content column and two cards are 12px / 30px apart. The photo panel
+   is a fixed 288px (<768) / 384px (>=768) tall, background-size: cover, centred,
+   24px radius. Photo → text panel = 25px. Text panel: #e5e5e5, 24px radius;
+   text inset 24px vertical / 8px side (<768), 40px / 12px (768–991),
+   40px / 30px (>=992). Name 22/24.2 → 28/30.8 @768 (Graphik Semibold, #000);
+   weight 500; 24px gap; role BOLD 16/24 → 18/24; bio regular 16/24 → 18/24;
+   all left-aligned.
+
+   The 4/6/15px column inset is applied to every wrapper of the section (same
+   value as the source container padding — and as `columns.profile`, which shares
+   this section), so the label band above and the card row share one edge. */
+main .section:has(.cards.profile.bio) > div {
+  box-sizing: border-box;
+  padding-inline: 4px;
+}
+
+.cards.profile.bio > ul {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.cards.profile.bio > ul > li {
+  box-sizing: border-box;
+  max-width: none;
+  padding: 16px 4px;
+  overflow: visible;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cards.profile.bio .cards-profile-card-image img {
+  height: 288px;
+  aspect-ratio: auto;
+  object-position: 50% 50%;
+  border-radius: 24px;
+}
+
+.cards.profile.bio .cards-profile-card-body {
+  flex: 1 1 auto; /* equal-height text panels across a row */
+  margin-top: 25px;
+  text-align: left;
+  padding: 24px 8px;
+  background-color: #e5e5e5;
+  border-radius: 24px;
+}
+
+.cards.profile.bio .cards-profile-card-body h4 {
+  margin: 0;
+
+  /* source computes 500 on the single-cut Semibold face (no synthetic bold) */
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 24.2px;
+}
+
+.cards.profile.bio .cards-profile-card-body p {
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-style: normal;
+}
+
+.cards.profile.bio .cards-profile-card-body p::before {
+  content: none;
+}
+
+/* the source leaves one blank 24px line between the name and the role */
+.cards.profile.bio .cards-profile-card-body h4 + p {
+  margin-top: 24px;
+}
+
+/* Lead-in heading directly above the bio cards ("Board of Directors"): the
+   source renders it as a light-blue label bar spanning the card row — 40px tall
+   (8px padding around a 24px line), text 18/24 Graphik Regular BOLD, black, centred,
+   with its edges 4px (<768) / 6px (768–991) / 0 (>=992) in from the content
+   column (the same inset as the card row). Band bottom → photo top = 24px. */
+main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) {
+  max-width: 336px; /* back to the shared content column (the profile rules narrow it) */
+  margin-inline: auto;
+
+  /* tab strip → band: source tab top → band top = 100px (<768) / 116px (>=768);
+     padding (not margin, which would collapse into the section margin) adds the
+     difference on top of the 32px panel margin */
+  padding: 24px 4px 0;
+}
+
+main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) :is(h2, h3, h4) {
+  margin: 0;
+  padding: 8px 4px;
+  background-color: var(--section-blue-bg);
+  font-family: var(--body-font-family);
+  font-size: 18px;
+
+  /* source label is <p><b>…</b></p>: synthetic bold on Graphik Regular, like the role */
+  font-weight: 700;
+  line-height: 24px;
+  color: #000;
+  text-align: center;
+}
+
+/* band → card row: 8px here + the card's own 16px top padding = the source's 24px */
+main .section > .default-content-wrapper + .cards-wrapper:has(> .cards.profile.bio) {
+  margin-top: 8px;
+}
+
+@media (width >= 768px) {
+  main .section:has(.cards.profile.bio) > div {
+    padding-inline: 6px;
+  }
+
+  .cards.profile.bio > ul {
+    max-width: none;
+    padding: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .cards.profile.bio > ul > li {
+    padding: 16px 6px;
+  }
+
+  .cards.profile.bio .cards-profile-card-image img {
+    height: 384px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body {
+    padding: 40px 12px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body h4 {
+    font-size: 28px;
+    line-height: 30.8px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body p {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) {
+    max-width: 720px;
+    padding: 40px 6px 0;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) :is(h2, h3, h4) {
+    padding-inline: 6px;
+  }
+}
+
+@media (width >= 992px) {
+  main .section:has(.cards.profile.bio) > div {
+    padding-inline: 15px;
+  }
+
+  .cards.profile.bio > ul {
+    max-width: none;
+    padding: 0;
+    gap: 0;
+  }
+
+  .cards.profile.bio > ul > li {
+    padding: 16px 15px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body {
+    padding: 40px 30px;
+  }
+
+  /* undo the generic profile desktop name step-down (18/24, first card 22/32) */
+  .cards.profile.bio .cards-profile-card-body h4,
+  .cards.profile.bio > ul > li:first-child .cards-profile-card-body h4 {
+    font-size: 28px;
+    line-height: 30.8px;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) {
+    max-width: 1200px;
+    padding-inline: 15px;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) :is(h2, h3, h4) {
+    padding-inline: 15px;
+  }
 }
 
 /* cards-stats — 4-up stat cards on the cream band: circular photo + a large

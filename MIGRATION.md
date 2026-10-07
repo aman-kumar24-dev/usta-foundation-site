@@ -3890,6 +3890,52 @@ After the first pass, the user reported bad spacing on the hero library page. A 
 - Gates: lint 0 errors · stylelint ✓ · breakpoint ✓ · axe (project config) 0 serious/critical violations on hero,
   cards, columns, toc-profile, spacer, quote and table library pages, and the label passes color-contrast.
 
+### 2026-09-29 — Default-content CTA buttons: bold + italic + subscript / superscript (`cta-button`)
+Authors needed a way to put the site's real CTA buttons in DEFAULT content (until now only blocks had them).
+**Per user direction, the existing link → button rules are UNCHANGED:** bold → `.button.primary`, italic →
+`.button.secondary`, bold+italic → `.button.accent` keep their original boilerplate styles and the `body.general`
+blue override. (A first pass restyled those globally; the user asked to keep them as-is and ADD new options, so
+it was reverted.) The new options sit on top:
+- **Authoring contract (standalone link, alone in its paragraph):**
+  | Authored | Class | Look (source origin) |
+  |---|---|---|
+  | bold + italic + **subscript** | `.cta-button.cta-blue` | solid brand-blue CTA, 40px, 3px radius, 18px Graphik Semibold 400 uppercase, 1px tracking (hero/columns/general LEARN MORE) |
+  | bold + italic + **superscript** | `.cta-button.cta-black` | black, fully rounded 56px CTA (hero-error BACK TO HOMEPAGE) |
+- **scripts.js `decorateButtons()`:** the bold+italic+mark check runs BEFORE the existing branches, so plain
+  bold/italic/bold+italic are untouched. **Gotcha (verified on real aem.page output):** DA/aem.page emits sub/sup
+  **inside** the link (`<em><strong><a><sub>Label</sub></a></strong></em>`), so the check looks both up
+  (`closest`) and down (`querySelector`). It unwraps every formatting wrapper between `<p>` and `<a>` (any nesting
+  order) and strips the inner marks, so the label isn't shrunk or raised. Mark → class map: `CTA_BUTTON_STYLES`.
+- **Iterations (user decisions, same day):** v1 had three styles: subscript → blue, superscript → `.cta-link`
+  (uppercase underlined READ MORE text CTA), strikethrough → black. The text-link style was dropped: it's a link
+  style, not a button, and on the source it only appears inside cards-news / related-articles, which style it
+  themselves. Then the black button moved from strikethrough to **superscript** and strikethrough was dropped.
+  Bold + italic + strikethrough now falls through to the existing bold + italic `.button.accent` behaviour (the
+  `<del>` stays around the link). Library page + block sample updated to match.
+- **styles.css:** a separate `a.cta-button` class (not `.button`), so none of the existing `.button` rules, theme
+  overrides or block resets can interact with it. Visible `:focus-visible` outline. Labels wrap on narrow screens.
+- **news.css:** the article inline-link color rule (`…default-content-wrapper a`, 0,2,3) would paint cta text blue
+  on blue. It's now `a:where(:not(.cta-button))`. `:where` keeps the original specificity (a plain `:not` tripped
+  `no-descending-specificity`), and every existing link still matches.
+- **DA Block Library:** `/.da/library/blocks/buttons` has Blue Button / Black Button, one
+  section each (formatted link + `library-metadata` label). Added `{"name":"Buttons"}` to
+  `/.da/library/blocks.json` (15 entries). GET → merge → POST kept the `options` sheet. The config `library` sheet
+  already points at that index (unchanged). Page previewed, not published. Local copy + pre-change index backup:
+  `migration-work/da-lib/`. Nit: the page has no h1, so its auto title/breadcrumb reads "<sub>Learn More</sub>";
+  this only shows on the library preview page.
+- **Block sample:** `/drafts/block-samples/buttons` uploaded to DA and previewed (same scaffold as the other samples:
+  spacer → h1 intro + Source → spacer → one section per variant (label paragraph, Source, the button) → spacer →
+  metadata Title "Buttons — Block Sample" + noindex). Renders all 3 correctly. Source links stay plain links.
+  axe 0 violations, no overflow. Added to `tests/a11y/a11y.config.js` urls. There is NO local
+  `content/drafts/block-samples/buttons.plain.html` (content files aren't hand-written); the dev server serves the
+  page from aem.page preview. DA source copy: `migration-work/da-lib/sample-buttons.html`.
+- **Verified:** lint 0 errors (7 pre-existing warnings) · stylelint news.css ✓ · breakpoint ✓. The library page
+  decorates all 3 from real aem.page markup. Measured 157×40 blue / 95×24 text / 252×56 black. No overflow at
+  320/768/1440 on the library page and on a news article with the 3 injected. axe (project config): 0 violations
+  except the pre-existing reactions-widget target-size. Existing buttons (who-we-are, /404, hero-error, home) match
+  the original values exactly. No existing content uses sub/sup/strike on a standalone link. `test:a11y` /
+  `check:overflow` / `check:typography` still can't launch (Playwright headless-shell mismatch); the checks were
+  run in the preview browser.
 ### 2026-09-29 — Home: blue strip above "Your support makes a difference" merged into the band (parity fix)
 Reported on aem.page: the 17px light-blue strip (a `spacer` block) was not visible; it ran straight into the
 light-blue support band below. Removing the band's padding in devtools revealed the strip but left far too much space.
@@ -3920,3 +3966,560 @@ light-blue support band below. Removing the band's padding in devtools revealed 
   `color-contrast` on the existing white-on-#0373f3 brand buttons / nav Donate. That was pre-existing, and the
   project a11y config turns this rule off.
 - CSS-only; deploys via git push. No content changes needed (both token names are supported).
+
+### 2026-10-01 — cards-content: 3-card rows keep the 4-up card width (get-involved "Signature Events")
+The user reported that the Signature Events cards were wider than the source. The 2026-09-08 fix made a 3-card row
+fill the whole row, three cards across (370px cards at 1440). The source does NOT stretch them. It is an AEM 12-col grid
+where each card stays a **3/12 column** (25% of the row, with 15px padding each side, or 6px at 768). The row then
+spreads the columns with `justify-content: space-around`.
+- **Source measured (image left/width):** 768 `60/300/540 · 168` · 992 `84/395/705 · 203` · 1200 `93/473/853 · 255` ·
+  1440 `185/585/985 · 270` · 1920 `425/825/1225 · 270`.
+- **Fix (cards.css, `.cards.content` only):** the column gap is now a block-local `--cards-content-gap` (12px at 768,
+  `--grid-gap` from 992). For 2- or 3-card rows, the list is widened by one gap (`margin-inline: -gap/2`). It uses
+  `grid-auto-flow: column; grid-auto-columns: 25%` with `column-gap: 0` and `justify-content: space-around`, and each
+  `li` gets `padding-inline: gap/2`. This copies the source structure, so the positions match exactly. 4-card rows are
+  unchanged.
+- **Ours after the fix:** identical to the source at every tier (992 middle card 394 vs 395 = rounding). On
+  what-we-do, the two 4-card rows are unchanged (168/203/270). Mobile is unchanged (336 column; source page column 328
+  at 390 is a page-level difference, not this variant).
+- **Gates:** lint 0 errors (7 pre-existing no-console warnings) · stylelint ✓ · breakpoint ✓. `check:overflow` and
+  `test:a11y` could not launch (Playwright expects chromium_headless_shell-1187, which is not installed). I measured in
+  the preview browser instead: 0px horizontal overflow at 320/390/767/768/991/992/1199/1200/1440/1920. CSS-only, with
+  no markup changes.
+### 2026-09-29 — Section `background` options: one name per color (`light-blue-bg`/`cream-yellow-bg` → `section-*-bg`)
+The DA library Section Metadata `background` options (added in #28) used their own names for two colors that already
+had tokens: `light-blue-bg` painted `--section-blue-bg` and `cream-yellow-bg` painted `--section-yellow-bg`. Now every
+option name matches the token it paints: `section-blue-bg`, `section-yellow-bg`, `sage-grey-bg`, `pale-grey-bg`.
+- **Code (styles.css):** `main .section.light-blue-bg` → `.section-blue-bg`, `.cream-yellow-bg` → `.section-yellow-bg`.
+  No other references in code or local content. These classes are separate from the `section-blue` / `section-yellow`
+  section STYLES, which also set padding.
+- **HOW IT WIRES (gotcha):** `applySectionBackgrounds()` in scripts.js reads `/.da/library/blocks.json` → options → key
+  `background` (`name=#hex | …`) and adds the matching option NAME as the section class. The CSS rule name must
+  therefore equal the option name in the DA sheet. **The DA sheet must be renamed at the same time:**
+  `sage-grey-bg=#dcdfcf | section-blue-bg=#e2f7ff | section-yellow-bg=#ffefbe | pale-grey-bg=#eef0f0`.
+- **Validated locally** by mocking the sheet and injecting test sections (every name and every hex):
+  - New sheet: all 4 names and both hexes get the right class and color (e2f7ff / ffefbe / dcdfcf / eef0f0).
+  - Current sheet (old names): blue and yellow render transparent, because the classes are `light-blue-bg` and
+    `cream-yellow-bg`, which no longer have rules. So deploy the code and the sheet rename together.
+  - A section authored with the old NAME stops matching once the sheet is renamed. Authoring by hex still works. No
+    local content uses the option.
+- Gates: lint 0 errors (7 pre-existing warnings) · stylelint ✓ · breakpoint ✓.
+
+### 2026-10-01 — Tweet link hover + link tooltips (issue EDS-51)
+- **Tweet (quote.tweet) hover:** source hover only darkens the color (#0357b8 → #23527c), no underline (measured on
+  carol-ngounoue-runner-up-wimbledon-event). Removed `text-decoration: underline` from `.quote.tweet a:hover`. Note
+  `.quote.tweet a:any-link` (0,3,1) outranks the global `a:hover` underline, so links stay un-underlined.
+- **Tooltips:** source sets no `title` on any link. Removed the boilerplate `a.title = a.title || a.textContent` from
+  `decorateButtons()` (scripts.js) and the redundant `title` on social share buttons (they keep `aria-label`).
+- **Known a11y deviation (pre-existing since 6d6985d):** tweet inline links are color-only, so axe flags
+  `link-in-text-block` (serious). This matches the source; the underline was removed on request.
+### 2026-09-30 — Reactions block removal: generic `remove-block` script + first news page
+Customer wants the `custom-widget-reactions` block ("Reactions" + emoji row + "Be the first to add a reaction")
+removed from ALL news pages (62 of the 73 local news pages carry it). Done page by page on the LOCAL content (no
+importer re-run); the author uploads each page to DA.
+- **Script:** `node tools/content/remove-block.mjs [--dry-run] <block-name> <page> [...pages]` (page = path under
+  `content/`, with or without `.plain.html`). Generic, reusable for any block. It matches the block by its FIRST class
+  token (so variants match, and `custom-widget-reactions-other` does not), removes the whole balanced `<div>` subtree,
+  and is idempotent (a page without the block is reported and left alone). No dependencies (a tag-balancing
+  scanner, not a DOM library).
+- **Gotcha (caught on the first run and fixed):** the v1 script also dropped every section left "empty" (only
+  whitespace + section-metadata). That deleted the **Related Articles** section, which in the document is ONLY
+  `section-metadata: style = related-articles` because the news template fills in the feed at runtime. Now it only
+  removes a section that HELD the removed block and has nothing left; sections that were metadata-only to begin with
+  are never touched. The page was restored from the backup and re-run.
+- **First page:** `en/home/news/2023-njtl-essay-contest-winners`. The diff removes only the reactions table.
+  Backup: `migration-work/reactions-removal/2023-njtl-essay-contest-winners.before.plain.html`.
+- **Local preview path (gotcha):** the dev server mounts local content at `/content/…`
+  (`/content/en/home/news/<slug>`); `/en/home/news/<slug>` is proxied from aem.page (DA), so it keeps showing the
+  block until the page is uploaded to DA and previewed.
+- **Verified (local preview):** no reactions block; share bar → Related Articles 61px @1440 and @768, 40px @390. The
+  desktop gap equals a news page that never had the block (frances-tiafoe-fund-surpasses-1-million-raised: 61px).
+  Related Articles still renders 3 cards; no horizontal overflow at 390/768/1440.
+- **Gates:** `npx eslint tools/content/remove-block.mjs` 0 problems (`npm run lint` doesn't pick up `.mjs`) ·
+  `npm run lint` 0 errors (7 pre-existing warnings) · breakpoint-check ✓. No CSS/JS change to the site.
+- **Next:** run the script on the remaining 61 pages (page by page, as agreed), then retire the block code
+  (`blocks/custom-widget-reactions/`), its block sample and its DA library entry once no page uses it.
+- **Page 2:** `en/home/news/black-history-month-2026-community-impact-hub-leader-john-borde` — only the reactions
+  table removed (backup in `migration-work/reactions-removal/`). Verified: share bar → Related Articles 40/61/61px
+  @390/768/1440, 3 related cards, no overflow. 60 pages remain.
+- **Batch 1 (10 pages, alphabetical):** carol-ngounoue-runner-up-wimbledon-event, chris-evert-honored-espn-sports-humanitarian-awards,
+  chris-evert-honored-espys-usta-foundation-work, chris-evert-usta-foundation-much-more,
+  clervie-ngounoue-first-junior-grand-slam-australia, clervie-ngounoue-wins-first-junior-grand-slam-australian-open,
+  daymond-john-and-matt-ebert-share-wisdom-with-usta-foundation-s, delray-beach-youth-tennis-foundation-athletes-hit-the-court-with,
+  desert-smash-brings-together-hollywood-and-pro-tennis-to-benefit, espn-chris-mckendry-supports-usta-foundation.
+  Integrity check `migration-work/reactions-removal/verify-removal.mjs` (the ONLY diff vs the backup is one contiguous
+  reactions table; related-articles metadata kept): 10/10 OK (plus pages 1–2 re-checked OK). Preview: every page ends
+  with the share bar → Related Articles (3 cards), 40/61/61px @390/768/1440, no overflow. List: `batch-1.txt`.
+  **50 pages remain.**
+- **Batch 2 (ALL remaining 50 pages, per user "do for all"):** list in `migration-work/reactions-removal/batch-2.txt`.
+  Every page had exactly ONE reactions table; `verify-removal.mjs` 50/50 OK (only that table removed, no sections
+  dropped, related-articles metadata kept). **0 local news pages now contain `custom-widget-reactions`** (62/62 done).
+  Preview (390/768/1440): no reactions anywhere, no overflow on any page. The "flags" were all pre-existing and unrelated:
+  - 6 pages never had a `social` share bar, so the article ends with text or columns before Related Articles (same
+    40/61px gap): laver-cup-launches-2025-…, usta-foundation-launches-community-impact-hub-initiative,
+    usta-foundation-launches-williams-family-excellence-program-at-2, usta-foundation-scholarship-recipients-meet-billie-jean-king-at
+    (ends in columns), usta-foundation-to-celebrate-winners-of-2025-…, usta-foundation-to-honor-andre-agassi-….
+  - `usta-foundation-receives-transformative-2-7-million-gift-from-t`: the LOCAL file has its `metadata` table INSIDE the
+    related-articles section (not its own last section; the only news page like this). So the LOCAL preview treats it as a
+    block (404 `blocks/metadata`), template/`pages` meta aren't applied, and Related Articles shows 0 cards. Pre-existing:
+    untouched by the removal. The DA/aem.page version renders fine (template news, 3 static related cards), because
+    DA extracts the metadata table wherever it sits.
+  - `njtl-essay-grant-recipients-2020` has the Evert "Rally to Rebuild" content. Correct: the source URL 301-redirects
+    to `evert-speaks-on-rally-to-rebuild`.
+- **Next:** author uploads the 62 pages to DA. Once live content no longer uses it, retire `blocks/custom-widget-reactions/`,
+  its block sample (`drafts/block-samples/custom-widget-reactions`) and its DA library entry.
+
+### 2026-09-30 — `custom-widget-reactions` block RETIRED (code removed)
+The author previewed + published all 62 cleaned news pages. Verified before deleting any code: **0/62** news pages contain the
+block on aem.page or aem.live, and **0/88** pages in the live query-index use it.
+- **Removed:** `blocks/custom-widget-reactions/` (js + css) and its 6 emoji icons (`icons/Clap|Light_Bulb|Love|Smile|
+  Thumbs_Down|Thumbs_Up.svg`). Nothing else referenced them. Dropped its sample URL from `tests/a11y/a11y.config.js`.
+- **News importer** (`tools/importer/import-news-v1.js` + the matching lines in `.bundle.js`, hand-mirrored and
+  `node --check` OK): the source `div.reactions` widget is now DROPPED (`?.remove()`), not converted. Also removed
+  `buildReactionsBlock()`, the `reactions` import-report entry, and `custom widget reactions` from `OUR_BLOCK_NAMES`. A
+  re-import can't bring the block back. `tools/importer/backups/news/` is left as the historical known-good snapshot.
+- **Still in DA (author's step; the code is gone, so these would render the raw rows as text):**
+  `/drafts/block-samples/custom-widget-reactions` (published) and `/.da/library/blocks/custom-widget-reactions`
+  + its "Custom Widget Reactions" row in `/.da/library/blocks.json`. The local sample copy stays (content deletion
+  isn't allowed from this environment). Personal drafts under `drafts/rusmeen|shivani|date-fix-validation` still carry
+  the table too (not live pages).
+- **Gates:** `npm run lint` 0 errors (7 pre-existing warnings) · eslint importer + remove-block 0 problems · breakpoint ✓ ·
+  `check:svg` ✓. `test:a11y` still can't launch (headless-shell-1187 missing), so the same axe-core WCAG 2.x A/AA scan was run
+  in the preview browser on 2023-njtl-essay-contest-winners: **0 violations** (the reactions target-size issue is gone).
+  Published news pages render with no console errors, share bar → Related Articles 61px @1440, 3 cards, no overflow.
+- Code change deploys via git push (not yet committed).
+
+### 2026-10-01 — hero `text-up`: no-CTA height (special-funds)
+
+- **Issue:** the special-funds hero (h1 + subhead, **no buttons**) was ~170–210px shorter than the source
+  (466/754/730/620/596 vs source 678/926/926/816/792 @390/768/992/1280/1440). The top framing (48px / 80px) already
+  matched; the source keeps a much taller band under the subhead (empty spacer components in its hero container).
+- **Fix (`blocks/hero/hero.css`, text-up only):** `.hero.text-up.block:not(:has(.button-container))` →
+  `padding-bottom: 356px` mobile / `468px` ≥768 (measured subhead-bottom→hero-bottom on the source). Heroes that have a CTA
+  (who-we-are, get-involved, what-we-do, YPI `tall`, college-scholarship) don't match the selector and are unchanged. Special-funds is
+  currently the only no-CTA text-up hero.
+- **Text panel (same no-CTA scope):** a sweep from 320 to 1920 still showed −143/−59/−24/+24px at 320/430–600/768 because
+  the h1/subhead wrapped differently. The source special-funds panel is **50vw wide at 8.333vw left on mobile too** (not
+  the CTA heroes' 56vw at 32px), with a **4px** inner gutter below 768, **6px** at 768–991 and the shared **15px** from 992
+  (h1 L31/W152 @320, L36/W187 @390, L70/W372 @768, L81/W438 @900, L98/W466 @992). Matched with
+  `:not(:has(.button-container)) > div` / `> div > div` rules.
+- **Result:** hero height matches the source **exactly (0px diff) at all 27 widths swept**: 320, 360, 375, 390, 414, 430,
+  480, 540, 600, 700, 767, 768, 800, 850, 900, 950, 991, 992, 1024, 1100, 1199, 1200, 1280, 1366, 1440, 1600 and 1920
+  (e.g. 821@320, 678@390, 571@767, 926@768–1100, 816@1199–1366, 792@1440–1600, 682@1920). Heights for who-we-are,
+  get-involved, what-we-do and YPI re-checked at 390/768/992/1280/1440: unchanged.
+- **Gates:** lint 0 errors (7 pre-existing warnings) · breakpoint ✓ · check:overflow ✓ · test:a11y ✓.
+
+### 2026-10-01 — cards `(profile, bio)`: Board of Directors leader cards matched to source
+The source Board tab (`leadership-and-staff.html#tab=boardofdirectors`) was redesigned: a light-blue "Board of
+Directors" label bar, then two leader cards, each a **rounded photo panel** above a separate **rounded grey text
+panel** (name, bold role, bio). The authored content already uses `Cards (profile, bio)` with an `<h3>` lead-in, but
+the block still rendered the old staff-tile look (shadowed white card, square photo, divider bars, italic text).
+Measured live at 390/768/992/1200/1440 (AEM containers, getBoundingClientRect + computed styles):
+- **Insets:** every wrapper in the section has a 4px (<768) / 6px (768–991) / 15px (≥992) side inset (= source
+  container padding, same value `columns.profile` already applies in this section). Cards are 1-up <768, 2-up ≥768;
+  each card column has 16px above the photo and 16px below the text panel, and a 4/6/15px inner inset, so photos
+  are 12px (768) / 30px (≥992) apart.
+- **Photo:** 288px (<768) / 384px (≥768) tall, cover-cropped, centred, 24px radius (source = background-image on a
+  fixed-padding container). JS offers a 1200px rendition from 768 (photo is 555px wide on desktop).
+- **Text panel:** 25px below the photo, #e5e5e5, 24px radius; text inset 24/8 (<768), 40/12 (768–991), 40/30 (≥992).
+  Name Graphik Semibold 22/24.2 → 28/30.8 @768; 24px gap (source empty `<p>`); role **bold** (source `<b>`,
+  synthetic bold on Graphik Regular) 16/24 → 18/24; bio 16/24 → 18/24; all #000. Panels in a row stretch to equal height.
+- **Label bar** (the `<h3>` directly before the block): `--section-blue-bg`, 40px (8px padding + 24px line), Graphik
+  Regular 18/24 #000 centred, spans the card row. Tab top → bar top 100px (<768) / 116px (≥768), via padding-top on
+  its wrapper (margin would collapse into the 32px panel margin); bar → photo 24px.
+- **Result:** every x/width matches the source at all 5 widths (e.g. @1200 bar 15/1170, photos 30 & 615 / 555×384,
+  text x60/495, panels 327). Heights match at 768/1200/1440.
+- **Known residual (content artifact, not CSS):** the source's Chris Evert card ends with an extra empty `<p>` (24px)
+  that our content doesn't have. At 992 the source rows are `align-items:center`, so its Chris card sits 12px lower and
+  is 24px shorter than Kathleen's; ours stretches both to 375. On mobile our Chris panel is 24px shorter (312 vs 336),
+  so everything below moves up 24px. Not reproduced: it depends on that one stray paragraph.
+- **Not touched (out of scope):** the "Officers and Directors" label (source = the same light-blue bar; ours is a bold
+  paragraph) and the gap after the card row (source ≈152px to the next bar @1200, ours 40px).
+- Files: `blocks/cards/cards.css` (new `.cards.profile.bio` section), `blocks/cards/cards.js` (bio image rendition).
+- **Gates:** lint 0 errors (7 pre-existing a11y no-console warnings) · stylelint ✓ · breakpoint ✓ · check:overflow ✓
+  (360/768/992/1200/1920) · check:typography ✓ · test:a11y ✓. Installed the missing Playwright
+  `chromium_headless_shell-1187` (`PLAYWRIGHT_BROWSERS_PATH=/ms-playwright npx playwright install
+  chromium-headless-shell`), so these CLI gates run again. The gates load the default Staff tab; Board tab overflow
+  was checked in the preview browser: 0px at 390/768/992/1200/1440.
+- Code-only; deploys via git push. No content change needed (the page already authors `cards profile bio`).
+
+### 2026-10-01 — cards `(profile, bio)`: block sample + full typography parity audit
+- **Sample page:** `drafts/block-samples/cards-profile-bio` (scaffold: spacer → h1 intro + Source → spacer →
+  `<h3>Board of Directors</h3>` + `Cards (profile, bio)` → spacer → metadata). Built by a profile importer, not
+  hand-written: `tools/importer/import-sample-cards-profile-bio.js` (+ `.bundle.js`, URL list
+  `urls-sample-cards-profile-bio.txt`). It reads the source Board tab by `data-title` (works while the tab is hidden).
+  Each leader card = a `.full-width` column with a `[data-desktop-background-image]` photo panel and an `<h4>`; the
+  source's empty spacer `<p>`s are dropped, `<b>` role → `<strong>`. Photos localized via `localize-assets.mjs`
+  (2 images, 0 hotlinks; the source chris-evert.jpg is ~6 MB, served resized by EDS). Added to
+  `tests/a11y/a11y.config.js`. Completeness reads 41%, as expected (2 cards of a full page).
+- **Typography audit:** label, name, role, bio on both cards × 360/390/430/768/992/1200/1440/1920, comparing
+  family / size / weight / line-height / letter-spacing / color / align / transform / style / text width / height /
+  x,y offset inside the grey panel / line count / last word of every rendered line. Three real fixes:
+  1. Label bar weight 400 → **700**: source is `<p><b>Board of Directors</b></p>` (synthetic bold on Graphik
+     Regular, same as the role).
+  2. Name weight 400 → **500** (source computed value; single-cut Semibold face, no synthetic bold either way).
+  3. Text `align: start` → **left** (computed-value parity).
+  Result: **840/840 checks identical** to the source. Element screenshots at 390 + 1200 render the same.
+- **Env gotcha:** the repo's `npx playwright install` (build 1187) GARBAGE-COLLECTS other builds, which removed the
+  import runner's build 1208. Reinstall it with the runner's own CLI: from the excat `excat-content-import/scripts`
+  folder run `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright node node_modules/playwright-core/cli.js install
+  chromium-headless-shell`. Both 1187 (quality gates) and 1208 (importer) are now installed.
+- **OPEN decision:** `check:typography` flags the label `<h3>` on the sample (12 drifts: 18/24 Graphik Regular vs the
+  h3 scale 36/56 XXCond). The source uses a `<p>` there, while our content authors an h3. The real page passes only
+  because the Board tab is hidden at load. Options: exempt a heading that leads a `cards (profile, bio)` block in
+  the checker, or author the label as a `<p>` (source markup).
+- Gates: lint 0 errors (7 pre-existing warnings) · stylelint ✓ · breakpoint ✓ · check:overflow ✓ · test:a11y ✓
+  (sample + leadership page) · check:typography ✗ on the sample only (the open item above).
+
+### 2026-10-01 — toc-profile: source-style tab deep links (`#tab=boardofdirectors` / `#tab=staff`)
+The source Leadership & Staff page deep-links its tabs with `#tab=<label, lowercase, no spaces>`. Measured
+behaviour on the source: a hash on load opens that tab; no/unknown hash → first tab; the URL is normalised to
+`#tab=staff` (history entry REPLACED, not added); clicking a tab rewrites the hash (no scroll, no new history
+entries); changing the hash on an open page switches tab. Ours only matched the exact section slug
+(`#board-of-directors`) on load, so the source links (`#tab=boardofdirectors`) fell back to Staff, and a hash change
+on an open page did nothing.
+- **`blocks/toc-profile/toc-profile.js`:** each entry gets a `key` = label slug without hyphens (`boardofdirectors`).
+  `entryFromHash()` accepts `#tab=<key>` (case-insensitive) AND the plain section anchor (`#board-of-directors`,
+  `#staff`). On load: hash tab or first tab, then `history.replaceState` to `#tab=<key>`. Tab links are now
+  `href="#tab=<key>"` (copy-link gives the source URL); click → show tab + `replaceState`. A `hashchange` listener
+  switches tab; unrelated hashes are ignored. `#…` hrefs are skipped by `openLinksInNewTab()`, so tabs stay in-page.
+- **Verified locally** (`/content/en/home/who-we-are/leadership-and-staff`): load with none / `#tab=boardofdirectors`
+  / `#tab=staff` / `#board-of-directors` / `#staff` / `#tab=BoardOfDirectors` / `#tab=nonsense` → correct tab and
+  panel every time, URL normalised to `#tab=…`; clicks add 0 history entries and don't scroll; hash changes switch
+  tab, unrelated hashes are ignored; the indicator settles under the active tab (x78, w224 for Board).
+- Gates: lint 0 errors (7 pre-existing warnings) · breakpoint ✓ · check:overflow ✓ · test:a11y ✓ (Board deep link
+  + default). Code-only; deploys via git push.
+
+### 2026-10-02 — table `(directory)`: Advisory / Honorary Board matched to source (centred 2-col + 2px divider)
+The source Board tab now has TWO name columns (Advisory Board / Honorary Board — the Officers moved to
+`columns (profile)`), laid out on the AEM grid; ours was the old 3-col look (left-aligned, 60px gaps, 1px #d8d8d8
+divider in the gap). Measured live at 390/768/992/1200/1440:
+- Columns stack <768; from 768 each is an equal share of the content column (354/481/585). Column padding 16px
+  vertical, 8px (<768) / 12px (768–991) / 30px (≥992) horizontal (= container + text-column insets).
+- Heading Graphik Semibold 22/24.2 → 28/30.8 @768, w500, black, CENTRED, `margin: 10px 0`; names 16/24 → 18/24,
+  black, CENTRED; bold names / italic roles as authored.
+- Divider = source `border-solid-divider_right::after`: absolute top/right/bottom 0, `border-left: 2px solid
+  #979797`, as tall as its own column (columns keep natural heights → `align-items: start`), only ≥768.
+- Spacing: 40px block top padding (+16 column pad + 10 heading margin = the source's extra 66px above, text-to-text
+  161/186/209 at 390/768/≥992); bottom padding 48px (<768) / 128px (≥768) → last name → footer 104/184 (source).
+- `blocks/table/table.css` directory section rewritten (generic N columns; 2/3-col classes kept). No JS change.
+- **Result:** 0 differences vs source at all 5 widths (column boxes, heading/name offsets, first/last line
+  x-extents, every line break, divider position/size/colour, gaps above/below, bold/italic). 3-col block sample
+  still renders (3 × 390 @1200, no overflow).
+- Gates: lint 0 errors · stylelint ✓ · breakpoint ✓ · check:overflow ✓ (page + table-directory sample) ·
+  test:a11y ✓ (both) · check:typography: only the open label-bar items (Board `<h3>` ×12 + the 18px "Officers and
+  Directors" label @390) — none from the directory.
+
+### 2026-10-02 — Leadership staff list: italic roles restored (`Name, <em>Role</em>`)
+Source staff list lines (under the Staff profile cards) are `<b>Name</b>, <i>Role</i>`; the first import flattened
+them to plain "Name, Role", so EDS lost the italic role. Per direction (and as the source reads in the reviewer's
+browser), only the ROLE is italic — the name stays regular weight.
+- **Content (targeted, source-driven — no full re-import):** new `tools/content/staff-list-format.mjs
+  [--dry-run] <page>…` reads the 18 name/role pairs from the live source (Playwright) and rewrites each exact plain
+  line to `<p>Name, <em>Role</em></p>`. Idempotent, touches nothing else, backups in
+  `migration-work/staff-list-format/`. Applied to `en/home/who-we-are/leadership-and-staff` +
+  `drafts/block-samples/cards-profile` + `drafts/block-samples/toc-profile` — 18 lines each, verified that undoing
+  the 18 formats reproduces the backup byte-for-byte. (A full re-run of the leadership importer was NOT used: it
+  predates the bio cards / new Board layout and would overwrite them.)
+- **Importer:** `import-leadership-v1.js` `buildStaffList()` now emits `Name, <em>Role</em>` from the source
+  `<b>`/`<i>` (plain-text fallback); re-bundled.
+- Verified: em italic w400, p Graphik Regular 16/24 → 18/24, list height unchanged (768 @390, 432 @1200).
+- Gates: lint 0 errors · check:overflow ✓ · test:a11y ✓ · check:typography ✓ (Staff tab).
+- **Deploy:** content change → re-upload/publish the page (and the 2 samples) to DA; importer is git.
+
+### 2026-10-02 — Footer rebuilt on the source's AEM float grid (exact positions at 390–1920)
+Reported: footer shorter than source, logo too small and not aligned with KEEP UP, items drifting. Measured every
+footer leaf on the live source at 390/768/992/1200/1440/1728/1920. The source is an AEM responsive grid of FLOATS,
+not fixed sizes — the old CSS (vw logo, fixed 237px button, flex/grid rows, 40px padding) could never line up.
+- **Container** = 10/12 of the viewport, centred; top padding 32 (<768) / 48 (≥768), bottom 16; + 17px black strip.
+- **Columns** (each `padding: 8px 0`), widths brand/nav/social/legal: <768 all 100% · 768+ 100/60/40/100 ·
+  992+ 20/60/20/100 (legal max 336/720/1200). Legal = float + `left:50%; translateX(-50%)` (source), so at ≥~1800
+  it floats up beside the taller brand column — reproduced by using real floats.
+- **Gutter** m = 4 / 6 / 15px. **Logo** width = column−8 (<768) / 20%−12 (768–991) / column−30 (≥992) → 317 / 116 /
+  135@992 · 170@1200 · 210@1440 · 258@1728 · 290@1920. **KEEP UP**: full (<768) / 6-of-12 offset 3 (768) /
+  10-of-12 offset 1 (≥992), `min-width: max-content` (=150), 40px, 1px transparent border, `padding: 0 14px`, 14/20
+  Semibold, letter-spacing NORMAL (source sets 1px on the <a> but the visible label <span> is normal).
+- **Nav** li floats 50% (<992) / 25%, `padding: 16px m`, 16 → 18px w700 underline. **Social** inner left pad
+  8/12/30, icons inline in a centred <p> with the source's `&nbsp; ` / `&nbsp;&nbsp;` separators,
+  `vertical-align: middle`. **Legal** links w700 (source <p> is bold), separated by inline " | " text (JS) instead of
+  CSS pseudo-pipes.
+- `footer.js`: tags the logo / button top-level wrappers (`.footer-logo`, `.footer-keepup-wrap`), builds the icon
+  <p> with separators, writes " | " between legal links. `footer.css` rewritten (file-level
+  no-descending-specificity disable — cross-element false positives, as before).
+- **Result:** band height = source at every width (816 / 595 / 533 / 461 / 439 / 460 / 389, ±0.4 sub-pixel); logo,
+  button, label glyphs, 4 nav links, 3 icons (±0.2), both social paragraphs (+ line breaks), copyright and the
+  4 legal links all at the source x/y/size. Side-by-side renders at 1728 + 390 identical.
+- Gates: lint 0 errors · stylelint ✓ · breakpoint ✓ · check:overflow ✓ (home, leadership, a news article) ·
+  check:typography ✓ · test:a11y ✓ (all three).
+
+### 2026-10-02 — Header/footer fragments: root only (no /content lookups on EDS)
+Console on aem.page showed `404 /content/nav.plain.html` + `404 /content/footer.plain.html` on every page: both
+blocks fetched `/content/…` first (a leftover from local `--html-folder content` dev) and only then fell back to the
+root. The fragment's relative media (`./media_…`) were also rewritten to `/content/./media_…` (worked by accident).
+- `header.js` / `footer.js`: fetch ONLY `/nav.plain.html` / `/footer.plain.html` (the local dev server proxies the
+  same published fragments, so it works locally too); parse with `DOMParser` (inert — no requests before paths are
+  fixed); resolve every img `src` and `<source srcset>` against the FRAGMENT URL (→ `/media_…`). The old
+  `<source>`-stripping workaround is gone, so the `<picture>` WebP renditions serve again. Breadcrumb query-index
+  lookup is root-only too (`/content/query-index.json` fallback removed).
+- **Note:** local edits to `content/nav.plain.html` / `content/footer.plain.html` no longer show in local preview —
+  nav/footer always come from the published fragment (same as EDS). Change them in DA.
+- Verified locally on `/` and `/en/home/who-we-are/leadership-and-staff`: 0 failed requests, 0 `/content/` requests,
+  all header/footer images load from `/media_…`, footer geometry unchanged. Gates: lint 0 errors · test:a11y ✓ ·
+  check:overflow ✓.
+
+### 2026-10-02 — Homepage spacer strips: 17px made explicit for every viewport
+Source homepage strips (light-blue #e2f7ff above "For decades" and "Your support", black at the bottom) are 17px
+tall at 390/768/992/1200/1440. Ours already rendered 17px everywhere, but only via the spacer block's fallback —
+the content authored `desktop: 17px` only. New `tools/content/spacer-all-viewports.mjs [--dry-run] <page>…` adds
+explicit `tablet` + `mobile` rows (= the desktop value) to any spacer that has only a desktop row (idempotent,
+backups in `migration-work/spacer-all-viewports/`). Applied to `index` + `en/home` (3 spacers each); verified
+removing the added rows reproduces the backups, and 17px at all widths with section spacing unchanged.
+**Open (not fixed):** on `/` the first strip is authored `color: #e2f7ff` (raw hex) instead of the token, so the
+spacing rules keyed on the token name don't apply → buttons→strip 40 vs source 56 (@1200), strip→"For decades"
+40 vs 60/76. `/en/home` (token `cards-band-bg`) matches. Fix = author the token on `/` (content) or key the CSS on
+the colour.
+
+### 2026-10-02 — Homepage video card: real YouTube player (red play button + chrome) + source card geometry
+The source embeds a plain YouTube iframe (`width=560 height=315`), so YouTube draws the red play button, title +
+channel avatar, Share / Watch later and "Watch on YouTube". Ours was a click-to-load poster with a grey CSS
+play glyph (perf facade) — none of that chrome.
+- `columns.js` `embedVideo()`: renders the REAL iframe with the authored embed URL as-is, mounted by an
+  IntersectionObserver 300px before the video scrolls into view (poster holds the box until then). A load that
+  never reaches the video (e.g. PageSpeed) loads no YouTube player scripts; a visitor sees the real player.
+  `referrerpolicy=strict-origin-when-cross-origin`; no autoplay.
+- `columns.css` (source values): player 560×315 `max-width:100%` (was 16:9 full width); card padding
+  15/8/16 (<768) · 15/12/32 (768) · 15/30/32 (≥992); heading margin/padding 0; caption 7px below the player.
+  ≥992 row = source 11-column model on a `min(100vw − 30px, 1200px)` container: text column 5/11 (15px padding,
+  16px below the card top), 1/11 gap, card 5/11 (section wrapper max-width 1230px for this block).
+- **Result:** card x/size/radius, heading, player and caption offsets + line breaks identical to the source at
+  992/1200/1440/1920; card internals identical at 390/768 (card 480 / 448 high). Renders pixel-identical @1200.
+- **Not in this change:** the stacked LEFT text column on mobile/tablet (4–6px inset, vertical gap to the card)
+  and the WHO WE ARE / WHAT WE DO button widths (source fluid 148–188 vs ours 178).
+- Gates: lint 0 errors · stylelint ✓ · breakpoint ✓ · check:overflow ✓ + test:a11y ✓ (home + columns-feature-video
+  sample) · check:typography ✓.
+
+### 2026-10-02 — Chris Evert 50th anniversary page: source width, title level, aligned quote + form row
+Page: `/en/home/get-involved/special-funds/chris-evert-50th-anniversary` (importer `import-chris-evert-v1`).
+- **Title:** the source has no `<h1>`; its title is an `<h3>` (56/61.6, 36 mobile, centred). The importer now
+  emits the `<h3>` as default content (it had been promoted to h1 before, which caused the H1/H3 conflict).
+- **Upper section (heading + text/image Columns):** uses the existing section styles `center-intro, medium`
+  (from `drafts/sections-samples`) instead of a new columns variant. **Per user direction, there is no `split-5-6`
+  columns variant; that attempt was reverted.** Widths: 336 / 708 @768 / 772 @992 / 970 @1200, giving text
+  and image columns of 356 + 30 + 356 @992 and 455 + 30 + 455 @1200.
+- **Lower section (Quote + Donate Embed):** stays plain `split-even`. `split-even` now **stacks below 992** and
+  from 992 uses the fluid 1200 column, as on the source. **Per user direction, the alignment lives in the BLOCKS,
+  not a section-width composition** (a `split-even, medium` attempt was reverted). `quote.css` and
+  `donate-embed.css` add `.section.split-even .quote|.donate-embed` widths: 708 centred <992, 356 @992,
+  455 @1200. Both sit flush against the centre gutter (quote `margin-inline: auto 0`, form `0 auto`), so the
+  quote's edges equal the text column's edges and the form block's edges equal the image column's edges.
+  The ~376px FundraiseUp iframe stays centred inside its block.
+- **Verified:** quote, text, form and image column edges are identical at 360/390/768/992/1200/1440/1920, with
+  0 overflow. The `section-split-even-donate` sample inherits the same widths.
+- **Open:** vertical rhythm vs the source (crumb→title 45 vs 8, title→row 54 vs 16, paragraph gaps 14 vs 24).
+- Gates: lint ✓ · breakpoint ✓ · check:overflow ✓ (page + split-even sample) · check:typography ✓ ·
+  test:a11y: only `document-title`, a local-preview artefact (raw body has no `<head>`; metadata Title is set
+  and the published page renders `<title>Chris Evert 50th anniversary</title>`).
+
+### 2026-10-02 — Chris Evert page: `split-5-6` section width + source quote/form widths (supersedes the entry above)
+The user said the `medium` width was too narrow and asked for a section width that exactly matches the source.
+- **New section style `split-5-6`** (styles.css, next to split-even). Upper section = `center-intro, split-5-6`.
+  The `medium` width on this page is gone.
+  - Widths: 328 <768 (the 336 column minus the source's 4px AEM column margins), 708 @768, then the normal
+    fluid column ≥992.
+  - ≥992 the Columns row sits on the shared 12-col grid (`--grid-gap` 30): text cell spans 5, the
+    `.columns-img-col` cell spans 6, column 12 stays empty. That gives 15..485 + 515..1085 @1200 and
+    15..398 + 428..894 @992.
+  - Vertical rhythm (source columns pad 8px):
+    - breadcrumb → heading 7;
+    - heading → row 16;
+    - paragraphs 24 apart;
+    - stacked text → image 16;
+    - image bottom margin 20 (<992);
+    - section → next section 73.
+- **Lower section = plain `split-even`.** ≥992 it is already the source (two halves of 1170, form centred).
+  - quote.css / donate-embed.css (scoped `.section.split-even`) now set the source widths: 328 / 708, then
+    their full half ≥992 (the earlier 356/455 caps were too narrow and are removed).
+  - Quote = source `<blockquote>`: padding 10px 20px per quotation paragraph, 20px between them and before
+    the attribution.
+  - split-even also gets the stacked block gap 26 (<992) and an 8px bottom margin before the footer strip.
+- **Verified** source vs migrated, every element at 390/768/992/1200/1440/1728:
+  - x/y/w/h identical (y measured relative to the heading), including breadcrumb → heading and form → strip;
+  - only ±1px sub-pixel rounding at 390/768/992; 0 overflow.
+- Gates: lint ✓ · breakpoint ✓ · overflow ✓ (page + split-even sample) · typography ✓ · a11y: only the
+  local-preview `document-title` artefact.
+
+### 2026-10-02 — Section sample: `split-5-6`
+- New sample `/drafts/sections-samples/section-split-5-6`, built by
+  `tools/importer/import-sample-section-split-5-6.js` (+ bundle, `urls-sample-section-split-5-6.txt`).
+  - Reads the Chris Evert campaign row from the live source by content selectors: the first `h3`, the
+    `.cmp-text` holding the campaign copy (blank `<p>`s dropped, de-duped), and the photo beside it.
+  - Page layout, top to bottom: spacer → intro (h1, notes, Source link) → spacer → `<h3>` + Columns
+    (text | image) with style `center-intro, split-5-6` → spacer → metadata (noindex).
+  - Photo localized to `media-da/drafts/sections-samples/section-split-5-6/`.
+- The sample's split-5-6 section renders **identically** to the live page's section at
+  390/768/992/1200/1728 (heading, three paragraphs and image x/y/w/h); 0 overflow.
+- Added to `tests/a11y/a11y.config.js`.
+- Gates: lint 0 errors · breakpoint ✓ · check:overflow ✓ · check:typography ✓ · test:a11y ✓ (1 passed).
+
+### 2026-10-02 — YPI page: broken images, missing h4/h6, new `Hero (text-up, medium)`
+Page: `/en/home/get-involved/young-professional-initiative` (importer `import-ypi-v1`).
+- **Broken images.** On the published page 3 of 5 images rendered `about:error`: ypi-alternate, ypi-3 and
+  ypi-4 referenced unresolved `content.da.live/…/.young-professional-initiative/` media.
+  - Re-imported and localized all 5 to `content/media-da/en/home/get-involved/young-professional-initiative/`
+    (all serve 200).
+  - The importer now keeps the hero's descriptive alt the author set in DA (re-import had blanked it).
+- **Content updated to the current source:**
+  - "As a part of The Young Professional Initiative, you can:" is an `<h4>` (was a bold `<p>`).
+  - "Ways to Get Involved" now has its `<h6>` sub-headings (Attend Events / Fuel the Mission / Build Your
+    Community) before each paragraph. The importer's body mini-format gained `{h4}` / `{h6}`.
+- **Hero height.**
+  - Source hero = content + a fixed band below JOIN US: 258px (<768) / 386px (≥768). That gives 601 @390,
+    814 @768, 790 @992–1536 and 656 from ~1600 (the subhead fits one line).
+  - `tall`'s 601/790 min-height floor was 134px too tall from 1600.
+  - Neither `text-up` nor `tall` matches, so a new **`Hero (text-up, medium)`** variant was added (hero.css).
+    It has no min-height and uses the band above.
+  - Its panel is on the source AEM grid: 1/12 offset, 6/12 wide, inset 4/6/15.
+  - JOIN US = grid column of the 6-col panel, `min-width: max-content`: 4/6 (<768), 3/6 offset 3/6
+    (768–991), 2/6 (≥992).
+  - hero.js re-binds the h1's last two words with U+00A0 for `.medium` — the source h1 is
+    `Young Professional&nbsp;Initiative`, always 2 lines with line 2 overflowing the column. The import
+    pipeline strips the nbsp (same fix as the banner h1).
+  - `tall` is kept but no longer used by any page.
+- **Verified** source vs migrated at 360/390/768/992/1200/1440/1600/1728/1920: hero height, h1, subhead and
+  button x/y/w/h all identical; 0 overflow.
+- Gates: lint ✓ · breakpoint ✓ · check:overflow ✓ · check:typography ✓ · test:a11y ✓ (1 passed).
+
+### 2026-10-02 — Block sample: `hero (text-up, medium)`
+- New sample `/drafts/block-samples/hero-text-up-medium`, built by
+  `tools/importer/import-sample-hero-text-up-medium.js` (+ bundle, `urls-sample-hero-text-up-medium.txt`).
+  - Reads the YPI hero from the live source by stable selectors: the h1, the inline background-image on its
+    ancestor, the `.cmp-text p` subhead and the `.button a` CTA.
+  - Same scaffold as the hero-text-up sample: intro (h1, notes, Source link) → `Hero (text-up, medium)` →
+    metadata (noindex).
+  - Photo localized to `media-da/drafts/block-samples/hero-text-up-medium/`, with the same descriptive alt as
+    the YPI page.
+- The sample hero is **identical to the source** YPI hero at 360/390/768/992/1200/1440/1600/1920 (height,
+  h1, subhead, button x/y/w/h); 0 overflow.
+- Added to `tests/a11y/a11y.config.js`.
+- Gates: lint 0 errors · breakpoint ✓ · check:overflow ✓ · check:typography ✓ · test:a11y ✓ (1 passed).
+
+### 2026-10-06 — Fix: `custom-content-related-articles` card with no image
+- Bug: a card authored with an **empty image cell** rendered its title/date/link at the top of the card, in
+  the image row, instead of below it like its sibling cards. `decorate()` was deleting the empty cell.
+- Fix: the empty cell is kept as `.custom-content-related-articles-card-image-empty`, a blank 2:1 area the
+  same size as a card image. If no image cell is authored at all, a placeholder is added. The body now starts
+  at the same y as the other cards (verified at 1228 and 390).
+- Gates: lint 0 errors · breakpoint ✓ · check:overflow / test:a11y could not run (Playwright browser
+  binary missing in this environment).
+
+### 2026-10-06 — Retired `custom-content-related-articles`; same fix moved to `cards (news)`
+- `custom-content-related-articles` was a **duplicate** of `cards (news)`: same card layout and source
+  values. It was created during block instrumentation, but the news importer (`import-news-v1.js`
+  `buildRelatedBlock`) builds Related Articles as `cards (news)`, with the "Related Articles" `<h2>` as
+  default content above the block. The duplicate was only used on its block-sample page and one DA test
+  page. Removed the block folder and its a11y-config entry (same precedent as the banner-stats removal).
+- `cards (news)` had the same bug: `decorateNews()` deleted an empty image cell, so the text of an
+  image-less card moved up into the image row. It now keeps the cell as `.cards-news-card-image-empty`
+  (blank, `aspect-ratio: 2 / 1`, the source's 400×200 card image) and adds one if no image cell is
+  authored. Verified on `/drafts/block-samples/cards-news` at 1228 (all bodies at the same y). Cards with
+  images on `/en/home/news/2023-njtl-essay-contest-winners` are unchanged.
+- Content follow-up (authors, in DA): `/drafts/block-samples/custom-content-related-articles` and
+  `/drafts/test-eds/news-articles` still author a "Custom Content Related Articles" table. Replace it with
+  a normal heading + a `Cards (news)` table, or delete the sample page; it duplicates
+  `/drafts/block-samples/cards-news`.
+- Gates: lint 0 errors · breakpoint ✓ · check:overflow / test:a11y could not run (Playwright browser
+  binary missing in this environment).
+
+### 2026-10-06 — Alt-text audit: all 73 news articles vs source (no fixes needed)
+- Scope: every `/en/home/news/*` page, rendered DOM on the preview (after decoration) compared with the
+  live source HTML (all 73 source URLs from the sitemap).
+- **Article images:** source 87, migrated 87, all with descriptive alt matching the source word-for-word
+  (2 differ only in whitespace/entity encoding: kathleen-wu, mississippi-njtl). 0 missing, 0 empty.
+- **Related Articles thumbnails (230):** `alt=""` inside an `aria-hidden` + `tabindex=-1` image link, set
+  on purpose in `templates/news/news.js` (the title link right next to it names the card). Source uses a
+  redundant "Visit the … page" alt; kept the decorative pattern. *(Superseded by the next entry: now matches
+  the source.)*
+- **Page metadata `Image` (share/index thumbnail):** 4 pages author it with `alt=""` (2023-njtl-essay-contest-
+  winners, njtl-essay-contest-winners-2024-open, usta-foundation-and-reginald-f-lewis-foundation-partner-to-empo,
+  women-s-history-month-2026-…). Not shown on the page, so no a11y impact. The two NJTL essay pages use a
+  checkmark SVG as their share image.
+- axe-core (`image-alt`, `role-img-alt`, `svg-img-alt`, `image-redundant-alt`, `link-name`, …) on all 73
+  rendered pages: 0 violations. No content changed, nothing previewed or published.
+
+### 2026-10-06 — Related Articles thumbnails: source alt + hover tooltip
+- Source card `<img>`: `alt="Visit the <card title> page"` + `title="<image description>"` (hover tooltip).
+  EDS had `alt=""` in an `aria-hidden` link and no title.
+- `templates/news/news.js` `newsRow()`: alt = `Visit the ${cardTitle(entry)} page`; `title` = the index's
+  new `imagealt`; the image link is a normal link again (no `aria-hidden` / `tabindex=-1`), like the source.
+- `helix-query.yaml` (news index): new `imagealt` = `head > meta[property="og:image:alt"]`. **Gotcha:** EDS
+  fills `og:image:alt` from the Metadata **"Image Alt"** row, else the FIRST CONTENT image alt. It does
+  NOT use the Metadata Image `<img alt>`, so to control a card tooltip author an "Image Alt" row.
+- Content (DA, previewed + published 2026-10-06): added "Image Alt" to
+  `usta-foundation-and-reginald-f-lewis-foundation-partner-to-empo` ("Two men walking off tennis court.") and
+  `usta-foundation-celebrates-24-outstanding-students-through-caree` ("Group of kids pose for a photo on a
+  tennis court."). Also filled the empty Metadata Image alt on WHM 2026 + RFLF and set the career-week one to
+  the same text. Edited the live DA source in place (one attribute/row per page; images untouched).
+- Exact wording vs source: the source shows 11 of our articles as cards. Card alt matches for all 11 (only
+  diff: source "Visit the 2026 Game Changer Award  page" has a stray double space). Tooltip (og:image:alt on
+  aem.live) matches the source for 11/11 (scholarship-…-2025 differs only by a trailing space, which EDS
+  trims). Articles the source never shows as a card have no source tooltip; they show their og:image:alt.
+- **Card selection differs from the source** on most pages (e.g. Aerie: source = Realize the Dream + BHM,
+  EDS = Yonex + Chase; the source also links 9 cards to usta.com `stay-current` pages that aren't in our
+  index). Not changed here; follow-up.
+- **Deploy:** tooltips need the code pushed AND the news articles re-previewed or re-published so the index
+  picks up `imagealt`. Alt text works as soon as the JS deploys. Verified locally by stubbing
+  `/news-index.json` with `imagealt` (all cards: alt + title present).
+- Gates: lint 0 errors · breakpoint ✓ · axe WCAG A/AA via the preview browser on 5 news pages: card images
+  clean (only existing `.nav-donate` / `.footer-keepup` contrast + tweet link-in-text-block). `npm run
+  test:a11y` could not run (Playwright browser binary missing here).
+
+### 2026-10-06 — Breadcrumb: "Home" not linked on the homepage
+- Source `/en/home.html`: the only breadcrumb item is `li.cmp-breadcrumb__navigation-item--active` "Home", shown
+  as plain text (#383838, no underline, 900, 10px, uppercase). EDS always made the collapsed locale+`home` crumb
+  a link (blue, underlined).
+- Fix (`blocks/header/header.js` `buildBreadcrumb`): the `seg === 'home'` branch now checks
+  `i === isLastVisibleIndex`. When Home is the current page, it renders as a plain `<li aria-current="page">Home</li>`.
+  On subpages it is still the `/en/home` link. (An earlier draft of this entry described removing the branch
+  entirely, but that change never landed in the code. This smaller check is the fix that shipped.) No CSS change:
+  the existing grey `.nav-breadcrumb li` style is applied, and the computed style matches the source exactly. Checked:
+  `/en/home` (plain grey text) and `/en/home/who-we-are` (Home still linked).
+- Gates: lint 0 errors (7 existing warnings in other files) · breakpoint ✓ · `npm run test:a11y` could not run
+  (Playwright browser binary missing).
+
+### 2026-10-06 — Footer: stray underline under the social icons
+- Symptom (e.g. `/en/home/news/kimmelman-sport-education-complex-los-angeles`): a short blue underline under or between
+  the Facebook / Instagram / LinkedIn icons. Source: the icon links contain only an `<img>` and the `&nbsp;` spacing
+  sits outside the `<a>`, so nothing visible is underlined.
+- Cause: in EDS each icon is wrapped in a `<picture>` with whitespace text nodes inside the `<a>`. The
+  `footer .footer a:any-link { text-decoration: underline }` rule (0,2,2) outranked
+  `footer .footer-social-icons a { text-decoration: none }` (0,1,2), so that whitespace was underlined.
+- Fix (`blocks/footer/footer.css`): changed the selector to `footer .footer-social-icons a:any-link` (0,2,2), which
+  comes later in the file and now wins. Footer menu and legal links stay underlined, matching the source (both are
+  underlined there).
+- Gates: lint 0 errors · breakpoint ✓ · `check:overflow` / `test:a11y` could not run (Playwright headless binary
+  missing). Verified in the preview browser instead: social `a` = `none`, nav and legal `a` = `underline`.
+### 2026-10-06 — Pasted EDS image links render as optimized images (site-wide)
+Reported on `/drafts/meet/test`: an author pasted an asset URL
+(`https://main--foundation-usta--aemdemos.aem.live/assets/media/media_17f9…ed.jpg`) and it showed as a text link. The
+URL itself was fine (200, 2.2 MB JPEG; the CDN serves `?width=750&format=webply` at 75 KB). Nothing turned a pasted
+image link into an image. Note: on publish, the pipeline rewrites same-project media URLs to RELATIVE
+(`./media_<hash>.jpg`), while the link TEXT keeps the absolute URL. The media bus serves the hash under any path.
+- **`scripts/scripts.js` `buildImageLinks()`** (first step of `buildAutoBlocks`, so before block decoration): an
+  `<a>` becomes `createOptimizedPicture()` (webp + jpg fallback, 2000 ≥768 / 750 below, lazy; the LCP candidate in
+  section 1 is still made eager by `waitForFirstImage`) when ALL of these hold:
+  - its href path is an EDS media file `…/media_<hex>.(jpg|jpeg|png|gif|webp)`;
+  - the host is this origin, a relative path, or `*.aem|hlx.page|live` (the origin is kept, so a pasted aem.live URL
+    still resolves);
+  - its label is a URL (or empty);
+  - it is the only content of its paragraph / block cell (any bold/italic wrapper is replaced too).
+- **Stays a link:** labelled links ("Download photo"), URLs inside a sentence, and non-EDS images (source DAM,
+  content.da.live). Those can't be resized by the CDN; they must be imported or localized.
+- **Blocks get a normal `<picture>`**, e.g. a URL pasted into a hero row-1 cell becomes the hero background (viewport-sized
+  rendition, 40% overlay), verified on `hero (banner)`.
+- **Alt:** taken from the link's `title`; otherwise `alt=""` (decorative). Use a real inserted image when the picture
+  needs descriptive alt text.
+- **Verified:** test page @1440 → 2000w webp in the 720 column; @390 → 750w webp in the 336 column; injected cases
+  (hero cell, bold link, relative path, labelled link, inline link, external DAM link) all behave as above.
+- Gates: lint 0 errors (7 pre-existing warnings) · breakpoint ✓ · check:overflow ✓ · test:a11y ✓ (`/drafts/meet/test`).
+  Env: reinstalled headless-shell 1187 (gates) then 1208 (importer/preview) per the 2026-10-01 gotcha; this removed
+  build 1205. JS-only; deploys via git push. No content change needed.

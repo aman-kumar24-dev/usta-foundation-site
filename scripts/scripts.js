@@ -10,6 +10,7 @@ import {
   loadSections,
   loadCSS,
   buildBlock,
+  createOptimizedPicture,
   readBlockConfig,
   toClassName,
   toCamelCase,
@@ -107,12 +108,54 @@ function buildWidgetAutoBlocks(main) {
   });
 }
 
+/** EDS media-bus image (`…/media_<hash>.<ext>`) — the only images the CDN can resize. */
+const EDS_MEDIA_PATH = /\/media_[0-9a-f]{10,}\.(jpe?g|png|gif|webp)$/i;
+const EDS_HOSTS = /\.(aem|hlx)\.(page|live)$/i;
+
+/**
+ * Turns a pasted EDS image URL into an optimized, responsive <picture>, so authors can
+ * drop an asset link (e.g. https://main--…aem.live/assets/media/media_<hash>.jpg) into
+ * any page or block cell and get a rendered image (webp + width renditions) instead of
+ * a text link. Only STANDALONE links whose label is the URL itself are converted;
+ * labelled links ("Download photo") and links inside a sentence stay links. Runs before
+ * block decoration, so blocks (hero, cards, columns…) receive a normal <picture>.
+ * Alt text comes from the link's title (empty = decorative).
+ * @param {Element} main The container element
+ */
+function buildImageLinks(main) {
+  main.querySelectorAll('a[href]').forEach((a) => {
+    const text = a.textContent.trim();
+    if (text && !/^(https?:\/\/|\.{0,2}\/)/i.test(text)) return;
+    let url;
+    try {
+      url = new URL(a.getAttribute('href'), window.location.href);
+    } catch {
+      return;
+    }
+    const knownHost = url.origin === window.location.origin || EDS_HOSTS.test(url.hostname);
+    if (!knownHost || !EDS_MEDIA_PATH.test(url.pathname)) return;
+
+    const container = a.closest('p') || a.parentElement;
+    if (container.textContent.trim() !== text || container.querySelectorAll('a').length > 1) return;
+
+    const picture = createOptimizedPicture(url.href, a.title || '', false, [
+      { media: '(min-width: 768px)', width: '2000' },
+      { width: '750' },
+    ]);
+    // replace the link together with any bold/italic wrapper inside its paragraph
+    let outer = a;
+    while (outer.parentElement !== container && outer.parentElement) outer = outer.parentElement;
+    outer.replaceWith(picture);
+  });
+}
+
 /**
  * Builds all synthetic blocks in a container element.
  * @param {Element} main The container element
  */
 function buildAutoBlocks(main) {
   try {
+    buildImageLinks(main);
     // auto load `*/fragments/*` references
     const fragments = [...main.querySelectorAll('a[href*="/fragments/"]')].filter((f) => !f.closest('.fragment'));
     if (fragments.length > 0) {
@@ -138,12 +181,23 @@ function buildAutoBlocks(main) {
 }
 
 /**
+ * Extra mark on a bold + italic standalone link → cta-button style class.
+ */
+const CTA_BUTTON_STYLES = {
+  sub: 'cta-blue',
+  sup: 'cta-black',
+};
+
+/**
  * Decorates formatted links to style them as buttons.
+ * Standalone link, formatted:
+ *   bold → .button.primary · italic → .button.secondary · bold+italic → .button.accent
+ *   bold+italic+subscript → .cta-button.cta-blue (solid blue site CTA)
+ *   bold+italic+superscript → .cta-button.cta-black (black rounded CTA)
  * @param {HTMLElement} main The main container element
  */
 function decorateButtons(main) {
   main.querySelectorAll('p a[href]').forEach((a) => {
-    a.title = a.title || a.textContent;
     const p = a.closest('p');
     const text = a.textContent.trim();
 
@@ -159,6 +213,24 @@ function decorateButtons(main) {
     const strong = a.closest('strong');
     const em = a.closest('em');
     if (!strong && !em) return;
+
+    // bold + italic + one extra mark → the site's own CTA styles (cta-button).
+    // Checked first so plain bold / italic / bold+italic keep their behaviour.
+    // aem.page emits sub/sup INSIDE the link (<a><sub>…</sub></a>); other
+    // sources may put them outside it, so look both ways.
+    const marks = Object.keys(CTA_BUTTON_STYLES).join(', ');
+    const mark = strong && em && (a.closest(marks) || a.querySelector(marks));
+    if (mark && p.contains(mark)) {
+      p.className = 'button-wrapper';
+      a.className = `cta-button ${CTA_BUTTON_STYLES[mark.tagName.toLowerCase()]}`;
+      // drop marks inside the link so the label isn't shrunk/raised
+      a.querySelectorAll(marks).forEach((m) => m.replaceWith(...m.childNodes));
+      // unwrap every formatting element (any nesting order) between <p> and <a>
+      let outer = a;
+      while (outer.parentElement !== p) outer = outer.parentElement;
+      outer.replaceWith(a);
+      return;
+    }
 
     p.className = 'button-wrapper';
     a.className = 'button';
