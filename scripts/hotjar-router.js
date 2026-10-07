@@ -103,7 +103,11 @@ function readHotjarConfig() {
  * Loads Hotjar after the shared site configuration becomes available.
  */
 async function loadHotjarFromSiteConfig() {
-  await whenSiteConfigReady();
+  try {
+    await whenSiteConfigReady();
+  } catch (error) {
+    return; // no sheet → no Hotjar (site-config.js logs the failure)
+  }
 
   const hotjar = readHotjarConfig();
 

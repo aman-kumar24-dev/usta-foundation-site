@@ -19,7 +19,7 @@
  * - `false`: no A4T.
  */
 import { loadScript } from './aem.js';
-import { getSiteConfig } from './martech-config.js';
+import { getMartechConfig } from './site-config.js';
 
 const VENDOR = `${window.hlx.codeBasePath}/scripts/vendor`;
 
@@ -114,7 +114,7 @@ function addLink(rel, href, crossOrigin) {
  * @returns {Promise<void>} resolves once at.js has loaded (or is skipped)
  */
 export default async function initTarget() {
-  const { site } = await getSiteConfig();
+  const { site } = await getMartechConfig();
   const config = site?.target;
   // consent-gated sites: at.js sets cookies before any CMP could answer
   if (!config?.enabled || site.consentRequired) return;

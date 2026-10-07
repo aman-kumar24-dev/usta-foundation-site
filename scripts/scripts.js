@@ -347,6 +347,15 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  // Adobe Target (at.js) only on pages with `Target` metadata; the site's
+  // target.enabled flag lives in the authored /site-config sheet (see target.js).
+  const targetValue = getMetadataNormalized('target').toLowerCase();
+  const isTargetPage = !!targetValue && !['off', 'false', 'no'].includes(targetValue);
+  // Site config (/site-config sheet): ONE request, started first thing and reused by
+  // site-config.js (consent, Hotjar, Analytics, Target). Low priority unless the
+  // first render waits on it (Target pages).
+  window.hlx.siteConfigFetch = fetch('/site-config.json', { priority: isTargetPage ? 'high' : 'low' })
+    .catch(() => null);
   import('./site-config.js');
   preloadDisplayFont();
   decorateTemplateAndTheme();
@@ -355,14 +364,6 @@ async function loadEager(doc) {
   // spacing) isn't LCP-critical. Awaiting it added a full CSS round-trip to the
   // H1 render delay on slow mobile. Resolve `templateName` for loadLazy's JS.
   const templateCssPromise = loadTemplateCSS();
-  // Adobe Target (at.js) only on pages with `Target` metadata; the site's
-  // target.enabled flag lives in the authored /site-config sheet (see target.js).
-  const targetValue = getMetadataNormalized('target').toLowerCase();
-  const isTargetPage = !!targetValue && !['off', 'false', 'no'].includes(targetValue);
-  // Martech config: start the request now so Target (below) and Analytics
-  // (delayed phase) share one fetch. Low priority unless the first render waits on it.
-  window.hlx.siteConfigFetch = fetch('/site-config.json', { priority: isTargetPage ? 'high' : 'low' })
-    .catch(() => null);
   const targetPromise = isTargetPage
     ? import('./target.js').then(({ default: initTarget }) => initTarget()).catch(() => {})
     : null;
