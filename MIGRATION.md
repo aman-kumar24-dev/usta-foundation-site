@@ -4095,3 +4095,24 @@ light-blue support band below. Removing the band's padding in devtools revealed 
   all modes (client ~1.1–1.4 s, server ~3.3 s). Interleaved Lighthouse: client ≈ off; server +~1 s mobile LCP, BP 75.
 - **Pending (user):** test-org Launch embed + report suite, no Target extension in that property, the Set Variables
   line, the processing rule; then sheet `target.a4t = client` + `launch.development` and end-to-end check.
+
+### 2026-10-07 — Rebased `aem-coder-branch` onto `develop`; site config merged into ONE module
+- **Rebase:** 12 commits replayed on `develop` (`aacbdb5`, merge base `26a3b0d`); backup tag `pre-rebase-20261007`
+  (local). Conflicts: `consent-check.js` (kept develop's `initFromSiteConfig()` + our `onConsent()`), `site-config.js`
+  added on both sides (develop's kept; ours carried as a temporary `martech-config.js` through the replay), and
+  `MIGRATION.md` log entries (both kept, date order — auto for log-only stops, per user).
+- **Merged `scripts/site-config.js`:** develop's loader/API (`getConfig` env-suffix lookup, `whenSiteConfigReady`,
+  raw `getSiteConfig`, `isProdEnvironment`, `window.ustaSiteConfig`, used by consent-check + hotjar-router) + our
+  validated layer as `getMartechConfig()` (Tags URL, consent, Target, A4T, flicker timeout, donate beacons).
+  **No code defaults** (user decision): missing/invalid sheet values are simply not used; no sheet → no Tags/Target.
+  Unknown keys (Hotjar etc.) allowed without warnings. One `/site-config.json` request (started first in loadEager).
+- **Env rules (merged):** localhost/127.0.0.1/*.localhost and *.aem.page/*.hlx.page = development; main--*.aem.live /
+  hlx.live = production; other branch *.aem.live = development (was production on our side); other hosts = production.
+- **Hotjar:** loaded only from the sheet by develop's `hotjar-router.js` (now tolerates a missing sheet); the Hotjar rule
+  in USTA's production Tags library is to be removed (user).
+- **Verified:** lint, breakpoints, overflow (360–1920), typography, a11y pass (pinned Playwright browser mapped via
+  `PLAYWRIGHT_BROWSERS_PATH=/tmp/pw` wrappers); single sheet request; test-org Tags + page view, Hotjar once, at.js;
+  404 sheet → nothing loads; anti-flicker + all A4T modes; Fundraise Up on interaction; DONATE same tab with develop's
+  new-tab links; who-we-are / get-involved / news render. The test property's page-view rule already sets
+  `contextData['a4t.payload']` (via data element) — it should also set `window.targetA4TPayloadSent = true`.
+- **Gotcha:** Target delivery returns 400 on `http://localhost` (`context.address` rejected) — localhost-only.
