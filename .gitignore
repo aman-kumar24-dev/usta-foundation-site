@@ -17,3 +17,6 @@ migration-work/footer-validation/
 
 # Playwright a11y test artifacts
 test-results/
+
+# martech test output (reports, backups)
+tools/martech-tests/out/

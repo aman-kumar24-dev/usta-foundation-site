@@ -4116,3 +4116,19 @@ light-blue support band below. Removing the band's padding in devtools revealed 
   new-tab links; who-we-are / get-involved / news render. The test property's page-view rule already sets
   `contextData['a4t.payload']` (via data element) — it should also set `window.targetA4TPayloadSent = true`.
 - **Gotcha:** Target delivery returns 400 on `http://localhost` (`context.address` rejected) — localhost-only.
+
+### 2026-10-11 — Hand-over docs (`.ema/`) and martech test scripts in the repo
+- **`.ema/`** (`README.md`, `plan.md`, `design.md`, `implementation.md`): hand-over for people and agents; `AGENTS.md`
+  points to it. Keep it updated after every martech/site-config/DA task (protocol in `.ema/README.md`).
+- **`tools/martech-tests/`**: the test and diagnostic scripts used during this work, previously local-only in
+  `migration-work/`. Shared `lib.mjs` (env-configurable `BASE_URL`/`PROXY_URL`/`BRANCH_URL`/`CHROME_PATH`/`DA_TOKEN`,
+  local beacon answering, Target-metadata injection, sheet overrides). Three Launch inspectors merged into
+  `launch-inspect.mjs`, two AppMeasurement experiments into `appmeasurement-vars.mjs`, five Lighthouse runners into
+  `run.sh` + `run-interleaved.sh`. Dropped: `test-target.mjs`/`test-default.mjs` (patched code defaults that no longer
+  exist) and the downloaded Adobe libraries. Output → `tools/martech-tests/out/` (git-ignored); folder in `.hlxignore`.
+- **Re-run 2026-10-11:** test-merged, test-eager, test-a4t, test-sheet, test-pages, appmeasurement-vars, launch-inspect
+  (local); test-branch, diagnose, check-client-a4t, beacons (branch preview); compare, verify, verify-library (DA,
+  read-only); run.sh + summarize/inspect; a11y config. Results as expected. Two findings: the home page is now authored
+  with `Target` metadata, and the test Tags page-view rule already carries `a4t.payload` (so no fallback hit fires).
+- **Content drift:** `aemdemos/foundation-usta` has 210 newer + 33 new files since the last sync — not synced (on
+  request).

@@ -69,6 +69,7 @@ USTA's Launch embed has **no** `-development` / `-staging` variant under the sam
 | 10-07 | **Hotjar only from the sheet** (develop's `hotjar-router.js`); remove the Hotjar rule from USTA's Launch later | one owner for Hotjar | user |
 | 10-09 | DA permissions: use **Admin Console groups** (`<org>/<group>`), site-scoped paths, `/site/CONFIG` for site admins; folder rules for sections (e.g. news authors) | scalable, least privilege | guidance only, not applied |
 | 10-10 | Sidekick/DA Library: recommended use cases #1 block catalog, #2 templates, #3 donate picker | DA has its own Library; same ideas apply | proposal, not started |
+| 10-11 | Test scripts moved into the repo as **`tools/martech-tests/`** (shared `lib.mjs`, env-configurable URLs/browser, output git-ignored); obsolete ones (code-default era) dropped, downloaded Adobe libraries not kept | team can re-run the checks | user |
 
 ## 4. Status
 
@@ -83,6 +84,7 @@ USTA's Launch embed has **no** `-development` / `-staging` variant under the sam
 | DA content sync incl. Library | **Done**; last full mirror 2026-09-28 (234 files), Library 2026-09-29 (24 files) | `tools/da-sync/` |
 | DA permissions for `/site-config` | **Done** (emails, org config) | org config rows on `/usta-foundation-site/site-config.json` |
 | Rebase onto develop | **Done** 2026-10-07, pushed `d0e81e2` | backup tag `pre-rebase-20261007` (local) |
+| Martech test scripts | **In the repo** `tools/martech-tests/` — re-run 2026-10-11 against local + branch preview (all except `backup.mjs` and `run-interleaved.sh`) | `tools/martech-tests/README.md` |
 | PR | **Not opened** | target branch to be decided |
 
 ## 5. Open items
@@ -104,8 +106,9 @@ USTA's Launch embed has **no** `-development` / `-staging` variant under the sam
 | 13 | DA permissions: Admin Console groups; move/delete the **ignored** permissions sheet in the *site* config (naveen.kambam@ has no page access) | user | design.md §9 |
 | 14 | Images in many pages still load from `content.da.live/aemdemos/…` | content | restricted DA users may see broken images in the editor |
 | 15 | Later: remove `true/server` A4T mode + `VisitorAPI.min.js` once `client` is proven; consider **Web SDK** long term | team | |
-| 16 | Optional: copy the reusable test scripts from `migration-work/` (git-ignored) into the repo (e.g. `tools/martech-tests/`) | team | see implementation.md §5 |
+| 16 | ~~Copy the test scripts into the repo~~ — **done** 2026-10-11 (`tools/martech-tests/`) | — | |
 | 17 | Optional: Library use cases #1–#3 (block metadata, templates, donate picker) | team | design.md §10 |
+| 18 | `aemdemos/foundation-usta` changed since the last sync: `da-sync/compare.mjs` (2026-10-11) shows 210 files newer and 33 only in the source (`verify.mjs`: 238 of 286 differ) → run `npm run da:sync -- --dry-run`, then the sync, when wanted (it overwrites destination copies; backup first) | user | lastModified compare is rough: files written by a sync look "newer in destination" |
 
 ## 6. Next steps (suggested order)
 

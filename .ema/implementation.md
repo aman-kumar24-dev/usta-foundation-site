@@ -17,11 +17,12 @@
 | `scripts/consented.js` / `scripts/hotjar-router.js` | consented scripts → Hotjar from sheet (develop) | — |
 | `tools/da-sync/da-sync.mjs`, `cli.mjs`, `README.md` | DA content sync (incl. `/.da/library`) | `npm run da:sync` |
 | `docs/MARTECH.md` | martech reference | — |
-| `.hlxignore` | `tools/da-sync/*` not served (dot-folders and `*.md` already ignored) | — |
+| `tools/martech-tests/` | manual test + diagnostic scripts (Playwright, Lighthouse, DA read-only) | see §5 and its `README.md` |
+| `.hlxignore` | `tools/da-sync/*`, `tools/martech-tests/*` not served (dot-folders and `*.md` already ignored) | — |
 | `MIGRATION.md` | dated project log (required by `AGENTS.md`) | — |
 
-Not in the repo: `migration-work/` is **git-ignored** (`.git/info/exclude`) — test scripts,
-backups and Lighthouse output live there locally (see §5).
+Not in the repo: `migration-work/` is **git-ignored** (`.git/info/exclude`) — old Lighthouse
+reports and backups live there locally (see §5).
 
 ## 2. `/site-config` sheet reference
 
@@ -124,23 +125,26 @@ the installed build with wrapper scripts and `PLAYWRIGHT_BROWSERS_PATH=/tmp/pw` 
 `/tmp/pw/chromium-1187/chrome-linux/chrome` as `exec` wrappers to the installed binaries,
 plus empty `INSTALLATION_COMPLETE` files).
 
-**Martech test scripts** (local only, `migration-work/`, not in git — open item: copy to the
-repo). Most use Playwright with `/ms-playwright/chromium-1208/chrome-linux64/chrome` and answer
-Analytics beacons locally so nothing reaches Adobe:
+**Martech test scripts** — `tools/martech-tests/` (full list, env vars and usage in its
+`README.md`). Manual, read-the-output scripts (not CI); most answer Analytics beacons locally so
+nothing reaches Adobe. Set `CHROME_PATH` when Playwright's pinned browser is missing (here:
+`/ms-playwright/chromium-1208/chrome-linux64/chrome`). Output → `tools/martech-tests/out/`
+(git-ignored). The ones to run after a martech change:
 
 | Script | Proves |
 |---|---|
 | `target/proxy.mjs` | test proxy on :3100 — injects `Target` metadata (`?tgt=1`), forces sheet values (`a4t=…`, `keepLaunch=1`), A/B the timer (`timer=2000`) |
-| `target/test-eager.mjs` | sheet fetched eagerly once; first paint shows a simulated offer; timeout behaviour |
-| `target/test-a4t.mjs` | A4T modes: payload captured, backup hit once, no duplicates, server/off unchanged |
-| `target/test-merged.mjs <url>` | merged site-config: one request, Tags, Hotjar, at.js, env rules, 404 sheet |
-| `target/check-client-a4t.mjs <url>` | live check on the branch preview (delivery status, payload, hits) |
-| `target/diagnose.mjs <url>` | what Target/Tags/sheet a URL actually runs |
-| `target/beacons.mjs <url>` | list Analytics beacons + the Launch property's rules |
-| `target/test-pages.mjs` | Fundraise Up timing, DONATE same tab, page types render |
-| `site-config/test-sheet.mjs` | serves edited sheet variants (note: written before "no code defaults") |
-| `da-sync/verify.mjs`, `verify-library.mjs` | byte-compare a sync; Library entries resolve |
-| `perf/run-interleaved.sh`, `summarize.mjs` | Lighthouse with all variants per round (fair on a noisy host) |
+| `target/test-merged.mjs [url]` | site-config end to end: one request, Tags, Hotjar, at.js, env rules, 404 sheet |
+| `target/test-eager.mjs` | offer in the first painted frame; slow offer paints at the cap; `target.enabled=false` → no at.js |
+| `target/test-a4t.mjs` | A4T modes: payload on the page view or one fallback hit, server/off unchanged |
+| `site-config/test-sheet.mjs` | behaviour follows edited sheet variants (no code defaults) |
+| `target/test-pages.mjs` | Fundraise Up after interaction, DONATE same tab, page types render |
+| `site-config/test-branch.mjs`, `target/diagnose.mjs` | branch preview smoke test / what a URL runs (real hits) |
+| `da-sync/compare.mjs`, `verify.mjs`, `verify-library.mjs` | read-only DA comparisons around `npm run da:sync` |
+| `perf/run.sh`, `run-interleaved.sh`, `summarize.mjs`, `inspect.mjs` | Lighthouse runs and medians (interleave on a noisy host) |
+
+`migration-work/` (git-ignored via `.git/info/exclude`) keeps only local artefacts: old Lighthouse
+reports, sync backups and the downloaded Launch libraries used while investigating.
 
 **Branch preview check** — `https://aem-coder-branch--usta-foundation-site--aman-kumar24-dev.aem.page/`:
 one `/site-config.json` request, the development Launch embed, one page view (a first visit

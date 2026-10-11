@@ -1,0 +1,33 @@
+{
+  "env": {
+    "node": true
+  },
+  "rules": {
+    "no-console": "off",
+    "no-await-in-loop": "off",
+    "no-restricted-syntax": "off",
+    "no-continue": "off",
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allow": [
+          "_satellite",
+          "_container",
+          "_c",
+          "_hjSettings"
+        ]
+      }
+    ],
+    "import/extensions": [
+      "error",
+      "ignorePackages"
+    ],
+    "max-len": "off",
+    "import/no-extraneous-dependencies": [
+      "error",
+      {
+        "devDependencies": true
+      }
+    ]
+  }
+}

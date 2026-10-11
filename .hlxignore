@@ -6,3 +6,4 @@ package.json
 package-lock.json
 test/*
 tools/da-sync/*
+tools/martech-tests/*
