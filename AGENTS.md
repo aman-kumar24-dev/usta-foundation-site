@@ -2,6 +2,8 @@
 
 This project is a website built with Edge Delivery Services in Adobe Experience Manager Sites as a Cloud Service. As an agent, follow the instructions in this file to deliver code based on Adobe's standards for fast, easy-to-author, and maintainable web experiences.
 
+**Project hand-over:** before starting work, read [`.ema/README.md`](.ema/README.md) (plan, design, implementation of the martech, site-config and DA tooling work) and keep those files updated as you go.
+
 ---
 
 ## Skills — read before you build
