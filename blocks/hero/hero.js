@@ -102,7 +102,8 @@ function decorateError(block) {
   block.querySelectorAll('p > a').forEach((a) => {
     const p = a.parentElement;
     if (p.childElementCount === 1 && p.textContent.trim() === a.textContent.trim()) {
-      a.classList.add('button');
+      // an authored cta-button (foundation-buttons.css) keeps its own style
+      if (!a.classList.contains('cta-button')) a.classList.add('button');
       p.classList.add('button-container');
     }
   });
@@ -154,7 +155,8 @@ function decorateBanner(block) {
   block.querySelectorAll('p > a').forEach((a) => {
     const p = a.parentElement;
     if (p.childElementCount === 1 && p.textContent.trim() === a.textContent.trim()) {
-      a.classList.add('button');
+      // an authored cta-button (foundation-buttons.css) keeps its own style
+      if (!a.classList.contains('cta-button')) a.classList.add('button');
       p.classList.add('button-container');
     }
   });
@@ -221,16 +223,19 @@ function decorateTextUp(block) {
   block.querySelectorAll('p > a').forEach((a) => {
     const p = a.parentElement;
     if (p.childElementCount === 1 && p.textContent.trim() === a.textContent.trim()) {
-      a.classList.add('button');
+      // an authored cta-button (foundation-buttons.css) keeps its own style
+      if (!a.classList.contains('cta-button')) a.classList.add('button');
       p.classList.add('button-container');
     }
   });
 
-  // `medium` (YPI): the source h1 binds its LAST two words with a non-breaking
+  // `text-up, medium` (YPI): the source h1 binds its LAST two words with a non-breaking
   // space ("Young Professional[NBSP]Initiative"), so it is always 2 lines — line 2
   // overflows the narrow column instead of wrapping. The import pipeline drops
   // that nbsp, so re-bind the last two words (same approach as the banner h1).
-  const h1 = block.classList.contains('medium') && block.querySelector('h1');
+  // Not for `banner, medium` (our-impact), whose h1 wraps normally.
+  const h1 = block.classList.contains('text-up') && block.classList.contains('medium')
+    && block.querySelector('h1');
   if (h1 && !h1.children.length && !h1.dataset.nbspBound) {
     const words = h1.textContent.trim().split(/\s+/);
     if (words.length >= 3) {

@@ -145,28 +145,44 @@
      .cards-expand-desc    (description, revealed in the freed space)
      .cards-expand-donate  (full-width DONATE, PINNED to the bottom — never moves)
    Expanding does NOT grow the card: the title translates up over the image and
-   the description shows in place, so DONATE stays put. The whole card lifts on
-   hover (source `.card.hoverable`). DONATE opens the site-wide Fundraise Up
-   overlay for that fund (?form=<code>, kept on-origin by scripts/donate.js).
-   Source values: card 250w fixed / radius 6 / shadow; title 16/24 w400 #212830;
-   DONATE 16/44 w600 #0373f3 white uppercase. */
+   the description shows in place, so DONATE stays put. Clicking ANYWHERE on the
+   card opens the site-wide Fundraise Up overlay for that fund (?form=<code>,
+   kept on-origin by scripts/donate.js).
+   Source values: card 242x320 fixed / radius 6 / shadow; IBM Plex Sans; title
+   16/24 w400 #212830 left-aligned; DONATE 16/44 w600 #0373f3 white uppercase. */
 
 /* The hover/focus-within/open state groups share equal specificity with their
    base rules but are authored after them for readability (reveal states grouped
    together); disable the descending-specificity check for this file. */
 /* stylelint-disable no-descending-specificity */
 
-/* The funds widget is WIDER than the section content column: the source spans
-   viewport − 60px (30px gutters, ~1070 @1130, capped ~1170) so FOUR 250px cards
-   fit per row. Break out of the section's 970/1170 max-width to that width so
-   the card count/positions match the source (our 970 wrapper only fit 3). */
+/* Widget container width per source tier (measured): fixed 328 below 768 (1-up),
+   708 at 768–991 (2-up), then viewport − 60px capped at 1170 from 992 (3-up →
+   4-up from ~1073). Above 992 it is WIDER than the section content column, so it
+   breaks out of the section's max-width. */
 .cards.expand {
-  width: min(1170px, calc(100vw - 60px));
-  margin-inline: calc(50% - min(585px, 50vw - 30px));
+  width: 328px;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
-/* FIXED 250px cards, left-packed with a small 4px gap, wrapping (4-up desktop →
-   3 → 2 → 1), centered as a group. */
+@media (width >= 768px) {
+  .cards.expand {
+    width: 708px;
+  }
+}
+
+@media (width >= 992px) {
+  .cards.expand {
+    width: min(1170px, calc(100vw - 60px));
+    max-width: none;
+    margin-inline: calc(50% - min(585px, 50vw - 30px));
+  }
+}
+
+/* Source: each 242x320 card sits in a 250x328 inline-block frame (4px padding)
+   separated by ~4px of inline whitespace, centered — so cards are 12px apart
+   horizontally and 8px vertically. Reproduced as 4px card margin + 4px column gap. */
 .cards.expand > ul {
   list-style: none;
   margin: 0;
@@ -174,10 +190,10 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 20px; /* source shows a clear ~20px gutter between cards (4×250 + 3×20 = 1060 ≤ 1070 ul, still 4-across) */
+  gap: 0 4px;
 }
 
-/* Fixed 250x328 card. A flex column: a content area (image + sliding title/desc
+/* Fixed 242x320 card. A flex column: a content area (image + sliding title/desc
    panel) that flexes, and the DONATE footer pinned below it. overflow:hidden
    clips the sliding panel; DONATE is never covered and never moves. */
 .cards.expand .cards-expand-card {
@@ -185,22 +201,15 @@
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
-  width: 250px;
+  width: 242px;
   max-width: 100%;
-  height: 328px;
+  height: 320px;
+  margin: 4px;
   background-color: #fff;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   overflow: hidden;
   cursor: pointer;
-  transition: translate 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-/* Hover: the card stays put — only the panel slides up. The source card does
-   NOT lift; a subtle shadow deepen is the only whole-card change. */
-.cards.expand .cards-expand-card:hover,
-.cards.expand .cards-expand-card:focus-within {
-  box-shadow: 0 8px 18px rgb(0 0 0 / 25%);
 }
 
 /* Image — fills the card content area (behind the sliding panel). */
@@ -257,7 +266,7 @@
 /* Title bar: heading + chevron. */
 .cards.expand .cards-expand-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 20px;
@@ -273,12 +282,13 @@
 
 .cards.expand .cards-expand-title h3 {
   margin: 0;
-  font-family: var(--body-font-family);
+  font-family: var(--widget-font-family);
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
   letter-spacing: normal;
   color: #212830;
+  text-align: left; /* source is left-aligned, even inside a `center` section */
   text-transform: none;
 }
 
@@ -287,7 +297,7 @@
   flex: 0 0 auto;
   width: 24px;
   height: 24px;
-  margin: 0 -4px 0 0;
+  margin: 0 -6px 0 0;
   padding: 4px;
   border: 0;
   border-radius: 4px;
@@ -329,11 +339,12 @@
 
 .cards.expand .cards-expand-desc p {
   margin: 0;
-  font-family: var(--body-font-family);
+  font-family: var(--widget-font-family);
   font-size: 14px;
   line-height: 20px;
   font-weight: 400;
   color: #212830;
+  text-align: left;
 }
 
 /* Donate — full-width footer button, absolutely PINNED to the card bottom so it
@@ -356,7 +367,7 @@
   line-height: 0;
 }
 
-.cards.expand .cards-expand-donate a,
+.cards.expand .cards-expand-donate a:where(:not(.cta-button)),
 .cards.expand .cards-expand-donate a.button,
 .cards.expand .cards-expand-donate a.button.primary {
   display: block;
@@ -368,7 +379,7 @@
   border-radius: 0 0 6px 6px; /* source donate has rounded bottom corners */
   background-color: var(--brand-blue);
   color: #fff;
-  font-family: var(--body-font-family);
+  font-family: var(--widget-font-family);
   font-size: 16px;
   font-weight: 600;
   line-height: 44px;
@@ -381,14 +392,22 @@
   overflow: hidden;
 }
 
-.cards.expand .cards-expand-donate a:hover,
-.cards.expand .cards-expand-donate a:focus-visible,
+/* Source DONATE has no hover change — pin the base look against the global
+   link/button hover rules. Keyboard focus still gets a visible ring. */
+.cards.expand .cards-expand-donate a:where(:not(.cta-button)):hover,
+.cards.expand .cards-expand-donate a:where(:not(.cta-button)):focus-visible,
 .cards.expand .cards-expand-donate a.button:hover,
 .cards.expand .cards-expand-donate a.button.primary:hover {
-  background-color: var(--link-color);
+  background-color: var(--brand-blue);
   color: #fff;
   border: 0;
+  box-shadow: none;
   text-decoration: none;
+}
+
+.cards.expand .cards-expand-donate a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
 }
 
 /* Wrapping (fixed 250px cards, centered) naturally gives 1-up mobile → 2-up →
@@ -510,7 +529,7 @@
   margin-top: 25px;
 }
 
-.cards.news .cards-news-card-link a,
+.cards.news .cards-news-card-link a:where(:not(.cta-button)),
 .cards.news .cards-news-card-link a.button,
 .cards.news .cards-news-card-link a.button.primary {
   display: inline;
@@ -569,7 +588,7 @@
     letter-spacing: normal;
   }
 
-  .cards.news .cards-news-card-link a,
+  .cards.news .cards-news-card-link a:where(:not(.cta-button)),
   .cards.news .cards-news-card-link a.button,
   .cards.news .cards-news-card-link a.button.primary {
     font-size: 16px;
@@ -735,21 +754,14 @@
     gap: 40px 30px; /* source opens the column gap to 30px from 992 */
   }
 
-  /* Desktop title sizing reproduces the source's AEM `cmp-teaser__title_scalable`
-     result: the FIRST card (the CEO — short name + a single-line role) keeps the
-     full 22/32, while every other card's title renders at 18/24 (the longer
-     names/roles cause the scalable script to step them down). Match that exactly:
-     base all names to 18/24, then bump only the first card back to 22/32. */
+  /* Desktop name size: 18/24 on EVERY card (user decision, Staff tab). The
+     source's `cmp-teaser__title_scalable` script sizes titles at runtime — all 22/32
+     on a fresh load, a resize-dependent 22/18 mix after resizing — so a static size
+     can't track it; the first card is no longer singled out at 22/32. */
   .cards.profile .cards-profile-card-body h4 {
     font-size: 18px;
     line-height: 24px;
   }
-
-  .cards.profile > ul > li:first-child .cards-profile-card-body h4 {
-    font-size: 22px;
-    line-height: 32px;
-  }
-
 }
 
 /* Desktop (≥992): source content-wrapper adds 20px top padding, so the image→name
@@ -1238,14 +1250,16 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
   color: #000;
 }
 
-/* LEARN MORE — a plain bold-authored link; source renders it as a regular-weight
-   underlined blue link (not a filled button). Reset EDS button decoration. */
+/* LEARN MORE — a plain bold-authored link; source renders it as a BOLD (700)
+   underlined blue link (not a filled button): its label is wrapped in <b>, on the
+   Graphik Regular face (same glyph widths as 400 — 112px @768+ on both).
+   Reset EDS button decoration. */
 .cards.support .cards-support-card-body p.button-container,
 .cards.support .cards-support-card-body p:last-child {
   margin-top: 24px;
 }
 
-.cards.support .cards-support-card-body a,
+.cards.support .cards-support-card-body a:where(:not(.cta-button)),
 .cards.support .cards-support-card-body a.button,
 .cards.support .cards-support-card-body a.button.primary {
   display: inline;
@@ -1257,7 +1271,10 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
   color: var(--link-color);
   font-family: var(--body-font-family);
   font-size: var(--body-font-size-m); /* source LEARN MORE: 16px mobile → 18px at 768 */
-  font-weight: 400;
+
+  /* source: the label is inside a <b> — weight 700 on the single-weight Graphik Regular face,
+     which the browser renders as a synthetic bold (as on www.ustafoundation.com) */
+  font-weight: 700;
   line-height: 24px;
   letter-spacing: normal;
   text-transform: none;
@@ -1266,12 +1283,10 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
   white-space: normal;
 }
 
-/* Source LEARN MORE is regular weight. Authors sometimes wrap it in <strong>
-   (bold, undecorated), which would override the link — normalize the inner
-   emphasis back to regular weight + inherit the link's underline. */
+/* an inner strong / b (authored bold) keeps the link's weight + underline */
 .cards.support .cards-support-card-body a strong,
 .cards.support .cards-support-card-body a b {
-  font-weight: 400;
+  font-weight: inherit;
   text-decoration: inherit;
 }
 
@@ -1371,9 +1386,12 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
 }
 
 /* Square-ish photo — plain width-constrained image at the source's natural
-   ratio, no crop, no rounding. */
+   ratio, no crop, no rounding. Mobile: the source image column sits 4px inside
+   the 336px tile column (image 328 wide → 328×313.5 for the 295×282 photos);
+   without the inset the image renders 336 wide and ~8px taller. */
 .cards.tiles .cards-tiles-card-image {
   line-height: 0;
+  padding-inline: 4px;
 }
 
 .cards.tiles .cards-tiles-card-image img {
@@ -1402,6 +1420,10 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
     max-width: min(708px, calc(100vw - 60px));
     grid-template-columns: repeat(4, 1fr);
     gap: 0 12px;
+    padding-inline: 0;
+  }
+
+  .cards.tiles .cards-tiles-card-image {
     padding-inline: 0;
   }
 }
