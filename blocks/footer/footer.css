@@ -34,6 +34,10 @@ footer .footer {
   box-sizing: border-box;
   display: flow-root; /* contain the floated columns */
   width: calc(100% * 10 / 12);
+
+  /* source: footer content sits in a 1920px page limit (the sage band stays
+     full-bleed), so the 10/12 container stops growing at 1920 × 10/12 = 1600 */
+  max-width: 1600px;
   margin: 0 auto;
   padding: 32px 0 16px;
   font-size: 16px;
@@ -44,7 +48,9 @@ footer .footer p {
   margin: 0;
 }
 
-footer .footer a:any-link {
+/* `:where()` keeps the specificity (0,2,2) the later footer rules rely on, while
+   letting an authored cta-button (styles/foundation-buttons.css) keep its own colors. */
+footer .footer a:where(:not(.cta-button)):any-link {
   color: var(--link-color);
   text-decoration: underline;
 }
@@ -60,10 +66,13 @@ footer .footer-legal {
   padding: 8px 0;
 }
 
-/* ---------- brand: logo, then KEEP UP WITH US ---------- */
+/* ---------- brand: logo ---------- */
 footer .footer-brand {
   display: flow-root;
-  padding-bottom: 24px; /* 8 column + 16 inner container (32 from 768) */
+
+  /* 8 column + 16 inner container (32 from 768) + 16 for the source's now-empty
+     CTA container, which it kept under the logo when the button was removed */
+  padding-bottom: 40px;
 }
 
 footer .footer-brand .footer-logo {
@@ -85,52 +94,17 @@ footer .footer-brand img {
   height: auto;
 }
 
-footer .footer-brand .footer-keepup-wrap {
-  clear: both;
-  padding: 16px 0; /* 8 container + 8 button block */
-}
-
-footer .footer-brand .footer-keepup:any-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: calc(100% - 8px);
-  min-width: max-content;
-  height: 40px;
-  margin: 0 4px;
-  padding: 0 14px; /* 40px box, label centred 10px from the top (as source) */
-  background-color: var(--brand-blue);
-  border: 1px solid transparent;
-  border-radius: 3px;
-  color: #fff;
-  font-family: var(--heading-semibold-font-family);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 20px;
-
-  /* the source sets 1px on the link, but its visible label <span> is `normal` */
-  letter-spacing: normal;
-  text-align: center;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-footer .footer-brand .footer-keepup:hover,
-footer .footer-brand .footer-keepup:focus-visible {
-  background-color: var(--link-hover-color);
-  color: #fff;
-  text-decoration: none;
-}
-
 /* ---------- nav: 2 × 2 (<992) → 4 across ---------- */
 footer .footer-nav {
   padding: 16px 0; /* 8 column + 8 inner container */
 }
 
+/* phones: the source 2×2 link grid sits in the 336px column, centred (WHO WE ARE
+   x 124 @576 = (576 − 336) / 2 + 4) — not across the 10/12 container */
 footer .footer-nav ul {
   display: flow-root;
-  margin: 0;
+  max-width: 336px;
+  margin: 0 auto;
   padding: 0;
   list-style: none;
 }
@@ -215,7 +189,7 @@ footer .footer-legal p:last-child {
   }
 
   footer .footer-brand {
-    padding-bottom: 40px;
+    padding-bottom: 56px;
   }
 
   footer .footer-brand .footer-logo {
@@ -223,14 +197,12 @@ footer .footer-legal p:last-child {
     margin: 0 6px 20px;
   }
 
-  /* button = 6 of 12 columns, offset 3 (centred) */
-  footer .footer-brand .footer-keepup:any-link {
-    width: calc(50% - 12px);
-    margin: 0 0 0 calc(25% + 6px);
-  }
-
   footer .footer-nav {
     width: 60%;
+  }
+
+  footer .footer-nav ul {
+    max-width: none;
   }
 
   footer .footer-nav li {
@@ -269,12 +241,6 @@ footer .footer-legal p:last-child {
   footer .footer-brand .footer-logo {
     width: calc(100% - 30px);
     margin: 0 15px 20px;
-  }
-
-  /* button = 10 of 12 columns, offset 1; never narrower than its label */
-  footer .footer-brand .footer-keepup:any-link {
-    width: calc(100% * 10 / 12 - 30px);
-    margin: 0 0 0 calc(100% / 12 + 15px);
   }
 
   footer .footer-nav li {
