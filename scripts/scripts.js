@@ -896,9 +896,13 @@ async function loadTemplateJS(name, main) {
 // Template name resolved in loadEager (via CSS load), consumed in loadLazy for JS.
 let templateName = null;
 
+/** Shared site-config module (started in eager; reused by postlcp / delay). */
+let siteConfigPromise;
+
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
-  import('./site-config.js').then((m) => m.loadConfiguredScripts('eager'));
+  siteConfigPromise = import('./site-config.js');
+  siteConfigPromise.then((m) => m.loadConfiguredScripts('eager'));
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Same casing gap as `template` (see getMetadataNormalized): the preview pane
@@ -976,7 +980,7 @@ async function loadLazy(doc) {
 
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
-  import('./site-config.js').then((m) => m.loadConfiguredScripts('postlcp'));
+  siteConfigPromise.then((m) => m.loadConfiguredScripts('postlcp'));
 }
 
 /**
@@ -987,7 +991,7 @@ function loadDelayed() {
   import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
-  import('./site-config.js').then((m) => m.loadConfiguredScripts('delay'));
+  siteConfigPromise.then((m) => m.loadConfiguredScripts('delay'));
   // load anything that can be postponed to the latest here
 }
 
