@@ -63,17 +63,19 @@ function updateConsentMode() {
   });
 }
 
-function expireCookie(name) {
-  const expires = 'Thu, 01 Jan 1970 00:00:00 GMT';
-  document.cookie = `${name}=; expires=${expires}; path=/`;
-  document.cookie = `${name}=; expires=${expires}; path=/; domain=${window.location.hostname}`;
-}
-
-function cookieNames() {
-  return document.cookie.split(';').map((part) => part.split('=')[0].trim()).filter(Boolean);
-}
-
-/** Drop the cookies of every vendor the visitor has not allowed. */
+// Cookie cleanup is switched off (commented out on request). To turn it back on, uncomment
+// this block, the call in publish() and the `cookies` patterns in consent-vendors.js.
+// function expireCookie(name) {
+//   const expires = 'Thu, 01 Jan 1970 00:00:00 GMT';
+//   document.cookie = `${name}=; expires=${expires}; path=/`;
+//   document.cookie = `${name}=; expires=${expires}; path=/; domain=${window.location.hostname}`;
+// }
+//
+// function cookieNames() {
+//   return document.cookie.split(';').map((part) => part.split('=')[0].trim()).filter(Boolean);
+// }
+//
+// /** Drop the cookies of every vendor the visitor has not allowed. */
 // function clearDeniedCookies() {
 //   // the Experience Cloud visitor id is shared by Analytics and Target
 //   const visitorIdUnused = !granted.analytics && !granted.target;
@@ -89,7 +91,7 @@ const meets = ({ groups }) => groups.every(allows);
 function publish() {
   VENDORS.forEach((vendor) => { granted[vendor.id] = meets(vendor); });
   updateConsentMode();
-  clearDeniedCookies();
+  // clearDeniedCookies(); // switched off, see the commented block above
   const state = { ...granted };
   window.dispatchEvent(new CustomEvent('consent.update', {
     detail: { consented: !!state.analytics, ...state },

@@ -3,7 +3,8 @@
  *
  * - `id`      name used in consent state and events (`granted.analytics`, ...)
  * - `groups`  OneTrust groups that must ALL be on before the tool may run
- * - `cookies` cookie names deleted when the tool is not allowed
+ * - `cookies` (commented out below) cookie names deleted when the tool is not allowed;
+ *             only the cookie cleanup in consent-check.js uses them, and it is switched off
  * - `load`    loads the tool (run once by consented.js, after the delayed phase);
  *             leave it out when something else starts the tool (`eager`)
  *
@@ -19,20 +20,20 @@ export default [
   {
     id: 'analytics',
     groups: ALL_THREE,
-    cookies: /^(s_cc|s_sq|s_fid|s_vi|s_ecid|sat_track)$/,
+    // cookies: /^(s_cc|s_sq|s_fid|s_vi|s_ecid|sat_track)$/,
     load: () => import('./analytics.js'),
   },
   {
     id: 'hotjar',
     groups: ALL_THREE,
-    cookies: /^_hj/,
+    // cookies: /^_hj/,
     // Hotjar is loaded from the /site-config sheet (hotjarId, hotjarHostUrl, hotjarVersion)
     load: () => import('./hotjar-router.js'),
   },
   {
     id: 'target',
     groups: ALL_THREE,
-    cookies: /^(mbox|at_check|mboxEdgeCluster)$/,
+    // cookies: /^(mbox|at_check|mboxEdgeCluster)$/,
     eager: true, // started by target.js: it needs the decision before first paint
   },
 ];

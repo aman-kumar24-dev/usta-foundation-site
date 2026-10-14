@@ -5721,10 +5721,10 @@ tab→heading gap (62/78 vs source 70/86) is a separate, unaddressed difference.
   `onetrust.sdk`, `onetrust.src` (validated); `consentRequired` defaults to **true** when the key is missing (`develop`'s
   dummy treated missing as false). `?consent=accept|decline` also turns gating on, whatever the sheet says.
 - **`scripts/consent-vendors.js` (new):** one entry per consent-gated tool (`analytics`, `hotjar`, `target`): the OneTrust
-  `groups` that must ALL be on (C0002+C0004+C0005, as on usta.com), the `cookies` to delete when it is not allowed, and a
-  `load()` (omitted for `eager` vendors: Target is started by target.js). Adding a vendor = adding an entry.
-- **`scripts/consent-check.js`:** OneTrust implementation driven by that list (`granted[id]`, cookie cleanup, gtag consent
-  mode, `consent.update` detail, `onVendorConsent(id, cb)` used by target.js). Replaces `develop`'s dummy gate but keeps its
+  `groups` that must ALL be on (C0002+C0004+C0005, as on usta.com) and a `load()` (omitted for `eager` vendors: Target is
+  started by target.js). Adding a vendor = adding an entry.
+- **`scripts/consent-check.js`:** OneTrust implementation driven by that list (`granted[id]`, gtag consent mode,
+  `consent.update` detail, `onVendorConsent(id, cb)` used by target.js). Replaces `develop`'s dummy gate but keeps its
   flow: consented scripts load through `consented.js`; sheet `consentRequired=false` grants every vendor (an unreadable sheet
   stays fail-closed). Still imported eagerly from `scripts.js` (Target needs the decision early).
 - **`scripts/consented.js`:** loops the list; after the delayed phase starts (`window.hlx.delayedStarted`,
@@ -5742,3 +5742,9 @@ tab→heading gap (62/78 vs source 70/86) is a separate, unaddressed difference.
   `martechValue('consentRequired') ?? true` (and set the sheet to `true`). On localhost the OneTrust banner shows and Accept
   All loads Launch, Hotjar and at.js without a reload, but the choice is not remembered on reload (no `OptanonConsent`
   cookie is saved on a non-usta.com host), so returning-visitor behaviour needs a registered domain.
+- **Cookie cleanup commented out (2026-10-14, on request):** `consent-check.js` no longer deletes Analytics / Hotjar /
+  Target cookies when a vendor is not allowed. `expireCookie`, `cookieNames`, `clearDeniedCookies`, its call in `publish()`
+  and the per-vendor `cookies` patterns in `consent-vendors.js` are commented out (not removed), so it can be switched back
+  on. Proven beforehand that this code, not OneTrust, was the only thing deleting them. Withdrawing consent therefore no
+  longer clears cookies; scripts are still not loaded while consent is missing. (The committed state before this had
+  `clearDeniedCookies` commented out but still called in `publish()`, which would throw.)
