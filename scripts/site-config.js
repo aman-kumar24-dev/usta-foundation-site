@@ -214,8 +214,9 @@ export function getMartechConfig() {
     const launch = martechValue('launch');
     const site = {
       launch: launch ? { [env]: launch } : {},
-      // consent is required unless the sheet says otherwise
-      consentRequired: martechValue('consentRequired') ?? true,
+      // TEMP (testing): forced to true so the OneTrust banner loads while the sheet says
+      // false. REVERT to: martechValue('consentRequired') ?? true
+      consentRequired: true,
       onetrust: {
         sdk: martechValue('onetrust.sdk'),
         src: martechValue('onetrust.src'),
