@@ -20,7 +20,7 @@
  */
 import { loadScript } from './aem.js';
 import { getMartechConfig } from './site-config.js';
-import { onTargetConsent } from './consent-check.js';
+import { onVendorConsent } from './consent-check.js';
 
 const VENDOR = `${window.hlx.codeBasePath}/scripts/vendor`;
 
@@ -184,7 +184,7 @@ export default async function initTarget() {
   const config = site?.target;
   if (!config?.enabled) return;
   if (site.consentRequired) {
-    onTargetConsent(() => { startTarget(config); });
+    onVendorConsent('target', () => { startTarget(config); });
     return;
   }
   await startTarget(config);

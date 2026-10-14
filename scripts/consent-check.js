@@ -1,36 +1,22 @@
 import { getMartechConfig } from './site-config.js';
+import VENDORS from './consent-vendors.js';
 
 /**
- * OneTrust consent gate for Adobe Analytics and Adobe Target.
+ * OneTrust consent gate for the vendors in consent-vendors.js (Analytics, Hotjar, Target).
  *
  * SDK id and stub URL come from site config (`onetrust.sdk`, `onetrust.src`),
  * including the authored /site-config sheet. The banner copy comes from OneTrust.
- * This module reads the visitor's choice and tells Analytics (with Hotjar, via
- * Launch) and Target when they may load: only when Performance (C0002), Targeting
- * (C0004) and Social (C0005) are all on, as on usta.com. Until OneTrust has
- * reported, both stay off.
+ * This module reads the visitor's choice, works out which vendors are allowed (each
+ * vendor lists the OneTrust groups it needs) and tells consented.js and Target. Until
+ * OneTrust has reported, all stay off.
  *
  * `?consent=accept` or `?consent=decline` overrides OneTrust for testing (and turns
  * gating on even where the config says consent is not required).
  * Do not use that query in production.
  */
 
-/**
- * OneTrust groups each tool needs; `all`: every group must be on.
- * Analytics and Target follow usta.com: its Launch tag (Analytics, Hotjar) is blocked
- * until Performance, Targeting and Social are all on.
- */
-const RULES = {
-  analytics: { all: ['C0002', 'C0004', 'C0005'] },
-  target: { all: ['C0002', 'C0004', 'C0005'] },
-};
-
-/** Adobe Analytics cookies plus Hotjar's (_hj*), which Launch also loads. */
-const ANALYTICS_COOKIES = /^(s_cc|s_sq|s_fid|s_vi|s_ecid|sat_track|_hj.*)$/;
-const TARGET_COOKIES = /^(mbox|at_check|mboxEdgeCluster)$/;
-
-let analyticsGranted = false;
-let targetGranted = false;
+/** Consent per vendor id (see consent-vendors.js); everything is off until known. */
+const granted = Object.fromEntries(VENDORS.map(({ id }) => [id, false]));
 
 function queryOverride() {
   const consent = new URLSearchParams(window.location.search).get('consent');
@@ -70,10 +56,10 @@ function installConsentModeDefault() {
 function updateConsentMode() {
   if (typeof window.gtag !== 'function') return;
   window.gtag('consent', 'update', {
-    analytics_storage: analyticsGranted ? 'granted' : 'denied',
-    ad_storage: targetGranted ? 'granted' : 'denied',
-    ad_user_data: targetGranted ? 'granted' : 'denied',
-    ad_personalization: targetGranted ? 'granted' : 'denied',
+    analytics_storage: granted.analytics ? 'granted' : 'denied',
+    ad_storage: granted.target ? 'granted' : 'denied',
+    ad_user_data: granted.target ? 'granted' : 'denied',
+    ad_personalization: granted.target ? 'granted' : 'denied',
   });
 }
 
@@ -87,39 +73,30 @@ function cookieNames() {
   return document.cookie.split(';').map((part) => part.split('=')[0].trim()).filter(Boolean);
 }
 
-/** Drop Adobe cookies for any category the visitor has not allowed. */
+/** Drop the cookies of every vendor the visitor has not allowed. */
 function clearDeniedCookies() {
-  const bothDenied = !analyticsGranted && !targetGranted;
+  // the Experience Cloud visitor id is shared by Analytics and Target
+  const visitorIdUnused = !granted.analytics && !granted.target;
   cookieNames().forEach((name) => {
-    const analyticsCookie = ANALYTICS_COOKIES.test(name);
-    const targetCookie = TARGET_COOKIES.test(name);
-    const visitorCookie = bothDenied && (name.startsWith('AMCV_') || name.startsWith('AMCVS_'));
-    const denied = (!analyticsGranted && analyticsCookie)
-      || (!targetGranted && targetCookie)
-      || visitorCookie;
+    const denied = VENDORS.some(({ id, cookies }) => !granted[id] && cookies.test(name))
+      || (visitorIdUnused && (name.startsWith('AMCV_') || name.startsWith('AMCVS_')));
     if (denied) expireCookie(name);
   });
 }
 
-const meets = ({ all }) => all.every(allows);
-
-/** Current consent per tool, as passed to consented.js and sent in `consent.update`. */
-function consentState() {
-  return { analytics: analyticsGranted, target: targetGranted };
-}
+const meets = ({ groups }) => groups.every(allows);
 
 function publish() {
-  analyticsGranted = meets(RULES.analytics);
-  targetGranted = meets(RULES.target);
+  VENDORS.forEach((vendor) => { granted[vendor.id] = meets(vendor); });
   updateConsentMode();
   clearDeniedCookies();
-  const state = consentState();
+  const state = { ...granted };
   window.dispatchEvent(new CustomEvent('consent.update', {
-    detail: { consented: analyticsGranted, ...state },
+    detail: { consented: !!state.analytics, ...state },
   }));
   // aem.live convention: consent-dependent code lives in consented.js, which is
   // only requested once the visitor has allowed something.
-  if (analyticsGranted || targetGranted) {
+  if (Object.values(state).some(Boolean)) {
     import('./consented.js').then(({ default: consented }) => consented(state));
   }
 }
@@ -142,18 +119,19 @@ function loadOneTrust(src, sdk) {
 }
 
 /**
- * Run once Target (Targeting) consent is granted.
+ * Run once the given vendor (see consent-vendors.js) is allowed.
  * Does not run the callback until OneTrust has reported.
+ * @param {string} id vendor id, e.g. `target`
  * @param {Function} callback
  */
 // eslint-disable-next-line import/prefer-default-export
-export function onTargetConsent(callback) {
-  if (targetGranted) {
+export function onVendorConsent(id, callback) {
+  if (granted[id]) {
     callback();
     return;
   }
   const listener = (event) => {
-    if (!event.detail?.target) return;
+    if (!event.detail?.[id]) return;
     window.removeEventListener('consent.update', listener);
     callback();
   };
@@ -166,9 +144,8 @@ getMartechConfig().then(({ site }) => {
   // consented scripts straight away. An unavailable sheet leaves it undefined, so
   // that case stays fail-closed (nothing loads).
   if (site.consentRequired === false) {
-    analyticsGranted = true;
-    targetGranted = true;
-    import('./consented.js').then(({ default: consented }) => consented(consentState()));
+    VENDORS.forEach(({ id }) => { granted[id] = true; });
+    import('./consented.js').then(({ default: consented }) => consented({ ...granted }));
     return;
   }
   const { sdk, src } = site.onetrust || {};

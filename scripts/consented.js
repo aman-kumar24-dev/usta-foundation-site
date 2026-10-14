@@ -5,12 +5,14 @@
  * sheet says consent is not required), and calls the default export again on every
  * consent change.
  *
- * - Adobe Tags (Analytics) and Hotjar load here, after the delayed phase has started.
- *   A visitor who consents mid-visit gets them immediately.
- * - Target stays in target.js: it needs the decision before first paint.
+ * Each vendor in consent-vendors.js that is allowed and has a `load` is loaded once,
+ * after the delayed phase has started. A visitor who consents mid-visit gets it
+ * immediately. Vendors marked `eager` (Target) are started elsewhere: Target needs
+ * the decision before first paint, so target.js handles it.
  */
+import VENDORS from './consent-vendors.js';
 
-let analyticsRequested = false;
+const requested = new Set();
 
 /** Resolves once scripts.js has started the delayed phase. */
 function delayedPhase() {
@@ -21,15 +23,12 @@ function delayedPhase() {
 }
 
 /**
- * @param {{analytics: boolean, target: boolean}} consent
+ * @param {Object<string, boolean>} consent whether each vendor id is allowed
  */
-export default function consented({ analytics }) {
-  if (analytics && !analyticsRequested) {
-    analyticsRequested = true;
-    delayedPhase().then(() => {
-      import('./analytics.js');
-      // Hotjar is loaded from the /site-config sheet (hotjarId, hotjarHostUrl, hotjarVersion)
-      import('./hotjar-router.js');
-    });
-  }
+export default function consented(consent) {
+  VENDORS.forEach(({ id, load }) => {
+    if (!load || !consent[id] || requested.has(id)) return;
+    requested.add(id);
+    delayedPhase().then(load);
+  });
 }

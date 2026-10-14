@@ -5720,17 +5720,20 @@ tab→heading gap (62/78 vs source 70/86) is a separate, unaddressed difference.
   our old `getSiteConfig()` callers (`analytics.js`, `target.js`, `consent-check.js`) now call `getMartechConfig()`. New keys:
   `onetrust.sdk`, `onetrust.src` (validated); `consentRequired` defaults to **true** when the key is missing (`develop`'s
   dummy treated missing as false). `?consent=accept|decline` also turns gating on, whatever the sheet says.
-- **`scripts/consent-check.js`:** OneTrust implementation with per-tool `RULES` (`analytics` and `target`: C0002+C0004+C0005,
-  as on usta.com), `onTargetConsent` for target.js, Hotjar `_hj*` in the cookie cleanup. Replaces `develop`'s dummy gate but
-  keeps its flow: consented scripts load through `consented.js`; sheet `consentRequired=false` loads them straight away
-  (an unreadable sheet stays fail-closed). Still imported eagerly from `scripts.js` (Target needs the decision early).
-- **`scripts/consented.js`:** after the delayed phase starts (`window.hlx.delayedStarted`, `delayed.start`), imports
-  `analytics.js` (Launch) and `hotjar-router.js` once Analytics is allowed. `analytics.js` no longer gates itself.
-- **`scripts/scripts.js`:** both sides kept: our Target / `siteConfigFetch` block and `develop`'s CTA-buttons CSS and
-  `headerLoaded`; `loadDelayed` only marks the delayed phase (`develop`'s delayed `consent-check` import is not needed).
+- **`scripts/consent-vendors.js` (new):** one entry per consent-gated tool (`analytics`, `hotjar`, `target`): the OneTrust
+  `groups` that must ALL be on (C0002+C0004+C0005, as on usta.com), the `cookies` to delete when it is not allowed, and a
+  `load()` (omitted for `eager` vendors: Target is started by target.js). Adding a vendor = adding an entry.
+- **`scripts/consent-check.js`:** OneTrust implementation driven by that list (`granted[id]`, cookie cleanup, gtag consent
+  mode, `consent.update` detail, `onVendorConsent(id, cb)` used by target.js). Replaces `develop`'s dummy gate but keeps its
+  flow: consented scripts load through `consented.js`; sheet `consentRequired=false` grants every vendor (an unreadable sheet
+  stays fail-closed). Still imported eagerly from `scripts.js` (Target needs the decision early).
+- **`scripts/consented.js`:** loops the list; after the delayed phase starts (`window.hlx.delayedStarted`,
+  `delayed.start`) it runs each allowed vendor's `load()` once (`analytics.js`, `hotjar-router.js`). `analytics.js` no
+  longer gates itself.
 - **Heads-up (Hotjar):** `hotjar-router.js` now loads Hotjar from the sheet after consent. USTA's production Tags library
   still has its own Hotjar rule, so Hotjar can load twice until that rule is removed (already planned, see 2026-10-07).
-- **Verified locally:** lint 0 errors; `?consent=decline` -> only consent-check + site-config load; `?consent=accept` ->
-  consented -> analytics (`_satellite`) + hotjar-router (`hj`); no query -> sheet says consent not required, both load.
-- **Not run:** `check:overflow`, `check:typography`, `test:a11y`; Target on a Target-metadata page; the OneTrust banner
-  itself (it will not show on localhost). Social embed gating (YouTube/Instagram) is not implemented.
+- **Verified locally (`/en/home`, a Target page):** lint 0 errors; `?consent=decline` -> no Launch, Hotjar or at.js;
+  `?consent=accept` -> consented -> analytics (`_satellite`), hotjar-router (`hj`) and at.js (`adobe.target`); no query ->
+  sheet says consent not required, all three load.
+- **Not run:** `check:overflow`, `check:typography`, `test:a11y`; the OneTrust banner itself (it will not show on
+  localhost) and mixed per-category states (only accept/decline were exercised). Social embed gating (YouTube/Instagram) is not implemented.

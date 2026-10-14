@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aem-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--no-install", "aem", "up", "--no-open", "--forward-browser-logs"],
+      "port": 3000
+    }
+  ]
+}
