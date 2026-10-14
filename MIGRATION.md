@@ -4063,6 +4063,33 @@ change (`left` sequence moved from ~-133 to -991 over samples) even with the pri
   post-resize samples (no animated drift), while intentional menu open still animates
   with `transitionDuration: 0.3s`.
 
+### 2026-09-27 — Analytics: interim old Launch, multi-site config
+Adobe Analytics via **Tags + Analytics extension** (no Edge Network). Full details: `docs/ANALYTICS.md`.
+- **Source library read in full** (`launch-b4bd8f30c678.min.js`, property "USTA Foundation"
+  PR5c573c837d974d7ab833f62e00856bf6): Core, ECID, Analytics (AppMeasurement 2.27.0 + ActivityMap; prod
+  `usta.global`, dev/stage `usta.ustacomdev`), Target v2. Data elements `pageName` (`foundation:`+title),
+  `pageUrl`, `campaignId` (`?cid`). 8 rules — 2 (links, iframe buttons) depend on jQuery + old AEM classes.
+- **Interim decision:** use the old library unchanged; later swap to an Analytics-only library (config URL only).
+- **Multi-site (repoless) config:** `scripts/analytics-config.js` — per site: `productionHosts`, `edsSites`
+  (`{site}--{org}`), `launch.{production,development}`, `consentRequired`. ustafoundation filled
+  (`consentRequired:false`); `site-2`/`site-3` are placeholders (empty URLs, `consentRequired:true`).
+  localhost + `*.aem.page` → development URL; `*.aem.live` + prod hosts → production URL.
+- **Loader:** `scripts/analytics.js` (delayed phase, after donate.js so the FundraiseUp stub exists before the
+  Tags FundraiseUp rules attach). `consent-check.js` gained `onConsent(callback)`. head.html untouched.
+- **Gotchas:** no `-development`/`-staging` embed exists under that name (404) → preview uses prod library
+  (preview traffic hits `usta.global`) until the dev embed URL is provided. Page Bottom rules DO still fire with
+  async injection (verified in `_satellite` debug log) — no `_satellite.pageBottom()` needed. Rule errors are
+  swallowed by Tags (only visible in debug) → console stays clean.
+- **Verified local:** beacon `usta.global`, `pageName=foundation:Home`, v17/c17 URL, v0=`test`, mid, UTF-8/USD;
+  consent-required path blocks until `?consent=accept`; unknown host loads nothing.
+- **pageName continuity gap:** titles differ from live on who-we-are ("About the USTA Foundation" vs "Who We
+  Are"), what-we-do, our-impact, special-funds (H1 used, no Title metadata) → fix Title metadata via importer.
+- **Perf (Lighthouse 12, localhost, 3 runs, noisy):** standard mode usually finishes before the 3s delayed
+  phase (desktop never captured Launch; mobile captured it 2/3). When captured, Launch costs ~3.5s main-thread
+  on throttled mobile (~70ms desktop) and Best Practices drops 100→~61 (third-party cookies demdex/everesttech;
+  http-only-on-localhost beacons). Scripts: `migration-work/perf/` (`run.sh`, `summarize.mjs`, `inspect.mjs`).
+> Restructure note (2026-10-14, Martech 1/4): Launch is now the `script.launch` row (its embed URL) in the `delayed` tab of the per-environment `/configs/site-config` sheet, injected by `scripts/martech/loader.js` — no host → environment table, no per-site code. `scripts/analytics-config.js`, `docs/ANALYTICS.md` and `migration-work/` do not exist on develop; details are in `docs/MARTECH.md`. Tags still loads in the delayed phase after `donate.js`, after consent when `consentRequired` is true; "unknown host loads nothing" no longer applies. Donation beacons arrive with Martech 4/4.
+
 ### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
 Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
 which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,
@@ -4079,6 +4106,36 @@ in the same tab. The customer chose "every link" when shown this.
   external portal, atptour, careers, PDF → new tab; `?form=DONATE`/`?form=JLLI`, `#…`, mailto, tel → same tab).
   Gates: lint 0 errors (7 pre-existing a11y no-console warnings) · breakpoint-check ✓. NOT browser-clicked this
   session: the Playwright tool failed to connect. JS-only; deploys via git push.
+
+### 2026-09-28 — Martech config moved to an authored DA sheet (`/site-config`)
+- **Why:** admins must edit Tags URLs, consent, Target and donation-beacon settings without a code deploy.
+- **Where:** a normal DA **sheet document** `/site-config` in each site's DA repo (served `/site-config.json`),
+  NOT the DA org/site config (`da.live/config#…`) — that is admin-API-only (needs an IMS token) and contains the
+  `permissions` sheet with emails, so the live site can't/shouldn't read it.
+- **Code:** `scripts/site-config.js` `getSiteConfig()` (one fetch per page, cached promise) applies tab `settings`
+  (key/value, validated per key) and tab `donate-beacons` over the `SITES` code defaults (kept as fallback, per user
+  decision). analytics.js / target.js now await it. Invalid entries → `[site-config]` console warning + default.
+- **Created:** `/site-config` in `aman-kumar24-dev/usta-foundation-site` with today's values, previewed (both tabs are
+  served on aem.page and through `aem up`). Not published to aem.live yet.
+- **Verified local (sheet variants served via Playwright):** published values = parity (page view, beacons);
+  emptied `launch.development` → no Tags; invalid values (incl. a non-adobedtm script URL) ignored with warnings;
+  edited `linkName` reaches the beacon; 404 → defaults; `target.enabled=true` → our at.js delivery call.
+> Restructure note (2026-10-14, Martech 1/4): superseded — the config is now `/configs/site-config` (one per environment / DA site) with one tab per page-load phase (`eager`, `lazy`, `delayed`), each fetched on its own (`?sheet=<tab>`) when its phase runs: `script.<name>` rows are script URLs, `<module>.enabled` rows run a `scripts/martech/` module. No `SITES` defaults, no `getSiteConfig()` promise; Target and Fundraise Up settings arrive with Martech 3/4 and 4/4, the donation-beacon table moves to its own document then.
+
+### 2026-09-28 — `/site-config` sheet made admin-only (DA org permissions)
+- **Where rules live:** the **org** config (`admin.da.live/config/aman-kumar24-dev/`), org-relative paths
+  (`/usta-foundation-site/**`). The site config's own permissions sheet (two people) is separate; left as-is.
+- **Added 2 rows** (existing 3 rows + `data` sheet unchanged; backup `migration-work/da-permissions/backup-2026-09-28/`):
+  `/usta-foundation-site/site-config.json` write → the 2 martech admins; read → the 5 other site authors.
+- **Gotchas (da-admin `src/utils/auth.js`):** non-HTML files match only their exact path, so the rule must be
+  `…/site-config.json` (extension-less only works for `.html`); per identity the longest rule wins, so every non-admin
+  author must be on the read row or `/usta-foundation-site/**` write still applies. Config POST takes form field
+  `config` and refuses a config without a `CONFIG` write row.
+- **Verified:** stored config = intended; own account `x-da-actions` still read,write on the sheet, pages and CONFIG;
+  simulated evaluation (same algorithm, `migration-work/da-permissions/simulate.mjs`) → admins write, 5 others read on
+  the sheet, page access unchanged. One author has no page access at org level (already the case before).
+- **Undo:** re-POST `backup-2026-09-28/org-config.json` as form field `config`.
+> Restructure note (2026-10-14, Martech 1/4): the same rules are needed for the new path `/usta-foundation-site/configs/site-config.json` (or a folder rule `/usta-foundation-site/configs/+**`); the rows for the old sheet stay until it is retired. `migration-work/` is local only.
 
 ### 2026-09-29 — New `library-metadata` block (DA block-library variant labels)
 On the DA library pages (`/.da/library/blocks/*`, e.g. `.da/library/blocks/cards`), each variant is followed by a
@@ -4897,6 +4954,28 @@ paragraph with an authored empty `<p>&nbsp;</p>` = one 24px body line. EDS used 
 - Change (user direction, 2026-10-08): video feature text-cell heading ("We go beyond wins and losses.")
   `margin-bottom: 0` at all widths (was the block-wide 0.25em). Scoped to the video variant's text cell only.
 
+### 2026-10-07 — Rebased `aem-coder-branch` onto `develop`; site config merged into ONE module
+- **Rebase:** 12 commits replayed on `develop` (`aacbdb5`, merge base `26a3b0d`); backup tag `pre-rebase-20261007`
+  (local). Conflicts: `consent-check.js` (kept develop's `initFromSiteConfig()` + our `onConsent()`), `site-config.js`
+  added on both sides (develop's kept; ours carried as a temporary `martech-config.js` through the replay), and
+  `MIGRATION.md` log entries (both kept, date order — auto for log-only stops, per user).
+- **Merged `scripts/site-config.js`:** develop's loader/API (`getConfig` env-suffix lookup, `whenSiteConfigReady`,
+  raw `getSiteConfig`, `isProdEnvironment`, `window.ustaSiteConfig`, used by consent-check + hotjar-router) + our
+  validated layer as `getMartechConfig()` (Tags URL, consent, Target, A4T, flicker timeout, donate beacons).
+  **No code defaults** (user decision): missing/invalid sheet values are simply not used; no sheet → no Tags/Target.
+  Unknown keys (Hotjar etc.) allowed without warnings. One `/site-config.json` request (started first in loadEager).
+- **Env rules (merged):** localhost/127.0.0.1/*.localhost and *.aem.page/*.hlx.page = development; main--*.aem.live /
+  hlx.live = production; other branch *.aem.live = development (was production on our side); other hosts = production.
+- **Hotjar:** loaded only from the sheet by develop's `hotjar-router.js` (now tolerates a missing sheet); the Hotjar rule
+  in USTA's production Tags library is to be removed (user).
+- **Verified:** lint, breakpoints, overflow (360–1920), typography, a11y pass (pinned Playwright browser mapped via
+  `PLAYWRIGHT_BROWSERS_PATH=/tmp/pw` wrappers); single sheet request; test-org Tags + page view, Hotjar once, at.js;
+  404 sheet → nothing loads; anti-flicker + all A4T modes; Fundraise Up on interaction; DONATE same tab with develop's
+  new-tab links; who-we-are / get-involved / news render. The test property's page-view rule already sets
+  `contextData['a4t.payload']` (via data element) — it should also set `window.targetA4TPayloadSent = true`.
+- **Gotcha:** Target delivery returns 400 on `http://localhost` (`context.address` rejected) — localhost-only.
+> Restructure note (2026-10-14, Martech 1/4): the rebase is `aem-coder-branch` history. `getMartechConfig()`, the env rules and the `.production`/`.development` lookup were removed by the 2026-10-14 restructure (per-environment config, tab per phase); `window.ustaSiteConfig` is now `window.hlx.siteConfig`. The one-request and localhost-400 notes apply to Martech 3/4; "DONATE same tab with develop's new-tab links" referred to `openLinksInNewTab()`, which develop replaced with `decorateLinkTargets()` (2026-10-08).
+
 ### 2026-10-08 — Link targets: internal same tab, external + files new tab, `#_blank` override (replaces "every link")
 Customer revised the 2026-09-28 "every link opens in a new tab" requirement:
 - **Internal → same tab:** relative links, this origin, `ustafoundation.com` / `www.ustafoundation.com` (the
@@ -5523,3 +5602,32 @@ collapses with and beats the 32px section gap (tab nav's 6px bottom padding + 32
 only): `.toc-profile-panel > .default-content-wrapper:first-child > :first-child { margin-top: 0 }`. Verified 38px
 tab→heading and 16px heading→cards at 1200/992/768/440/375. Board tab h3 already had margin-top 0 (unchanged); its
 tab→heading gap (62/78 vs source 70/86) is a separate, unaddressed difference.
+
+### 2026-10-14 — Martech restructure 1/4: `/configs/site-config` tab per phase, martech loader, Launch
+First of four PRs that move the martech work from `aem-coder-branch` onto develop, one vendor per PR
+(Analytics → Hotjar → Target → Fundraise Up), restructured for repoless sites. Branch `feature/analytics`.
+- **Config:** `/configs/site-config` (DA sheet), one per environment — each environment is its own DA site, so values
+  are used as-is (no `.production`/`.development` lookup, no `isProdEnvironment`). One tab per page-load phase:
+  `eager`, `lazy`, `delayed` (`key | value`); `scripts/site-config.js` `getSheet(tab)` fetches
+  `/configs/site-config.json?sheet=<tab>` once, when that phase first needs it. Keeps each request small (the
+  eager-phase budget is ~1.5 KB; projected tabs with all four vendors: 270–400 B raw, <200 B on the wire) and
+  non-Target pages make no config request in the eager phase.
+- **Consent:** one key, `consentRequired` (eager tab — it decides whether Target may load before the first section;
+  other pages fetch the eager tab only when a later phase needs the flag), read only by `isConsentRequired()`;
+  anything but `true`/`false` warns once and counts as required. `consent-check.js` uses it and keeps the latest state in
+  `window.hlx.consent` next to the `consent.update` event. OneTrust will replace the `?consent=` placeholder later.
+- **Loader:** `scripts/martech/loader.js` `runPhase(phase)` reads the phase's tab: `script.<name>` rows (https URL)
+  are injected once as async scripts (after consent when required); `<module>.enabled=true` runs
+  `scripts/martech/<module>.js` for vendors that need code (Target, Fundraise Up, later OneTrust). Hook: one line at
+  the end of `loadDelayed` (`martech:` marker).
+- **Analytics:** the Launch embed is just the `script.launch` row of the delayed tab — no Analytics code.
+- **Config rows for this PR:** eager `consentRequired`; delayed `script.launch`, plus develop's `hotjar-router.js`
+  rows `hotjarId` / `hotjarHostUrl` / `hotjarVersion` (read through a transitional `getConfig()` until Martech 2/4
+  replaces them with `script.hotjar`). Prod: the interim USTA Launch library has its own Hotjar rule, so keep the
+  Hotjar rows out of the prod config until that rule is removed.
+- **Kill switch:** remove (or blank) `script.launch`. Details: `docs/MARTECH.md`.
+- **Verified locally (tab variants via Playwright, vendor requests answered locally):** each tab fetched once, no eager
+  config request, old `/site-config.json` never requested; Launch injected once ≈3.1 s after navigation; consent
+  false / true / true+accept / true+decline / missing / ` TRUE `; missing or non-https `script.launch`, lazy tab
+  404, delayed tab 404, no config at all, unknown module, `onetrust.*` rows, key-less rows, an extra `script.*` row —
+  expected loads, one warning per problem, no page errors.
