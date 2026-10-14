@@ -4,22 +4,34 @@
  * ../site-config.js) and loads what the tab lists:
  *
  *   script.<name>     https URL of a third-party script (e.g. `script.launch`,
- *                     `script.hotjar`) — injected once, async
- *   <module>.enabled  true | false — runs scripts/martech/<module>.js, a module
- *                     for a vendor that needs code (e.g. `target`); its other
- *                     `<module>.*` rows are its settings
+ *                     `script.hotjar`). If <name> is in MODULES, the module
+ *                     scripts/martech/<name>.js loads it (for scripts that need
+ *                     page setup first); otherwise it is injected as a plain
+ *                     async script tag. Once per page.
+ *   <module>.enabled  true | false — runs scripts/martech/<module>.js (listed in
+ *                     MODULES), a module for a vendor that needs code (e.g.
+ *                     `target`); its other `<module>.*` rows are its settings
  *
- * Consent (`consentRequired`): when required, scripts are injected only once the
- * visitor has consented; modules get `ctx.consentRequired` / `ctx.whenConsented()`
- * and decide themselves. Consent is signalled by the `consent.update` window event
- * ({ detail: { consented } }), with the latest state in `window.hlx.consent`.
+ * Consent (`consentRequired`): when required, `script.*` rows are loaded only once
+ * the visitor has consented; `<module>.enabled` modules get `ctx.consentRequired` /
+ * `ctx.whenConsented()` and decide themselves. Consent is signalled by the
+ * `consent.update` window event ({ detail: { consented } }), with the latest state
+ * in `window.hlx.consent`.
  *
- * A module exports a default function `(settings, ctx)`; ctx = { consentRequired,
- * whenConsented(), warn(message) }. Modules never import each other.
+ * A module exports a default function `(settings, ctx)`; for a `script.<name>` row
+ * the settings are `{ url }` plus any `<name>.*` rows. ctx = { consentRequired,
+ * whenConsented(), injectScript(url), warn(message) }. Modules never import each
+ * other.
  */
 import { getSheet, isConsentRequired } from '../site-config.js';
 
-const MODULE_NAME = /^[a-z][a-z0-9]*$/;
+/**
+ * The modules in this folder. Only these are ever imported, so a config row can
+ * never trigger a request for a file that does not exist. Add the name when
+ * adding a module.
+ */
+const MODULES = ['hotjar'];
+
 const SCRIPT_PREFIX = 'script.';
 
 function warn(name, message) {
@@ -41,15 +53,59 @@ function whenConsented() {
 }
 
 /**
- * Inject a third-party script once (also skipped if the page already has it).
- * @param {string} key the `script.<name>` key, for warnings
- * @param {string} value script URL
- * @param {boolean} consentRequired wait for consent first
+ * Inject a script once (skipped if the page already has it).
+ * @param {string} src script URL (already validated)
  */
-async function injectScript(key, value, consentRequired) {
+function injectScript(src) {
+  if ([...document.scripts].some((script) => script.src === src)) return;
+  const script = document.createElement('script');
+  script.src = src;
+  script.async = true;
+  document.head.append(script);
+}
+
+/** Settings of a module: its `<name>.*` rows without the prefix. */
+function moduleSettings(name, sheet) {
+  const prefix = `${name}.`;
+  const settings = Object.create(null);
+  Object.keys(sheet)
+    .filter((key) => key.startsWith(prefix))
+    .forEach((key) => { settings[key.slice(prefix.length)] = sheet[key]; });
+  return settings;
+}
+
+/**
+ * Import scripts/martech/<name>.js and run it.
+ * @param {string} name module name (in MODULES)
+ * @param {Record<string, string>} settings
+ * @param {boolean} consentRequired
+ */
+async function runModule(name, settings, consentRequired) {
+  try {
+    const { default: init } = await import(`./${name}.js`);
+    await init(settings, {
+      consentRequired,
+      whenConsented,
+      injectScript,
+      warn: (message) => warn(name, message),
+    });
+  } catch (e) {
+    warn(name, `failed (${e.message})`);
+  }
+}
+
+/**
+ * Load a `script.<name>` row: through its module if there is one, otherwise as
+ * a plain script tag. Waits for consent when it is required.
+ * @param {string} name the part after `script.`
+ * @param {Record<string, string>} sheet the phase's tab
+ * @param {boolean} consentRequired
+ */
+async function loadScript(name, sheet, consentRequired) {
+  const key = `${SCRIPT_PREFIX}${name}`;
   let url = null;
   try {
-    url = new URL(value);
+    url = new URL(sheet[key]);
   } catch (e) {
     // reported below
   }
@@ -58,63 +114,48 @@ async function injectScript(key, value, consentRequired) {
     return;
   }
   if (consentRequired) await whenConsented();
-  if ([...document.scripts].some((script) => script.src === url.href)) return;
-  const script = document.createElement('script');
-  script.src = url.href;
-  script.async = true;
-  document.head.append(script);
+  if (MODULES.includes(name)) {
+    await runModule(name, { ...moduleSettings(name, sheet), url: url.href }, consentRequired);
+  } else {
+    injectScript(url.href);
+  }
 }
 
 /**
- * Run scripts/martech/<name>.js with its settings.
+ * Run a `<module>.enabled` module.
  * @param {string} name module name
  * @param {Record<string, string>} sheet the phase's tab
  * @param {boolean} consentRequired
  */
-async function runModule(name, sheet, consentRequired) {
+async function loadModule(name, sheet, consentRequired) {
   const enabled = sheet[`${name}.enabled`].toLowerCase();
   if (enabled === 'false') return;
   if (enabled !== 'true') {
     warn(name, 'invalid value for "enabled" — not loaded');
     return;
   }
-  let init;
-  try {
-    ({ default: init } = await import(`./${name}.js`));
-  } catch (e) {
-    warn(name, 'module not found');
+  if (!MODULES.includes(name)) {
+    warn(name, 'unknown module — not loaded');
     return;
   }
-  const prefix = `${name}.`;
-  const settings = Object.create(null);
-  Object.keys(sheet)
-    .filter((key) => key.startsWith(prefix))
-    .forEach((key) => { settings[key.slice(prefix.length)] = sheet[key]; });
-  try {
-    await init(settings, {
-      consentRequired,
-      whenConsented,
-      warn: (message) => warn(name, message),
-    });
-  } catch (e) {
-    warn(name, `failed (${e.message})`);
-  }
+  await runModule(name, moduleSettings(name, sheet), consentRequired);
 }
 
 async function run(phase) {
   const sheet = await getSheet(phase);
   const keys = Object.keys(sheet);
-  const scripts = keys.filter((key) => key.startsWith(SCRIPT_PREFIX));
+  const scripts = keys
+    .filter((key) => key.startsWith(SCRIPT_PREFIX))
+    .map((key) => key.slice(SCRIPT_PREFIX.length));
   const modules = keys
     .filter((key) => key.endsWith('.enabled') && !key.startsWith(SCRIPT_PREFIX))
-    .map((key) => key.slice(0, -'.enabled'.length))
-    .filter((name) => MODULE_NAME.test(name) && name !== 'loader');
+    .map((key) => key.slice(0, -'.enabled'.length));
   if (!scripts.length && !modules.length) return;
 
   const consentRequired = await isConsentRequired();
   // scripts may wait for consent — never hold the phase for them
-  scripts.forEach((key) => injectScript(key, sheet[key], consentRequired));
-  await Promise.allSettled(modules.map((name) => runModule(name, sheet, consentRequired)));
+  scripts.forEach((name) => loadScript(name, sheet, consentRequired));
+  await Promise.allSettled(modules.map((name) => loadModule(name, sheet, consentRequired)));
 }
 
 const runs = new Map();
