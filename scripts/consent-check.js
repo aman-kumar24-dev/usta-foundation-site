@@ -37,6 +37,9 @@ function loadConsented() {
  */
 function onConsentUpdate() {
   const consented = hasConsent();
+  // sticky state for listeners that start after the event (see martech/loader.js)
+  window.hlx = window.hlx || {};
+  window.hlx.consent = { consented };
   window.dispatchEvent(new CustomEvent('consent.update', { detail: { consented } }));
   if (consented) {
     loadConsented();
@@ -45,21 +48,13 @@ function onConsentUpdate() {
 
 /**
  * If site-config `consentRequired` is false, skip the consent workflow and load
- * consented scripts immediately. If true, run the existing consent flow unchanged.
+ * consented scripts immediately. Otherwise (true, not set or not readable) run
+ * the consent flow. The flag is read only through site-config's isConsentRequired().
  */
 async function initFromSiteConfig() {
-  const { whenSiteConfigReady, getConfig } = await import('./site-config.js');
-  try {
-    await whenSiteConfigReady();
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('[consent] site-config unavailable; using consent workflow', error);
-    onConsentUpdate();
-    return;
-  }
+  const { isConsentRequired } = await import('./site-config.js');
 
-  const consentRequired = getConfig('consentRequired').toLowerCase() === 'true';
-  if (!consentRequired) {
+  if (!(await isConsentRequired())) {
     loadConsented();
     return;
   }
