@@ -4090,6 +4090,28 @@ Adobe Analytics via **Tags + Analytics extension** (no Edge Network). Full detai
   http-only-on-localhost beacons). Scripts: `migration-work/perf/` (`run.sh`, `summarize.mjs`, `inspect.mjs`).
 > Restructure note (2026-10-14, Martech 1/4): Launch is now the `script.launch` row (its embed URL) in the `delayed` tab of the per-environment `/configs/site-config` sheet, injected by `scripts/martech/loader.js` — no host → environment table, no per-site code. `scripts/analytics-config.js`, `docs/ANALYTICS.md` and `migration-work/` do not exist on develop; details are in `docs/MARTECH.md`. Tags still loads in the delayed phase after `donate.js`, after consent when `consentRequired` is true; "unknown host loads nothing" no longer applies. Donation beacons arrive with Martech 4/4.
 
+### 2026-09-27 — Adobe Target moved to site code (at.js 2.x, aem.live pattern), behind a flag
+Full details: `docs/MARTECH.md` (renamed from `docs/ANALYTICS.md`).
+- **Config:** `scripts/analytics-config.js` → **`scripts/site-config.js`** (now also exports `resolveSite()`, used by
+  analytics.js and target.js). New per-site `target` block; ustafoundation copied from the Tags "Adobe Target
+  v2" extension (clientCode `unitedstatestennisas`, A4T), **`enabled: false`** until Tags drops Target.
+- **Loading:** `loadEager` imports `scripts/target.js` only on pages with `Target` metadata and awaits at.js
+  (not offers) before the first section. target.js: ECID (VisitorAPI 5.5.0) → targetGlobalSettings → import
+  `scripts/vendor/at.min.js` (aem.live optimised at.js 2.11.4; Tags had 2.11.7) → getOffers/applyOffers as
+  sections decorate. Guard: skips if `window.adobe.target` already exists; consent-required sites skipped.
+- **Gotchas:** (1) the aem.live snippet's async `getElementForOffer` makes its filter drop all offers after the
+  first pass → sync `findTarget()`. (2) at.js must be the `import()`-compatible build; VisitorAPI must be a
+  classic `loadScript`. (3) with the flag on while Tags still has Target, Tags' at.js replaces
+  `window.adobe.target` at ~3s → cutover order matters. (4) Playwright MCP `run_code` crashed on long runs —
+  use `migration-work/target/*.mjs` scripts instead.
+- **Verified local:** one delivery call with `mid` + `sdid` + `server_side`; with Tags, the page view carries the
+  same `mid`/`sdid` and Tags reuses our single Visitor instance (A4T OK); fake HTML offer with `<script>` runs,
+  `:eq()` works, no Trusted Types/CSP errors; no metadata or flag off → no vendor files, no delivery.
+- **Perf (localhost proxy):** mobile 82→69, LCP 4.2→6.0 s; desktop 96→94, LCP 1.3→1.5 s (after modulepreload of
+  at.js in parallel with VisitorAPI). BP 100→~78 on Target pages from ECID ID-sync cookies (A4T side effect).
+- **Pending:** activity inventory + VEC re-pointing (selector guide in docs), Tags cutover, flag flip.
+> Restructure note (2026-10-14, Martech 3/4): Target is now the module `scripts/martech/target.js` (with `target-a4t.js` and the vendor files in `scripts/martech/vendor/`), configured by the `target.*` rows of the eager tab of `/configs/site-config`; it runs on pages with `Target` metadata through the eager hook in `loadEager`. When `consentRequired` is true Target now waits for consent (it is no longer skipped). `scripts/analytics-config.js`, `docs/ANALYTICS.md` and `migration-work/` do not exist on develop — details are in `docs/MARTECH.md` §5.
+
 ### 2026-09-28 — Site-wide: every link opens in a new tab (customer requirement)
 Customer asked for EVERY link on the site to open in a new tab. NOTE: this is a deliberate DEVIATION from the source,
 which only opens its footer's external links in a new tab (KEEP UP, Facebook/Instagram/LinkedIn, Careers, Terms,
@@ -4136,6 +4158,30 @@ in the same tab. The customer chose "every link" when shown this.
   the sheet, page access unchanged. One author has no page access at org level (already the case before).
 - **Undo:** re-POST `backup-2026-09-28/org-config.json` as form field `config`.
 > Restructure note (2026-10-14, Martech 1/4): the same rules are needed for the new path `/usta-foundation-site/configs/site-config.json` (or a folder rule `/usta-foundation-site/configs/+**`); the rows for the old sheet stay until it is retired. `migration-work/` is local only.
+
+### 2026-09-28 — Site config fetched eagerly; Target waits for offers (anti-flicker)
+- **Problem:** `/site-config.json` was only fetched when first needed — by analytics.js in the delayed phase on
+  every normal page. Target (site at.js) only waited for at.js, so offers landed after the first paint (flicker).
+  The flicker visible today is Launch's own Target (delayed phase, body hiding off) — stays until the cutover.
+- **Fix:** `loadEager` starts `fetch('/site-config.json')` first thing (`window.hlx.siteConfigFetch`, priority low /
+  high on Target pages); `getSiteConfig()` reuses it. `initTarget()` now resolves after the page-load offers arrive,
+  capped by the new sheet key `target.flickerTimeout` (default 1000 ms, 0–3000; added to the DA sheet + previewed).
+  Removed the `setTimeout(0)` hack in loadEager.
+- **Verified (`migration-work/target/test-eager.mjs`):** config requested at ~96 ms (before the LCP image), one
+  request per page shared with Analytics; simulated offer → first visible frame already shows it; delivery at 2 s →
+  first section at the 1 s cap, offer applied later; flag off → no at.js. Lighthouse: normal page unchanged; Target
+  page +0.4–0.5 s LCP vs at.js-only wait (one Target round trip).
+- **Gotcha:** at.js's own `timeout` (3000 ms, from Tags) drops slower offers entirely. The sheet also gained
+  Hotjar keys (`hotjarId.*`, `hotjarVersion`, `hotjarHostUrl.*`) outside this work — site-config.js doesn't know them
+  yet and logs `[site-config] unknown key` warnings.
+> Restructure note (2026-10-14, Martech 3/4): superseded — there is no `window.hlx.siteConfigFetch` any more: on Target pages the eager hook fetches only the eager tab (`?sheet=eager`, priority high) and imports `loader.js` and `target.js` in parallel; other pages make no config request before the first paint. `target.flickerTimeout` is required (no code default). The `[site-config] unknown key` gotcha no longer applies (unknown keys are ignored).
+
+### 2026-09-28 — Sheet: Target enabled on preview, A4T off (VisitorAPI LCP cost)
+- Sheet now (previewed, not published): `target.enabled=true`, test account `codeandtheoryamerpar` /
+  `6ED976C95CFFA6810A495C73@AdobeOrg`, `target.a4t=false`. A4T can't stitch across orgs (Analytics is USTA's org) and
+  VisitorAPI cost the Target page −0.65 s mobile LCP and BP 75→96 (ID-sync cookies). Launch still loads its own
+  Target (2.11.7) at ~2 s and takes over `window.adobe.target` until removed from Launch.
+> Restructure note (2026-10-14, Martech 3/4): the settings now live in each environment's config (eager tab: `target.enabled`, `target.clientCode`, `target.serverDomain`, `target.imsOrgId`, `target.a4t`, `target.flickerTimeout`); the dev config uses the test account with `target.a4t=client`.
 
 ### 2026-09-29 — New `library-metadata` block (DA block-library variant labels)
 On the DA library pages (`/.da/library/blocks/*`, e.g. `.da/library/blocks/cards`), each variant is followed by a
@@ -4498,6 +4544,25 @@ on an open page did nothing.
   tab, unrelated hashes are ignored; the indicator settles under the active tab (x78, w224 for Board).
 - Gates: lint 0 errors (7 pre-existing warnings) · breakpoint ✓ · check:overflow ✓ · test:a11y ✓ (Board deep link
   + default). Code-only; deploys via git push.
+
+### 2026-10-01 — Client-side A4T (no VisitorAPI) + delayed phase back to 3 s
+- **Timer:** `loadDelayed` back to 3000 ms (was 2000 since `1b701f7`). At 2 s Tags fell inside standard Lighthouse runs
+  (BP 96 → 75 from ID-sync cookies; perf unchanged). Tags now starts ≈4.4 s after navigation locally.
+- **A4T modes (`target.a4t`):** `false` | `true`/`server` (VisitorAPI + `sdid`, unchanged) | **`client`** — new
+  `scripts/target-a4t.js`: at.js `analyticsLogging: 'client_side'`, no VisitorAPI, payload `execute.pageLoad.analytics.
+  payload.tnta` → `window.targetA4TPayload` + `target-a4t` event; one de-duplicated fallback link hit if the Tags page
+  view went out without it. `VisitorAPI.min.js` kept (user decision).
+- **Gotcha (verified on intercepted beacons):** AppMeasurement 2.27.0 drops `s.tnta` (unknown var), `s.tnt` is legacy
+  T&T, and `pe` is overwritten by `s.tl`. Per user decision the Tags rule maps the payload to context data
+  `s.contextData['a4t.payload']` (serialized `c.&a4t.&payload=…&.a4t&.c`) for an Analytics processing rule — confirm the
+  rule can target the A4T dimension, else only a prop/eVar gets it.
+- **Tests (simulated delivery, beacons answered locally):** client mode → payload captured, no VisitorAPI, delivery
+  `client_side`; no Tags rule → exactly one fallback hit; Tags rule simulated → none; no payload → nothing; payload after
+  the page view → one fallback hit; server mode unchanged (`mid`+`sdid`); off → nothing. First paint shows the offer in
+  all modes (client ~1.1–1.4 s, server ~3.3 s). Interleaved Lighthouse: client ≈ off; server +~1 s mobile LCP, BP 75.
+- **Pending (user):** test-org Launch embed + report suite, no Target extension in that property, the Set Variables
+  line, the processing rule; then sheet `target.a4t = client` + `launch.development` and end-to-end check.
+> Restructure note (2026-10-14, Martech 3/4): the timer bullet is `aem-coder-branch` history — develop always used 3000 ms. `target-a4t.js` is now `scripts/martech/target-a4t.js`; `target.a4t` accepts `client`, `server` or `off` (`true` = server, `false` = off).
 
 ### 2026-10-02 — table `(directory)`: Advisory / Honorary Board matched to source (centred 2-col + 2px divider)
 The source Board tab now has TWO name columns (Advisory Board / Honorary Board — the Officers moved to
@@ -5680,6 +5745,28 @@ Second of the four martech PRs (branch `feature/hotjar`).
 - **Skipped on purpose:** decorative images (`alt=""`, so no empty tooltips) and images that already have a `title`
   (an authored title wins).
 - **Verified:** homepage — 12/13 images get a title equal to their alt; the 1 decorative image gets none.
+
+### 2026-10-14 — Martech restructure 3/4: Adobe Target (at.js) as an eager-tab module
+Third of the four martech PRs (branch `feature/target`).
+- **Module:** `scripts/martech/target.js` (+ `target-a4t.js`, `vendor/at.min.js` 2.11.4, `vendor/VisitorAPI.min.js` 5.5.0),
+  listed in the loader's `MODULES`. Logic from `aem-coder-branch`: aem.live at.js pattern, synchronous `findTarget`,
+  `:eq()` conversion, offers applied as sections/blocks decorate, A4T `client` / `server` / `off`; the Tags-era at.js
+  settings (timeout 3000, `target-global-mbox`, server-side decisioning, …) stay constants in the module.
+- **Config (eager tab):** `target.enabled`, `target.clientCode`, `target.serverDomain`, `target.imsOrgId`, `target.a4t`,
+  `target.flickerTimeout` — all required; any missing or invalid value gives one warning naming each problem and Target
+  is not loaded.
+- **Hook:** at the top of `loadEager`, only on pages with `Target` metadata (not off/false/no): fetch the eager tab
+  (priority high) and import `loader.js` + `target.js` in parallel, run the eager phase, and hold the first section until it
+  resolves (`martech:` markers). Other pages fetch nothing before the first paint.
+- **Consent:** `consentRequired=false` → offers awaited before the first paint (capped by `target.flickerTimeout`).
+  `true` → the page is not held; Target loads after consent (offers then apply on arrival). Previously Target was skipped.
+- **Verified locally (simulated delivery):** offer in the first painted frame (painted at ~0.1 s, eager tab requested at
+  ~0.09 s); 2 s delivery → paint at the 1 s cap, offer later; `enabled=false` → no at.js; consent required → not held,
+  at.js only after consent, then the offer applies; invalid settings → one warning; `a4t=server` → VisitorAPI first;
+  `flickerTimeout=0` → no wait; Target already on the page → skipped; non-Target page → no eager request, no `target.js`.
+- **Verified live (HTTPS develop preview with this branch's files):** eager tab at 0.29 s, at.js 2.11.4, delivery to the
+  test account HTTP 200 (`client_side`), `target-a4t.js` loaded; Launch and Hotjar unchanged.
+- **Gotcha:** Target delivery answers 400 on `http://localhost` — test Target on an HTTPS preview.
 
 ### 2026-10-16 — Codebase switch panel (DA / Experience Workspace plugin)
 *Renamed `env-selector` and changed to keep the open page, same day: see "Env selector" below.*

@@ -106,6 +106,7 @@ Every martech line in `scripts.js` carries a `martech:` comment.
 | Phase | Hook | Added by |
 |---|---|---|
 | delayed | end of `loadDelayed`: `import('./martech/loader.js').then((m) => m.runPhase('delayed'))` | Martech 1/4 |
+| eager | top of `loadEager`, pages with `Target` metadata only: fetch the eager tab (priority high), import `loader.js` + `target.js`, `runPhase('eager')`; awaited right before the first `loadSection` | Martech 3/4 |
 
 ### Window contracts
 
@@ -114,6 +115,8 @@ Every martech line in `scripts.js` carries a `martech:` comment.
 | `consent.update` event, `window.hlx.consent` | consent-check.js (later OneTrust) | loader, modules |
 | `window.hlx.siteConfig` (`getSheet`, `isConsentRequired`) | site-config.js | debugging, tests |
 | `window._hjSettings`, `window.hj` | `scripts/martech/hotjar.js`, from the `script.hotjar` URL | Hotjar's script |
+| `window.targetGlobalSettings`, `window.adobe.target` | `scripts/martech/target.js` / at.js | at.js |
+| `window.targetA4TPayload`, `target-a4t` event, `window.targetA4TPayloadSent` | `target-a4t.js` (and the Tags page-view rule) | Tags page-view rule: `s.contextData['a4t.payload']` |
 
 ### After an Adobe code drop
 
@@ -167,9 +170,53 @@ One row, the Hotjar script URL with the site ID and snippet version in it:
 - **Testing:** Hotjar starts only over HTTPS and ignores headless browsers ("suspicious
   userAgent") — test on a branch preview with a normal browser user agent.
 
-## 5. Adobe Target
+## 5. Adobe Target (at.js 2.x)
 
-_Added by Martech 3/4._
+The aem.live "Adobe Target at.js (legacy)" pattern, as the module `scripts/martech/target.js` (with
+`target-a4t.js`; at.js 2.11.4 and VisitorAPI 5.5.0 in `scripts/martech/vendor/`).
+
+| Tab | Key | Value |
+|---|---|---|
+| eager | `target.enabled` | `true` / `false` |
+| eager | `target.clientCode` | Target client code |
+| eager | `target.serverDomain` | `<client code>.tt.omtrdc.net` |
+| eager | `target.imsOrgId` | `<org id>@AdobeOrg` |
+| eager | `target.a4t` | `client` / `server` / `off` (`true` = server, `false` = off) |
+| eager | `target.flickerTimeout` | max ms the first section waits for offers, 0–3000 (0 = don't wait) |
+
+All six are required: a missing or invalid value gives one warning naming each problem, and Target
+is not loaded. The at.js settings carried over from the Tags "Adobe Target v2" extension (timeout
+3000 ms, global mbox `target-global-mbox`, server-side decisioning, ID lifetimes) are constants in
+the module; the aem.live settings (`bodyHidingEnabled`, `pageLoadEnabled`, `viewsEnabled` false,
+`cookieDomain` = host) too.
+
+- **Which pages:** only pages with `Target` metadata (any value except `off` / `false` / `no`; also
+  via bulk metadata). Other pages load no Target code and make no config request before the first
+  paint. Only enable it on pages with live activities: at.js costs LCP on throttled mobile.
+- **Flicker-free:** with `consentRequired=false` the first section waits for the page-load offers
+  (capped by `target.flickerTimeout`); offers are applied as sections and blocks finish decorating,
+  so the first paint already shows them. Slower than the cap → the page renders and the offer
+  applies on arrival; slower than at.js's 3000 ms timeout → the offer is dropped.
+- **Consent required:** the page is not held; at.js loads only after consent (`consent.update`),
+  and the offer then applies on arrival.
+- **Skipped** when `window.adobe.target` already exists (e.g. a Tags library that still contains
+  Target) — never run two at.js.
+- **A4T** (`target.a4t`): `client` — at.js logs client-side; `target-a4t.js` exposes the payload as
+  `window.targetA4TPayload` + `target-a4t` event, the Tags page-view rule copies it to
+  `s.contextData['a4t.payload']` (and should set `window.targetA4TPayloadSent = true`); if the first
+  page view went out without it, one `Target A4T` link hit carries it. `server` — VisitorAPI is
+  created before at.js, so Target and Analytics share `mid` + `sdid` (same Adobe org only; costs LCP
+  and adds ID-sync cookies). `off` — none.
+- **VEC selectors** (old AEM site → EDS): navigation links `header .nav-sections a`; DONATE NOW
+  `header a.nav-donate`; logo `header a.nav-brand-link`; breadcrumb `header .nav-breadcrumb`; hero
+  `main .hero h1`; stats `main .columns.stats`; feature rows `main .columns.feature`; support cards
+  `main .cards.support`; buttons `main a.button`; footer `footer .footer-social-icons a`,
+  `footer .footer-nav a`, `footer .footer-legal a`. `:eq(n)` selectors are converted.
+- **Production cutover:** first remove Adobe Target and the "Load Target" rule from the production
+  Tags property, then set the prod config's `target.*` rows to the production account and
+  `target.enabled=true`; check one delivery call per Target page (at.js 2.11.4).
+- **Kill switch:** `target.enabled=false`, or remove the page's `Target` metadata.
+- **Testing:** Target delivery answers 400 on `http://localhost` — test on an HTTPS preview.
 
 ## 6. Fundraise Up
 
