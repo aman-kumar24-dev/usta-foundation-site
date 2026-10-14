@@ -96,35 +96,45 @@
 }
 
 /* From 768: cards across the shared grid, left-aligned text. Column-gap uses the
-   site --grid-gap so cards land on the 12-col lines. The grid ADAPTS to the card
-   count so the row always fills the full width (no empty trailing slot): a 3-card
-   feed spreads 3-up, a 4-card feed is 4-up. Default = 4-up. */
+   site --grid-gap so cards land on the 12-col lines. Default = 4-up. */
 @media (width >= 768px) {
   .cards.content > ul {
+    --cards-content-gap: 12px; /* source column gap at the 768 tier (image 168) */
+
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 32px 12px; /* source column gap is 12px at the 768 tier (image 168) */
+    gap: 32px var(--cards-content-gap);
     padding: 32px 0;
-  }
-
-  /* exactly 3 cards → 3-up spread */
-  .cards.content > ul:has(> li:nth-child(3):last-child) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  /* exactly 2 cards → 2-up spread */
-  .cards.content > ul:has(> li:nth-child(2):last-child) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .cards.content > ul > li {
     text-align: left;
+  }
+
+  /* Fewer than 4 cards (get-involved "Signature Events" = 3): the source keeps
+     each card at its 4-up width (an AEM 3/12 column: 25% of the row, half-gap
+     padding each side) and distributes the columns with space-around — cards do
+     NOT stretch to fill the row (source 1440: 270 wide at x185/585/985). Mirror
+     that: widen the list by one gap, 25% tracks, padded items, space-around. */
+  .cards.content > ul:has(> li:nth-child(3):last-child),
+  .cards.content > ul:has(> li:nth-child(2):last-child) {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 25%;
+    justify-content: space-around;
+    column-gap: 0;
+    margin-inline: calc(var(--cards-content-gap) / -2);
+  }
+
+  .cards.content > ul:has(> li:nth-child(3):last-child) > li,
+  .cards.content > ul:has(> li:nth-child(2):last-child) > li {
+    padding-inline: calc(var(--cards-content-gap) / 2);
   }
 }
 
 /* From 992 the source column gap opens to 30px (image 203 → 255). */
 @media (width >= 992px) {
   .cards.content > ul {
-    gap: 32px var(--grid-gap);
+    --cards-content-gap: var(--grid-gap);
   }
 }
 
@@ -135,28 +145,44 @@
      .cards-expand-desc    (description, revealed in the freed space)
      .cards-expand-donate  (full-width DONATE, PINNED to the bottom — never moves)
    Expanding does NOT grow the card: the title translates up over the image and
-   the description shows in place, so DONATE stays put. The whole card lifts on
-   hover (source `.card.hoverable`). DONATE opens the site-wide Fundraise Up
-   overlay for that fund (?form=<code>, kept on-origin by scripts/donate.js).
-   Source values: card 250w fixed / radius 6 / shadow; title 16/24 w400 #212830;
-   DONATE 16/44 w600 #0373f3 white uppercase. */
+   the description shows in place, so DONATE stays put. Clicking ANYWHERE on the
+   card opens the site-wide Fundraise Up overlay for that fund (?form=<code>,
+   kept on-origin by scripts/donate.js).
+   Source values: card 242x320 fixed / radius 6 / shadow; IBM Plex Sans; title
+   16/24 w400 #212830 left-aligned; DONATE 16/44 w600 #0373f3 white uppercase. */
 
 /* The hover/focus-within/open state groups share equal specificity with their
    base rules but are authored after them for readability (reveal states grouped
    together); disable the descending-specificity check for this file. */
 /* stylelint-disable no-descending-specificity */
 
-/* The funds widget is WIDER than the section content column: the source spans
-   viewport − 60px (30px gutters, ~1070 @1130, capped ~1170) so FOUR 250px cards
-   fit per row. Break out of the section's 970/1170 max-width to that width so
-   the card count/positions match the source (our 970 wrapper only fit 3). */
+/* Widget container width per source tier (measured): fixed 328 below 768 (1-up),
+   708 at 768–991 (2-up), then viewport − 60px capped at 1170 from 992 (3-up →
+   4-up from ~1073). Above 992 it is WIDER than the section content column, so it
+   breaks out of the section's max-width. */
 .cards.expand {
-  width: min(1170px, calc(100vw - 60px));
-  margin-inline: calc(50% - min(585px, 50vw - 30px));
+  width: 328px;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
-/* FIXED 250px cards, left-packed with a small 4px gap, wrapping (4-up desktop →
-   3 → 2 → 1), centered as a group. */
+@media (width >= 768px) {
+  .cards.expand {
+    width: 708px;
+  }
+}
+
+@media (width >= 992px) {
+  .cards.expand {
+    width: min(1170px, calc(100vw - 60px));
+    max-width: none;
+    margin-inline: calc(50% - min(585px, 50vw - 30px));
+  }
+}
+
+/* Source: each 242x320 card sits in a 250x328 inline-block frame (4px padding)
+   separated by ~4px of inline whitespace, centered — so cards are 12px apart
+   horizontally and 8px vertically. Reproduced as 4px card margin + 4px column gap. */
 .cards.expand > ul {
   list-style: none;
   margin: 0;
@@ -164,10 +190,10 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 20px; /* source shows a clear ~20px gutter between cards (4×250 + 3×20 = 1060 ≤ 1070 ul, still 4-across) */
+  gap: 0 4px;
 }
 
-/* Fixed 250x328 card. A flex column: a content area (image + sliding title/desc
+/* Fixed 242x320 card. A flex column: a content area (image + sliding title/desc
    panel) that flexes, and the DONATE footer pinned below it. overflow:hidden
    clips the sliding panel; DONATE is never covered and never moves. */
 .cards.expand .cards-expand-card {
@@ -175,22 +201,15 @@
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
-  width: 250px;
+  width: 242px;
   max-width: 100%;
-  height: 328px;
+  height: 320px;
+  margin: 4px;
   background-color: #fff;
   border-radius: 6px;
   box-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   overflow: hidden;
   cursor: pointer;
-  transition: translate 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-/* Hover: the card stays put — only the panel slides up. The source card does
-   NOT lift; a subtle shadow deepen is the only whole-card change. */
-.cards.expand .cards-expand-card:hover,
-.cards.expand .cards-expand-card:focus-within {
-  box-shadow: 0 8px 18px rgb(0 0 0 / 25%);
 }
 
 /* Image — fills the card content area (behind the sliding panel). */
@@ -247,7 +266,7 @@
 /* Title bar: heading + chevron. */
 .cards.expand .cards-expand-title {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding: 20px;
@@ -263,12 +282,13 @@
 
 .cards.expand .cards-expand-title h3 {
   margin: 0;
-  font-family: var(--body-font-family);
+  font-family: var(--widget-font-family);
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
   letter-spacing: normal;
   color: #212830;
+  text-align: left; /* source is left-aligned, even inside a `center` section */
   text-transform: none;
 }
 
@@ -277,7 +297,7 @@
   flex: 0 0 auto;
   width: 24px;
   height: 24px;
-  margin: 0 -4px 0 0;
+  margin: 0 -6px 0 0;
   padding: 4px;
   border: 0;
   border-radius: 4px;
@@ -319,11 +339,12 @@
 
 .cards.expand .cards-expand-desc p {
   margin: 0;
-  font-family: var(--body-font-family);
+  font-family: var(--widget-font-family);
   font-size: 14px;
   line-height: 20px;
   font-weight: 400;
   color: #212830;
+  text-align: left;
 }
 
 /* Donate — full-width footer button, absolutely PINNED to the card bottom so it
@@ -346,7 +367,7 @@
   line-height: 0;
 }
 
-.cards.expand .cards-expand-donate a,
+.cards.expand .cards-expand-donate a:where(:not(.cta-button)),
 .cards.expand .cards-expand-donate a.button,
 .cards.expand .cards-expand-donate a.button.primary {
   display: block;
@@ -358,7 +379,7 @@
   border-radius: 0 0 6px 6px; /* source donate has rounded bottom corners */
   background-color: var(--brand-blue);
   color: #fff;
-  font-family: var(--body-font-family);
+  font-family: var(--widget-font-family);
   font-size: 16px;
   font-weight: 600;
   line-height: 44px;
@@ -371,14 +392,22 @@
   overflow: hidden;
 }
 
-.cards.expand .cards-expand-donate a:hover,
-.cards.expand .cards-expand-donate a:focus-visible,
+/* Source DONATE has no hover change — pin the base look against the global
+   link/button hover rules. Keyboard focus still gets a visible ring. */
+.cards.expand .cards-expand-donate a:where(:not(.cta-button)):hover,
+.cards.expand .cards-expand-donate a:where(:not(.cta-button)):focus-visible,
 .cards.expand .cards-expand-donate a.button:hover,
 .cards.expand .cards-expand-donate a.button.primary:hover {
-  background-color: var(--link-color);
+  background-color: var(--brand-blue);
   color: #fff;
   border: 0;
+  box-shadow: none;
   text-decoration: none;
+}
+
+.cards.expand .cards-expand-donate a:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
 }
 
 /* Wrapping (fixed 250px cards, centered) naturally gives 1-up mobile → 2-up →
@@ -441,6 +470,12 @@
   border-radius: 0;
 }
 
+/* Card with no image: reserve a blank area the size of the source's 400×200
+   (2:1) card image so the body lines up below its siblings' image row. */
+.cards.news .cards-news-card-image-empty {
+  aspect-ratio: 2 / 1;
+}
+
 /* Title — Graphik Semibold, uppercase, black. Source uses 28px/36px here (its
    own scale, smaller than the global h3 token) with -0.7px tracking; drop to
    22px/32px from 992. Not the h3 token, so set explicitly and comment why. */
@@ -494,7 +529,7 @@
   margin-top: 25px;
 }
 
-.cards.news .cards-news-card-link a,
+.cards.news .cards-news-card-link a:where(:not(.cta-button)),
 .cards.news .cards-news-card-link a.button,
 .cards.news .cards-news-card-link a.button.primary {
   display: inline;
@@ -553,7 +588,7 @@
     letter-spacing: normal;
   }
 
-  .cards.news .cards-news-card-link a,
+  .cards.news .cards-news-card-link a:where(:not(.cta-button)),
   .cards.news .cards-news-card-link a.button,
   .cards.news .cards-news-card-link a.button.primary {
     font-size: 16px;
@@ -650,7 +685,6 @@
   margin: 16px 0;
   font-family: var(--heading-semibold-font-family);
   font-weight: 400;
-  font-size: 20px;
   line-height: 28px;
   color: #000;
   text-transform: none;
@@ -719,21 +753,14 @@
     gap: 40px 30px; /* source opens the column gap to 30px from 992 */
   }
 
-  /* Desktop title sizing reproduces the source's AEM `cmp-teaser__title_scalable`
-     result: the FIRST card (the CEO — short name + a single-line role) keeps the
-     full 22/32, while every other card's title renders at 18/24 (the longer
-     names/roles cause the scalable script to step them down). Match that exactly:
-     base all names to 18/24, then bump only the first card back to 22/32. */
+  /* Desktop name size: 18/24 on EVERY card (user decision, Staff tab). The
+     source's `cmp-teaser__title_scalable` script sizes titles at runtime — all 22/32
+     on a fresh load, a resize-dependent 22/18 mix after resizing — so a static size
+     can't track it; the first card is no longer singled out at 22/32. */
   .cards.profile .cards-profile-card-body h4 {
     font-size: 18px;
     line-height: 24px;
   }
-
-  .cards.profile > ul > li:first-child .cards-profile-card-body h4 {
-    font-size: 22px;
-    line-height: 32px;
-  }
-
 }
 
 /* Desktop (≥992): source content-wrapper adds 20px top padding, so the image→name
@@ -783,6 +810,204 @@ main .section:has(.cards.profile) .default-content-wrapper {
 main .section:has(.cards.profile) .default-content-wrapper p {
   margin: 0;
   line-height: 24px;
+}
+
+/* cards (profile, bio) — Board of Directors leader cards: a rounded photo panel
+   above a separate rounded grey text panel (name, bold role, bio paragraph).
+   Source: leadership-and-staff.html#tab=boardofdirectors, measured live at
+   390/768/992/1200/1440.
+
+   Source geometry (AEM containers): each card column carries 8px + 8px vertical
+   padding (16px above the photo and below the text panel) and a side inset of
+   4px (<768) / 6px (768–991) / 15px (>=992), so the photo edges sit 4/6/15px in
+   from the content column and two cards are 12px / 30px apart. The photo panel
+   is a fixed 288px (<768) / 384px (>=768) tall, background-size: cover, centred,
+   24px radius. Photo → text panel = 25px. Text panel: #e5e5e5, 24px radius;
+   text inset 24px vertical / 8px side (<768), 40px / 12px (768–991),
+   40px / 30px (>=992). Name 22/24.2 → 28/30.8 @768 (Graphik Semibold, #000);
+   weight 500; 24px gap; role BOLD 16/24 → 18/24; bio regular 16/24 → 18/24;
+   all left-aligned.
+
+   The 4/6/15px column inset is applied to every wrapper of the section (same
+   value as the source container padding — and as `columns.profile`, which shares
+   this section), so the label band above and the card row share one edge. */
+main .section:has(.cards.profile.bio) > div {
+  box-sizing: border-box;
+  padding-inline: 4px;
+}
+
+.cards.profile.bio > ul {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.cards.profile.bio > ul > li {
+  box-sizing: border-box;
+  max-width: none;
+  padding: 16px 4px;
+  overflow: visible;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cards.profile.bio .cards-profile-card-image img {
+  height: 288px;
+  aspect-ratio: auto;
+  object-position: 50% 50%;
+  border-radius: 24px;
+}
+
+.cards.profile.bio .cards-profile-card-body {
+  flex: 1 1 auto; /* equal-height text panels across a row */
+  margin-top: 25px;
+  text-align: left;
+  padding: 24px 8px 38px;
+  background-color: #e5e5e5;
+  border-radius: 24px;
+}
+
+.cards.profile.bio .cards-profile-card-body h4 {
+  margin: 0;
+
+  /* source computes 500 on the single-cut Semibold face (no synthetic bold) */
+  font-weight: 500;
+  font-size: 22px;
+  line-height: 24.2px;
+}
+
+.cards.profile.bio .cards-profile-card-body p {
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-style: normal;
+}
+
+.cards.profile.bio .cards-profile-card-body p::before {
+  content: none;
+}
+
+/* the source leaves one blank 24px line between the name and the role */
+.cards.profile.bio .cards-profile-card-body h4 + p {
+  margin-top: 24px;
+}
+
+/* Lead-in heading directly above the bio cards ("Board of Directors"): the
+   source renders it as a light-blue label bar spanning the card row — 40px tall
+   (8px padding around a 24px line), text 18/24 Graphik Regular BOLD, black, centred,
+   with its edges 4px (<768) / 6px (768–991) / 0 (>=992) in from the content
+   column (the same inset as the card row). Band bottom → photo top = 24px. */
+main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) {
+  max-width: 336px; /* back to the shared content column (the profile rules narrow it) */
+  margin-inline: auto;
+
+  /* tab strip → band: source tab top → band top = 100px (<768) / 116px (>=768);
+     padding (not margin, which would collapse into the section margin) adds the
+     difference on top of the 32px panel margin */
+  padding: 24px 4px 0;
+}
+
+main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) :is(h2, h3, h4) {
+  margin: 0;
+  padding: 8px 4px;
+  background-color: var(--section-blue-bg);
+  font-family: var(--body-font-family);
+  font-size: 18px;
+
+  /* source label is <p><b>…</b></p>: synthetic bold on Graphik Regular, like the role */
+  font-weight: 700;
+  line-height: 24px;
+  color: #000;
+  text-align: center;
+}
+
+/* band → card row: 8px here + the card's own 16px top padding = the source's 24px */
+main .section > .default-content-wrapper + .cards-wrapper:has(> .cards.profile.bio) {
+  margin-top: 8px;
+}
+
+@media (width >= 768px) {
+  main .section:has(.cards.profile.bio) > div {
+    padding-inline: 6px;
+  }
+
+  .cards.profile.bio > ul {
+    max-width: none;
+    padding: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .cards.profile.bio > ul > li {
+    padding: 16px 6px;
+  }
+
+  .cards.profile.bio .cards-profile-card-image img {
+    height: 384px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body {
+    padding: 40px 12px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body h4 {
+    font-size: 28px;
+    line-height: 30.8px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body p {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) {
+    max-width: 720px;
+    padding: 40px 6px 0;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) :is(h2, h3, h4) {
+    padding-inline: 6px;
+  }
+}
+
+@media (width >= 992px) {
+  main .section:has(.cards.profile.bio) > div {
+    padding-inline: 15px;
+  }
+
+  .cards.profile.bio > ul {
+    max-width: none;
+    padding: 0;
+    gap: 0;
+  }
+
+  .cards.profile.bio > ul > li {
+    padding: 16px 15px;
+  }
+
+  .cards.profile.bio .cards-profile-card-body {
+    padding: 40px 30px;
+  }
+
+  /* undo the generic profile desktop name step-down (18/24, first card 22/32) */
+  .cards.profile.bio .cards-profile-card-body h4,
+  .cards.profile.bio > ul > li:first-child .cards-profile-card-body h4 {
+    font-size: 28px;
+    line-height: 30.8px;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) {
+    max-width: 1200px;
+    padding-inline: 15px;
+  }
+
+  main .section:has(.cards.profile.bio) > .default-content-wrapper:has(+ .cards-wrapper > .cards.profile.bio) :is(h2, h3, h4) {
+    padding-inline: 15px;
+  }
 }
 
 /* cards-stats — 4-up stat cards on the cream band: circular photo + a large
@@ -1024,14 +1249,16 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
   color: #000;
 }
 
-/* LEARN MORE — a plain bold-authored link; source renders it as a regular-weight
-   underlined blue link (not a filled button). Reset EDS button decoration. */
+/* LEARN MORE — a plain bold-authored link; source renders it as a BOLD (700)
+   underlined blue link (not a filled button): its label is wrapped in <b>, on the
+   Graphik Regular face (same glyph widths as 400 — 112px @768+ on both).
+   Reset EDS button decoration. */
 .cards.support .cards-support-card-body p.button-container,
 .cards.support .cards-support-card-body p:last-child {
   margin-top: 24px;
 }
 
-.cards.support .cards-support-card-body a,
+.cards.support .cards-support-card-body a:where(:not(.cta-button)),
 .cards.support .cards-support-card-body a.button,
 .cards.support .cards-support-card-body a.button.primary {
   display: inline;
@@ -1043,7 +1270,10 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
   color: var(--link-color);
   font-family: var(--body-font-family);
   font-size: var(--body-font-size-m); /* source LEARN MORE: 16px mobile → 18px at 768 */
-  font-weight: 400;
+
+  /* source: the label is inside a <b> — weight 700 on the single-weight Graphik Regular face,
+     which the browser renders as a synthetic bold (as on www.ustafoundation.com) */
+  font-weight: 700;
   line-height: 24px;
   letter-spacing: normal;
   text-transform: none;
@@ -1052,12 +1282,10 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
   white-space: normal;
 }
 
-/* Source LEARN MORE is regular weight. Authors sometimes wrap it in <strong>
-   (bold, undecorated), which would override the link — normalize the inner
-   emphasis back to regular weight + inherit the link's underline. */
+/* an inner strong / b (authored bold) keeps the link's weight + underline */
 .cards.support .cards-support-card-body a strong,
 .cards.support .cards-support-card-body a b {
-  font-weight: 400;
+  font-weight: inherit;
   text-decoration: inherit;
 }
 
@@ -1157,9 +1385,12 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
 }
 
 /* Square-ish photo — plain width-constrained image at the source's natural
-   ratio, no crop, no rounding. */
+   ratio, no crop, no rounding. Mobile: the source image column sits 4px inside
+   the 336px tile column (image 328 wide → 328×313.5 for the 295×282 photos);
+   without the inset the image renders 336 wide and ~8px taller. */
 .cards.tiles .cards-tiles-card-image {
   line-height: 0;
+  padding-inline: 4px;
 }
 
 .cards.tiles .cards-tiles-card-image img {
@@ -1188,6 +1419,10 @@ main .section.cards-container:has(.cards.support) > .cards-wrapper {
     max-width: min(708px, calc(100vw - 60px));
     grid-template-columns: repeat(4, 1fr);
     gap: 0 12px;
+    padding-inline: 0;
+  }
+
+  .cards.tiles .cards-tiles-card-image {
     padding-inline: 0;
   }
 }

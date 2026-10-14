@@ -18,10 +18,11 @@ function readMeta(key) {
 // → children):
 //   list-from   children | tags | static   (default: children)
 //   sort-order  asc | desc                  (default: desc)
-//   max-items   integer                     (default: 3)
+//   max-items   integer 1..3                (default: 3; larger values capped at 3)
 //   news-tags   comma-separated tag(s)      (list-from=tags)
 //   pages       comma-separated page paths  (list-from=static)
 const DEFAULT_LIMIT = 3;
+const MAX_LIMIT = 3;
 const NEWS_INDEX_PATH = '/news-index.json';
 
 // Normalize a path for comparison: drop trailing `.html` and the source AEM
@@ -79,16 +80,15 @@ function selectCandidates(mode, entries, { tags, pages }) {
 // One cards-news row: [ image | h3 title, date, desc, Read More ]. Cells passed
 // as `{ elems }` so cards.js `decorateNews` sees the <p>s as direct children.
 function newsRow(entry) {
-  // Image links to the article but is decorative for AT (the title link names
-  // it): empty alt + aria-hidden + tabindex=-1 avoids a redundant stop.
+  // Image links to the article, as on the source: alt names the link
+  // ("Visit the <title> page"); the image's own alt is the hover tooltip.
   let imageLink = null;
   if (entry.image) {
     // Cards render ~230px; serve a right-sized <picture> (500 ≈ the slot at 2×).
-    const picture = createOptimizedPicture(entry.image, '', false, [{ width: '500' }]);
+    const picture = createOptimizedPicture(entry.image, `Visit the ${cardTitle(entry)} page`, false, [{ width: '500' }]);
+    if (entry.imagealt) picture.querySelector('img').title = entry.imagealt;
     imageLink = document.createElement('a');
     imageLink.href = entry.path;
-    imageLink.setAttribute('tabindex', '-1');
-    imageLink.setAttribute('aria-hidden', 'true');
     imageLink.append(picture);
   }
 
@@ -129,7 +129,8 @@ export default async function decorate(main) {
   // Author-facing configuration from page metadata (see the constants above).
   const mode = (readMeta('list-from') || 'children').trim().toLowerCase();
   const order = (readMeta('sort-order') || 'desc').trim().toLowerCase();
-  const limit = parseInt(readMeta('max-items'), 10) || DEFAULT_LIMIT;
+  const requested = parseInt(readMeta('max-items'), 10);
+  const limit = requested > 0 ? Math.min(requested, MAX_LIMIT) : DEFAULT_LIMIT;
   const tags = splitList(readMeta('news-tags'));
   const pages = splitList(readMeta('pages'));
 

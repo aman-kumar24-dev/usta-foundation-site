@@ -1,7 +1,8 @@
 import { getMetadata } from '../../scripts/aem.js';
 
 // media query match that indicates desktop width (matches the CSS breakpoint)
-const isDesktop = window.matchMedia('(min-width: 992px)');
+// the source keeps its compact (hamburger) header up to 1199px — desktop from 1200
+const isDesktop = window.matchMedia('(min-width: 1200px)');
 
 // Segments that never appear as their own crumb. The DA/EDS mount prefix and the
 // locale are infrastructure; `home` collapses into the single "Home" crumb; and
@@ -34,10 +35,7 @@ async function fetchPathTitleMap() {
       return null;
     }
   };
-  // /query-index.json at root (DA/EDS) then /content (local `aem up`).
-  const data = (await tryFetch('/query-index.json'))
-    || (await tryFetch('/content/query-index.json'))
-    || [];
+  const data = (await tryFetch('/query-index.json')) || [];
   const map = new Map();
   data.forEach((row) => {
     if (!row.path) return;
@@ -85,12 +83,18 @@ async function buildBreadcrumb() {
   allSegments.forEach((seg, i) => {
     href += `/${seg}`;
     if (seg === 'home') {
-      // collapse locale+home into a single "Home" crumb
+      // collapse locale+home into a single "Home" crumb; on the home page itself
+      // it is the current page, so plain text (source: active crumb, no link)
       const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = '/en/home';
-      a.textContent = 'Home';
-      li.append(a);
+      if (i === isLastVisibleIndex) {
+        li.textContent = 'Home';
+        li.setAttribute('aria-current', 'page');
+      } else {
+        const a = document.createElement('a');
+        a.href = '/en/home';
+        a.textContent = 'Home';
+        li.append(a);
+      }
       ol.append(li);
       return;
     }
@@ -122,13 +126,14 @@ async function buildBreadcrumb() {
   return bcNav;
 }
 
+const NAV_PATH = '/nav.plain.html';
+
 /**
- * Fetch the nav fragment. Metadata-independent dual-fetch:
- * /content first (localhost / aem up), then root (DA/EDS production).
+ * Fetch the nav fragment from the site root (EDS serves fragments at the root;
+ * the local dev server proxies the same published fragment).
  */
 async function fetchNavHtml() {
-  let resp = await fetch('/content/nav.plain.html');
-  if (!resp.ok) resp = await fetch('/nav.plain.html');
+  const resp = await fetch(NAV_PATH);
   if (!resp.ok) return null;
   return resp.text();
 }
@@ -214,7 +219,7 @@ function wireDropdown(li, navSections) {
 }
 
 /**
- * Loads and decorates the header/nav from content/nav.plain.html.
+ * Loads and decorates the header/nav from the /nav fragment.
  * Content-first: all links/labels/images come from the fragment.
  * @param {Element} block The header block element
  */
@@ -223,23 +228,23 @@ export default async function decorate(block) {
   block.textContent = '';
   if (!html) return;
 
-  const fragment = document.createElement('div');
-  fragment.innerHTML = html;
+  // parse into an inert document: nothing is requested until the media paths
+  // below are fixed and the nodes are moved into the page
+  const fragment = new DOMParser().parseFromString(html, 'text/html').body;
 
-  // DA-authored <picture> elements carry <source srcset> renditions whose
-  // filenames differ from the working <img src> (an extra hash suffix) and are
-  // not present locally — the browser would prefer the 404ing <source> and the
-  // logo breaks. These fragment images are logos/icons with no need for
-  // responsive art-direction, so drop the <source>s and always use the <img>.
-  fragment.querySelectorAll('picture source').forEach((s) => s.remove());
-
-  // The fragment lives at /content/nav.plain.html, so relative image paths
-  // (images/…) must resolve against /content/, not the current page URL.
+  // The fragment's media paths are relative to the FRAGMENT (`./media_…`), not
+  // to the current page — resolve img src + <source> srcset against it.
+  const base = new URL(NAV_PATH, window.location.href);
   fragment.querySelectorAll('img[src]').forEach((img) => {
-    const src = img.getAttribute('src');
-    if (src && !/^(https?:)?\/\//.test(src) && !src.startsWith('/')) {
-      img.setAttribute('src', `/content/${src}`);
-    }
+    img.src = new URL(img.getAttribute('src'), base).href;
+  });
+  fragment.querySelectorAll('source[srcset]').forEach((source) => {
+    source.srcset = source.getAttribute('srcset').split(',')
+      .map((entry) => {
+        const [url, ...descriptor] = entry.trim().split(/\s+/);
+        return [new URL(url, base).href, ...descriptor].join(' ');
+      })
+      .join(', ');
   });
 
   const nav = document.createElement('nav');
@@ -317,7 +322,7 @@ export default async function decorate(block) {
     nav.setAttribute('aria-expanded', 'false');
     if (navSections) {
       // Prevent off-canvas transform animation from firing on breakpoint
-      // changes (991px <-> 992px). Keep transition disabled after resize;
+      // changes (1199px <-> 1200px). Keep transition disabled after resize;
       // toggleMenu() restores it when the user intentionally opens the menu.
       navSections.style.transition = 'none';
       closeAllDropdowns(navSections);
