@@ -5737,3 +5737,8 @@ tab→heading gap (62/78 vs source 70/86) is a separate, unaddressed difference.
   sheet says consent not required, all three load.
 - **Not run:** `check:overflow`, `check:typography`, `test:a11y`; the OneTrust banner itself (it will not show on
   localhost) and mixed per-category states (only accept/decline were exercised). Social embed gating (YouTube/Instagram) is not implemented.
+- **TEMP (testing, revert before release):** `consentRequired` is hardcoded to `true` in `getMartechConfig()` (`scripts/site-config.js`)
+  because the `/site-config` sheet says `false`, which keeps OneTrust from loading. Revert to
+  `martechValue('consentRequired') ?? true` (and set the sheet to `true`). On localhost the OneTrust banner shows and Accept
+  All loads Launch, Hotjar and at.js without a reload, but the choice is not remembered on reload (no `OptanonConsent`
+  cookie is saved on a non-usta.com host), so returning-visitor behaviour needs a registered domain.

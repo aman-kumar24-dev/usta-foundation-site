@@ -74,15 +74,15 @@ function cookieNames() {
 }
 
 /** Drop the cookies of every vendor the visitor has not allowed. */
-function clearDeniedCookies() {
-  // the Experience Cloud visitor id is shared by Analytics and Target
-  const visitorIdUnused = !granted.analytics && !granted.target;
-  cookieNames().forEach((name) => {
-    const denied = VENDORS.some(({ id, cookies }) => !granted[id] && cookies.test(name))
-      || (visitorIdUnused && (name.startsWith('AMCV_') || name.startsWith('AMCVS_')));
-    if (denied) expireCookie(name);
-  });
-}
+// function clearDeniedCookies() {
+//   // the Experience Cloud visitor id is shared by Analytics and Target
+//   const visitorIdUnused = !granted.analytics && !granted.target;
+//   cookieNames().forEach((name) => {
+//     const denied = VENDORS.some(({ id, cookies }) => !granted[id] && cookies.test(name))
+//       || (visitorIdUnused && (name.startsWith('AMCV_') || name.startsWith('AMCVS_')));
+//     if (denied) expireCookie(name);
+//   });
+// }
 
 const meets = ({ groups }) => groups.every(allows);
 
