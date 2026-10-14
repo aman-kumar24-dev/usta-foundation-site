@@ -898,6 +898,16 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  // martech: on pages with `Target` metadata (not off/false/no), run the site config's eager
+  // tab (martech/target.js) and hold the first section for it; other pages fetch nothing here
+  const targetMeta = getMetadataNormalized('target').toLowerCase();
+  const martechEager = targetMeta && !['off', 'false', 'no'].includes(targetMeta)
+    ? Promise.all([
+      import('./site-config.js').then((m) => m.getSheet('eager', 'high')),
+      import('./martech/loader.js'),
+      import('./martech/target.js'),
+    ]).then(([, loader]) => loader.runPhase('eager')).catch(() => {})
+    : null;
   import('./site-config.js');
   preloadDisplayFont();
   decorateTemplateAndTheme();
@@ -930,6 +940,7 @@ async function loadEager(doc) {
     if (main.querySelector('.section:first-of-type a[class*="cta-usta"]')) await loadUstaButtonsCss();
     applySectionBackgrounds(main); // not awaited: the options fetch must not block LCP
     document.body.classList.add('appear');
+    if (martechEager) await martechEager; // martech: Target offers before the first paint
     await loadSection(main.querySelector('.section'), waitForFirstImage);
   }
   templateName = await templateCssPromise;
