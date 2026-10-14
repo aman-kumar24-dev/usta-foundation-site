@@ -986,6 +986,8 @@ function loadDelayed() {
   import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
+  // martech: scripts + modules from the site config's delayed tab (martech/loader.js)
+  import('./martech/loader.js').then((m) => m.runPhase('delayed')).catch(() => {});
   // load anything that can be postponed to the latest here
 }
 
