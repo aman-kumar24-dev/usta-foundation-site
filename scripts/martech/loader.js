@@ -30,7 +30,7 @@ import { getSheet, isConsentRequired } from '../site-config.js';
  * never trigger a request for a file that does not exist. Add the name when
  * adding a module.
  */
-const MODULES = ['hotjar'];
+const MODULES = ['hotjar', 'target'];
 
 const SCRIPT_PREFIX = 'script.';
 
