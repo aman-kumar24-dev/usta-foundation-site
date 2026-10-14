@@ -187,8 +187,8 @@ export async function loadConfiguredScripts(phase) {
       const eq = token.indexOf('=');
       const name = (eq === -1 ? token : token.slice(0, eq)).trim().toLowerCase();
       if (!name || name === 'src' || name.startsWith('on')) return;
-      if (eq === -1) script.toggleAttribute(name, true); 
-      else script.setAttribute(name, token.slice(eq + 1).trim()); 
+      if (eq === -1) script.toggleAttribute(name, true);
+      else script.setAttribute(name, token.slice(eq + 1).trim());
     });
 
     document.head.appendChild(script);
