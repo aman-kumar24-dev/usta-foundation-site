@@ -898,7 +898,7 @@ let templateName = null;
 
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
-  import('./site-config.js');
+  import('./site-config.js').then((m) => m.loadConfiguredScripts('eager'));
   preloadDisplayFont();
   decorateTemplateAndTheme();
   // Same casing gap as `template` (see getMetadataNormalized): the preview pane
@@ -976,6 +976,7 @@ async function loadLazy(doc) {
 
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
+  import('./site-config.js').then((m) => m.loadConfiguredScripts('postlcp'));
 }
 
 /**
@@ -986,6 +987,7 @@ function loadDelayed() {
   import('./consent-check.js');
   // Fundraise Up donation widget (floating tab + ?form=DONATE overlay).
   import('./donate.js');
+  import('./site-config.js').then((m) => m.loadConfiguredScripts('delay'));
   // load anything that can be postponed to the latest here
 }
 

@@ -138,3 +138,59 @@ fetchSiteConfig().then(
   () => resolveReady(),
   (error) => rejectReady(error instanceof Error ? error : new Error(String(error))),
 );
+
+/**
+ * Loads comma-separated full HTTPS script URLs from site-config.
+ *
+ * Keys (env-aware via getConfig):
+ *   script.eager    — load in the eager phase
+ *   script.postlcp  — load after LCP (lazy phase)
+ *   script.delay    — load in the delayed phase
+ *
+ * Each entry: `url` or `url|attr` or `url|attr=value|…` (authoring order preserved).
+ * Everything after `|` is applied as a script attribute as authored — nothing else is added.
+ *
+ * Examples:
+ *   https://a.example/hotjar.js?sv=6,https://maps.googleapis.com/maps/api/js?key=…&libraries=places&callback=emptyCallback
+ *   https://a.example/a.js|async,https://a.example/b.js|defer,https://a.example/c.js|type=module|async
+ *
+ * @param {'eager'|'postlcp'|'delay'} phase
+ */
+export async function loadConfiguredScripts(phase) {
+  if (phase !== 'eager' && phase !== 'postlcp' && phase !== 'delay') return;
+
+  try {
+    await whenSiteConfigReady();
+  } catch {
+    return;
+  }
+
+  getConfig(`script.${phase}`).split(',').forEach((entry) => {
+    const parts = entry.split('|').map((part) => part.trim()).filter(Boolean);
+    const trimmed = parts[0] || '';
+    if (!trimmed || !URL.canParse(trimmed)) return;
+
+    const url = new URL(trimmed);
+    if (url.protocol !== 'https:') return;
+    if ([...document.scripts].some((script) => script.src === url.href)) return;
+
+    const callback = url.searchParams.get('callback');
+    if (callback && typeof window[callback] !== 'function') {
+      window[callback] = () => {};
+    }
+
+    const script = document.createElement('script');
+    script.src = url.href;
+
+    // Apply each `|attr` / `|attr=value` from config onto the script tag.
+    parts.slice(1).forEach((token) => {
+      const eq = token.indexOf('=');
+      const name = (eq === -1 ? token : token.slice(0, eq)).trim().toLowerCase();
+      if (!name || name === 'src' || name.startsWith('on')) return;
+      if (eq === -1) script.toggleAttribute(name, true); 
+      else script.setAttribute(name, token.slice(eq + 1).trim()); 
+    });
+
+    document.head.appendChild(script);
+  });
+}
