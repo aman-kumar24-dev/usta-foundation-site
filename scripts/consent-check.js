@@ -1,24 +1,32 @@
-import { getSiteConfig } from './site-config.js';
+import { getMartechConfig } from './site-config.js';
 
 /**
  * OneTrust consent gate for Adobe Analytics and Adobe Target.
  *
  * SDK id and stub URL come from site config (`onetrust.sdk`, `onetrust.src`),
  * including the authored /site-config sheet. The banner copy comes from OneTrust.
- * This module reads the visitor's choice and tells Analytics (Performance, C0002)
- * and Target (Targeting, C0004) when they may load. Until OneTrust has reported,
- * both stay off.
+ * This module reads the visitor's choice and tells Analytics (with Hotjar, via
+ * Launch) and Target when they may load: only when Performance (C0002), Targeting
+ * (C0004) and Social (C0005) are all on, as on usta.com. Until OneTrust has
+ * reported, both stay off.
  *
- * `?consent=accept` or `?consent=decline` overrides OneTrust for testing.
+ * `?consent=accept` or `?consent=decline` overrides OneTrust for testing (and turns
+ * gating on even where the config says consent is not required).
  * Do not use that query in production.
  */
 
-/** Performance Cookies — Adobe Analytics. */
-const ANALYTICS_GROUP = 'C0002';
-/** Targeting Cookies — Adobe Target. */
-const TARGET_GROUP = 'C0004';
+/**
+ * OneTrust groups each tool needs; `all`: every group must be on.
+ * Analytics and Target follow usta.com: its Launch tag (Analytics, Hotjar) is blocked
+ * until Performance, Targeting and Social are all on.
+ */
+const RULES = {
+  analytics: { all: ['C0002', 'C0004', 'C0005'] },
+  target: { all: ['C0002', 'C0004', 'C0005'] },
+};
 
-const ANALYTICS_COOKIES = /^(s_cc|s_sq|s_fid|s_vi|s_ecid|sat_track)$/;
+/** Adobe Analytics cookies plus Hotjar's (_hj*), which Launch also loads. */
+const ANALYTICS_COOKIES = /^(s_cc|s_sq|s_fid|s_vi|s_ecid|sat_track|_hj.*)$/;
 const TARGET_COOKIES = /^(mbox|at_check|mboxEdgeCluster)$/;
 
 let analyticsGranted = false;
@@ -93,18 +101,27 @@ function clearDeniedCookies() {
   });
 }
 
+const meets = ({ all }) => all.every(allows);
+
+/** Current consent per tool, as passed to consented.js and sent in `consent.update`. */
+function consentState() {
+  return { analytics: analyticsGranted, target: targetGranted };
+}
+
 function publish() {
-  analyticsGranted = allows(ANALYTICS_GROUP);
-  targetGranted = allows(TARGET_GROUP);
+  analyticsGranted = meets(RULES.analytics);
+  targetGranted = meets(RULES.target);
   updateConsentMode();
   clearDeniedCookies();
+  const state = consentState();
   window.dispatchEvent(new CustomEvent('consent.update', {
-    detail: {
-      consented: analyticsGranted,
-      analytics: analyticsGranted,
-      target: targetGranted,
-    },
+    detail: { consented: analyticsGranted, ...state },
   }));
+  // aem.live convention: consent-dependent code lives in consented.js, which is
+  // only requested once the visitor has allowed something.
+  if (analyticsGranted || targetGranted) {
+    import('./consented.js').then(({ default: consented }) => consented(state));
+  }
 }
 
 /**
@@ -125,27 +142,11 @@ function loadOneTrust(src, sdk) {
 }
 
 /**
- * Run once Analytics (Performance) consent is granted.
- * @param {Function} callback
- */
-export function onConsent(callback) {
-  if (analyticsGranted) {
-    callback();
-    return;
-  }
-  const listener = (event) => {
-    if (!event.detail?.analytics) return;
-    window.removeEventListener('consent.update', listener);
-    callback();
-  };
-  window.addEventListener('consent.update', listener);
-}
-
-/**
  * Run once Target (Targeting) consent is granted.
  * Does not run the callback until OneTrust has reported.
  * @param {Function} callback
  */
+// eslint-disable-next-line import/prefer-default-export
 export function onTargetConsent(callback) {
   if (targetGranted) {
     callback();
@@ -160,7 +161,16 @@ export function onTargetConsent(callback) {
 }
 
 installConsentModeDefault();
-getSiteConfig().then(({ site }) => {
+getMartechConfig().then(({ site }) => {
+  // Sheet says consentRequired=false: skip the consent workflow and load the
+  // consented scripts straight away. An unavailable sheet leaves it undefined, so
+  // that case stays fail-closed (nothing loads).
+  if (site.consentRequired === false) {
+    analyticsGranted = true;
+    targetGranted = true;
+    import('./consented.js').then(({ default: consented }) => consented(consentState()));
+    return;
+  }
   const { sdk, src } = site.onetrust || {};
   if (!sdk || !src) return;
   loadOneTrust(src, sdk);

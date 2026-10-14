@@ -44,9 +44,11 @@ export default {
     // Block-library sample pages (drafts/block-samples/*) — one per pending
     // block, built to source parity. Kept in the sweep so block a11y is enforced.
     '/drafts/block-samples/hero-error',
+    '/drafts/block-samples/hero-text-up-medium',
     '/drafts/block-samples/banner-stats-grid',
     '/drafts/block-samples/cards-tiles',
     '/drafts/block-samples/cards-profile',
+    '/drafts/block-samples/cards-profile-bio',
     '/drafts/block-samples/cards-stats',
     '/drafts/block-samples/cards-content',
     '/drafts/block-samples/cards-expand',
@@ -62,7 +64,6 @@ export default {
     '/drafts/block-samples/custom-content-related-articles',
     '/drafts/block-samples/embed-instagram',
     '/drafts/block-samples/video-embed',
-    '/drafts/block-samples/custom-widget-reactions',
     '/drafts/block-samples/donate-embed',
     // Homepage blocks (already live on /en/home) — sample pages for the library:
     '/drafts/block-samples/hero-banner',
@@ -78,5 +79,6 @@ export default {
     '/drafts/sections-samples/section-center-narrow',
     '/drafts/sections-samples/section-center-intro',
     '/drafts/sections-samples/section-center-wide',
+    '/drafts/sections-samples/section-split-5-6',
   ],
 };

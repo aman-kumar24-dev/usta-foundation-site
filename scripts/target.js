@@ -19,7 +19,7 @@
  * - `false`: no A4T.
  */
 import { loadScript } from './aem.js';
-import { getSiteConfig } from './site-config.js';
+import { getMartechConfig } from './site-config.js';
 import { onTargetConsent } from './consent-check.js';
 
 const VENDOR = `${window.hlx.codeBasePath}/scripts/vendor`;
@@ -180,7 +180,7 @@ async function startTarget(config) {
  * for consent has been registered
  */
 export default async function initTarget() {
-  const { site } = await getSiteConfig();
+  const { site } = await getMartechConfig();
   const config = site?.target;
   if (!config?.enabled) return;
   if (site.consentRequired) {

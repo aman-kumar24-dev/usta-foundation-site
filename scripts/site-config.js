@@ -1,169 +1,165 @@
 /**
- * Per-site martech settings: Adobe Analytics (Adobe Experience Platform Tags /
- * Launch) and Adobe Target (at.js).
+ * Site configuration from the authored `/site-config` sheet (DA → `/site-config.json`).
+ * The single source of site settings — there are no code defaults: a setting that
+ * isn't in the sheet (or isn't valid) is simply not used.
  *
- * The SOURCE OF TRUTH is each site's authored `/site-config` sheet in DA
- * (served as /site-config.json once previewed/published) — admins edit it there;
- * see getSiteConfig() below. The SITES entries in this file are only FALLBACK
- * DEFAULTS, used for any key that the sheet doesn't set (or sets invalidly) and
- * when the sheet is missing.
+ * One request per page: scripts.js starts `fetch('/site-config.json')` at the top
+ * of the eager phase (`window.hlx.siteConfigFetch`, fetch priority high on Target
+ * pages) and this module reuses it. `whenSiteConfigReady()` resolves once loaded
+ * and rejects if the sheet is unavailable.
  *
- * This codebase is shared (repoless) by several sites. Each entry describes one
- * site; resolveSite() picks the entry matching the current hostname:
- *   - localhost / 127.0.0.1        → the entry with `local: true`, `development` env
- *   - {ref}--{site}--{org}.aem.page → entry listing `{site}--{org}` in `edsSites`,
- *                                     `development` env
- *   - {ref}--{site}--{org}.aem.live → same match, `production` env
- *   - any host in `productionHosts` → `production` env
- * An entry with an empty URL (or a host with no entry) loads nothing.
+ * Environment (isProdEnvironment / getEnvironment):
+ *   localhost, 127.0.0.1, *.localhost        → development
+ *   *.aem.page, *.hlx.page                   → development
+ *   main--<site>--<org>.aem.live / .hlx.live → production
+ *   <branch>--<site>--<org>.aem.live / .hlx.live (not main) → development
+ *   any other host (customer domains, …)     → production
  *
- * Tags embed URLs are public (served to every visitor) — they are not secrets.
+ * Key lookup (getConfig): env-specific keys use `.production` / `.development`
+ * suffixes (e.g. `launch.production`, `hotjarId.development`); shared keys have
+ * none (e.g. `consentRequired`, `hotjarVersion`).
+ *   production:  key.production → key
+ *   development: key.development → key.production → key
+ * Any key may be used (e.g. the Hotjar keys read by hotjar-router.js).
  *
- * `consentRequired: true` defers Launch until OneTrust Performance consent
- * (C0002) and defers at.js until Targeting consent (C0004). See
- * scripts/consent-check.js. Sites that don't need a consent gate load Tags
- * straight away in the delayed phase. `onetrust.sdk` / `onetrust.src` select
- * the OneTrust property and stub.
- *
- * `donateBeacons` (optional) maps donate.js events (see scripts/donate.js) to
- * Analytics link beacons: `events`, fixed `set` variables, and `map` from an
- * event field to the variables that receive its value. A beacon is only sent
- * when at least one mapped field has a value.
- *
- * `target` configures Adobe Target (scripts/target.js). at.js only runs when
- * `enabled` is true AND the page has `Target` metadata. `a4t: true` (or
- * `server`) loads the Experience Cloud ID service (VisitorAPI) before at.js so
- * Target activities report through Analytics; `a4t: 'client'` uses client-side
- * logging instead (scripts/target-a4t.js, no VisitorAPI). Never enable Target
- * while the site's Tags library still contains the Adobe Target extension —
- * two at.js instances conflict.
+ * getMartechConfig() turns the martech keys into validated settings for
+ * analytics.js and target.js (Tags URL, consent, Target, A4T, donate beacons).
  */
-const SITES = [
-  {
-    id: 'ustafoundation',
-    local: true,
-    productionHosts: ['www.ustafoundation.com', 'ustafoundation.com'],
-    edsSites: ['usta-foundation-site--aman-kumar24-dev', 'foundation-usta--aemdemos'],
-    launch: {
-      // Existing "USTA Foundation" property, production environment (report suite
-      // usta.global). Interim: still includes Target + Hotjar — swap for the
-      // Analytics-only library once it is published.
-      production: 'https://assets.adobedtm.com/15c795eb812c/e99b4446eb17/launch-b4bd8f30c678.min.js',
-      // No development/staging embed is published under this property's naming
-      // (the -development/-staging variants 404), so preview uses the production
-      // library for now — preview traffic lands in usta.global. Replace with the
-      // Development environment embed URL (report suite usta.ustacomdev) when available.
-      development: 'https://assets.adobedtm.com/15c795eb812c/e99b4446eb17/launch-b4bd8f30c678.min.js',
-    },
-    consentRequired: true,
-    onetrust: {
-      sdk: '43383d2d-67e6-4d4a-99cb-3ff760b82737',
-      src: 'https://cdn.cookielaw.org/scripttemplates/otSDKStub.js',
-    },
-    // Same variables as the source site's "FundraiseUp Donation Checkout Open" /
-    // "FundraiseUp Donation Complete" Tags rules.
-    donateBeacons: {
-      checkoutOpen: {
-        linkName: 'Fundraise Up Donation Checkout Open',
-        events: 'event9',
-        set: { pageName: 'ustafoundation:fundraiseup:DONATE' },
-        map: { campaignId: ['prop61', 'eVar61'], campaignName: ['prop62', 'eVar62'] },
-      },
-      donationComplete: {
-        linkName: 'Fundraise Up Donation Complete',
-        events: 'event67',
-        map: { amount: ['eVar76'] },
-      },
-    },
-    // Same account settings as the "Adobe Target v2" extension in the Tags
-    // property. Cutover: remove that extension + the "Load Target" rule from Tags,
-    // publish, then set `enabled: true`.
-    target: {
-      enabled: false,
-      clientCode: 'unitedstatestennisas',
-      serverDomain: 'unitedstatestennisas.tt.omtrdc.net',
-      imsOrgId: 'A6D83F7A5347FCE90A490D44@AdobeOrg',
-      a4t: true,
-    },
-  },
-  {
-    // PLACEHOLDER — fill in hosts, EDS site names and embed URLs when known.
-    id: 'site-2',
-    productionHosts: [],
-    edsSites: [],
-    launch: { production: '', development: '' },
-    consentRequired: true,
-    target: { enabled: false },
-  },
-  {
-    // PLACEHOLDER — fill in hosts, EDS site names and embed URLs when known.
-    id: 'site-3',
-    productionHosts: [],
-    edsSites: [],
-    launch: { production: '', development: '' },
-    consentRequired: true,
-    target: { enabled: false },
-  },
-];
 
-const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
+const SITE_CONFIG_URL = '/site-config.json';
+
+/** @type {Record<string, string>} */
+let config = Object.create(null);
+
+/** @type {object|null} */
+let rawConfig = null;
+
+/** @type {(value?: void) => void} */
+let resolveReady;
+/** @type {(reason: Error) => void} */
+let rejectReady;
+
+const ready = new Promise((resolve, reject) => {
+  resolveReady = resolve;
+  rejectReady = reject;
+});
+// consumers handle the rejection themselves; avoid an "uncaught in promise" report
+ready.catch(() => {});
 
 /**
- * Find the site entry and environment for a hostname.
- * @param {string} [hostname] defaults to the current page's hostname
- * @returns {{site: object, env: 'development'|'production'}|null}
+ * Production = customer domain, or `main--*` on aem.live / hlx.live.
+ * @param {string} [hostname]
+ * @returns {boolean}
  */
-export function resolveSite(hostname = window.location.hostname) {
-  if (LOCAL_HOSTS.includes(hostname)) {
-    const site = SITES.find((s) => s.local);
-    return site ? { site, env: 'development' } : null;
+export function isProdEnvironment(hostname = window.location.hostname) {
+  const host = String(hostname || '').toLowerCase();
+  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')) {
+    return false;
   }
-  // repoless EDS hosts: {ref}--{site}--{org}.aem.page|live
-  const eds = hostname.match(/^([^.]+)\.aem\.(page|live)$/);
-  if (eds) {
-    const siteKey = eds[1].split('--').slice(-2).join('--');
-    const site = SITES.find((s) => s.edsSites.includes(siteKey));
-    return site ? { site, env: eds[2] === 'page' ? 'development' : 'production' } : null;
+  if (host.endsWith('.aem.page') || host.endsWith('.hlx.page')) {
+    return false;
   }
-  const site = SITES.find((s) => s.productionHosts.includes(hostname));
-  return site ? { site, env: 'production' } : null;
+  if (host.endsWith('.aem.live') || host.endsWith('.hlx.live')) {
+    return host.startsWith('main--');
+  }
+  return true;
 }
 
-/* ---------- authored /site-config sheet ---------- */
-
-const SHEET_URL = '/site-config.json';
-
-/** Environment from the hostname alone (sites without a code entry). */
-function envFromHost(hostname) {
-  return LOCAL_HOSTS.includes(hostname) || hostname.endsWith('.aem.page') ? 'development' : 'production';
+/**
+ * @param {string} [hostname]
+ * @returns {'production'|'development'}
+ */
+export function getEnvironment(hostname) {
+  return isProdEnvironment(hostname) ? 'production' : 'development';
 }
 
-const toBool = (v) => ({ true: true, false: false })[String(v).trim().toLowerCase()];
+/**
+ * @param {string} key
+ * @returns {boolean}
+ */
+function hasConfig(key) {
+  return Object.prototype.hasOwnProperty.call(config, key)
+    && String(config[key]).trim() !== '';
+}
 
-// key → [validator/parser returning undefined when invalid, setter]
-const SETTINGS = {
-  'launch.production': [(v) => (/^https:\/\/assets\.adobedtm\.com\/[\w./-]+\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.launch.production = v; }],
-  'launch.development': [(v) => (/^https:\/\/assets\.adobedtm\.com\/[\w./-]+\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.launch.development = v; }],
-  consentRequired: [toBool, (c, v) => { c.consentRequired = v; }],
-  'onetrust.sdk': [(v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) || v === '' ? v : undefined), (c, v) => { c.onetrust.sdk = v; }],
-  'onetrust.src': [(v) => (/^https:\/\/cdn\.cookielaw\.org\/scripttemplates\/[\w./-]*otSDKStub\.js$/.test(v) || v === '' ? v : undefined), (c, v) => { c.onetrust.src = v; }],
-  'target.enabled': [toBool, (c, v) => { c.target.enabled = v; }],
-  'target.clientCode': [(v) => (/^[\w-]+$/.test(v) ? v : undefined), (c, v) => { c.target.clientCode = v; }],
-  'target.serverDomain': [(v) => (/^[\w-]+\.tt\.omtrdc\.net$/.test(v) ? v : undefined), (c, v) => { c.target.serverDomain = v; }],
-  'target.imsOrgId': [(v) => (/^[A-F0-9]+@AdobeOrg$/i.test(v) ? v : undefined), (c, v) => { c.target.imsOrgId = v; }],
-  // false | true / server (VisitorAPI, server-side logging) | client (target-a4t.js)
-  'target.a4t': [(v) => {
-    const s = String(v).trim().toLowerCase();
-    if (s === 'client') return 'client';
-    if (s === 'server') return true;
-    return toBool(s);
-  }, (c, v) => { c.target.a4t = v; }],
-  'target.flickerTimeout': [(v) => (/^\d+$/.test(v) && Number(v) <= 3000 ? Number(v) : undefined), (c, v) => { c.target.flickerTimeout = v; }],
-};
+/**
+ * Env-aware lookup for spreadsheet keys.
+ * @param {string} baseKey e.g. `launch`, `hotjarId`, `consentRequired`
+ * @returns {string} '' when not set
+ */
+export function getConfig(baseKey) {
+  if (!baseKey || typeof baseKey !== 'string') {
+    throw new TypeError('getConfig: baseKey must be a non-empty string');
+  }
+
+  const productionKey = `${baseKey}.production`;
+  const developmentKey = `${baseKey}.development`;
+
+  if (isProdEnvironment()) {
+    if (hasConfig(productionKey)) return config[productionKey];
+    if (hasConfig(baseKey)) return config[baseKey];
+    return '';
+  }
+
+  if (hasConfig(developmentKey)) return config[developmentKey];
+  if (hasConfig(productionKey)) return config[productionKey];
+  if (hasConfig(baseKey)) return config[baseKey];
+  return '';
+}
+
+/**
+ * The raw sheet JSON (all tabs), or null before it has loaded.
+ * @returns {object|null}
+ */
+export function getSiteConfig() {
+  return rawConfig;
+}
+
+/**
+ * @returns {Promise<void>}
+ */
+export function whenSiteConfigReady() {
+  return ready;
+}
+
+/* ---------- martech settings (validated) ---------- */
 
 function warn(message) {
   // eslint-disable-next-line no-console
   console.warn(`[site-config] ${message}`);
+}
+
+const toBool = (v) => ({ true: true, false: false })[String(v).trim().toLowerCase()];
+const TAGS_URL = /^https:\/\/assets\.adobedtm\.com\/[\w./-]+\.js$/;
+
+// base key → parser returning undefined when the value is invalid
+const MARTECH_KEYS = {
+  launch: (v) => (TAGS_URL.test(v) ? v : undefined),
+  consentRequired: toBool,
+  // OneTrust (see consent-check.js): domain-script id and stub URL
+  'onetrust.sdk': (v) => (/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(v) ? v : undefined),
+  'onetrust.src': (v) => (/^https:\/\/cdn\.cookielaw\.org\/[\w./-]+\.js$/.test(v) ? v : undefined),
+  'target.enabled': toBool,
+  'target.clientCode': (v) => (/^[\w-]+$/.test(v) ? v : undefined),
+  'target.serverDomain': (v) => (/^[\w-]+\.tt\.omtrdc\.net$/.test(v) ? v : undefined),
+  'target.imsOrgId': (v) => (/^[A-F0-9]+@AdobeOrg$/i.test(v) ? v : undefined),
+  // false | true / server (VisitorAPI, server-side logging) | client (target-a4t.js)
+  'target.a4t': (v) => {
+    const s = String(v).trim().toLowerCase();
+    if (s === 'client') return 'client';
+    if (s === 'server') return true;
+    return toBool(s);
+  },
+  'target.flickerTimeout': (v) => (/^\d+$/.test(v) && Number(v) <= 3000 ? Number(v) : undefined),
+};
+
+/** Validated value of a martech key, or undefined when unset/invalid. */
+function martechValue(key) {
+  const raw = getConfig(key).trim();
+  if (!raw) return undefined;
+  const parsed = MARTECH_KEYS[key](raw);
+  if (parsed === undefined) warn(`invalid value for "${key}" — ignored`);
+  return parsed;
 }
 
 /** "a=b; c=d" → { a: 'b', c: 'd' } */
@@ -199,59 +195,105 @@ function parseDonateBeacons(rows) {
   }, {});
 }
 
-/** Apply the sheet over a copy of the defaults. */
-function applySheet(defaults, json) {
-  const config = {
-    ...defaults,
-    launch: { production: '', development: '', ...defaults.launch },
-    onetrust: { sdk: '', src: '', ...defaults.onetrust },
-    target: { enabled: false, flickerTimeout: 1000, ...defaults.target },
-  };
-  const settings = json?.settings?.data || (json?.[':type'] === 'sheet' ? json.data : []) || [];
-  settings.forEach(({ key, value }) => {
-    const k = String(key || '').trim();
-    if (!k) return;
-    const entry = SETTINGS[k];
-    if (!entry) { warn(`unknown key "${k}"`); return; }
-    const parsed = entry[0](String(value ?? '').trim());
-    if (parsed === undefined) { warn(`invalid value for "${k}" — using default`); return; }
-    entry[1](config, parsed);
-  });
-  const beaconRows = json?.['donate-beacons']?.data;
-  if (beaconRows?.length) config.donateBeacons = parseDonateBeacons(beaconRows);
-  return config;
-}
-
-let siteConfigPromise;
+let martechPromise;
 
 /**
- * The current site's martech config: code defaults (by hostname) overridden by
- * the authored /site-config sheet. Fetched once per page.
+ * Validated martech settings for the current environment, from the sheet only.
+ * Resolves to an empty site (nothing loads) when the sheet is unavailable.
  * @returns {Promise<{site: object, env: 'development'|'production'}>}
  */
-export function getSiteConfig() {
-  if (!siteConfigPromise) {
-    siteConfigPromise = (async () => {
-      const { hostname } = window.location;
-      const match = resolveSite(hostname);
-      const env = match?.env || envFromHost(hostname);
-      const defaults = match?.site || { id: hostname };
-      try {
-        // reuse the request scripts.js started at the beginning of the eager phase
-        const resp = await (window.hlx?.siteConfigFetch || fetch(SHEET_URL));
-        if (!resp) throw new Error('network');
-        if (!resp.ok) {
-          if (resp.status !== 404) warn(`${SHEET_URL}: HTTP ${resp.status} — using code defaults`);
-          return { site: defaults, env };
-        }
-        return { site: applySheet(defaults, await resp.json()), env };
-      } catch (e) {
-        warn(`${SHEET_URL} unreadable — using code defaults`);
-        return { site: defaults, env };
-      }
-    })();
-  }
-  return siteConfigPromise;
+export function getMartechConfig() {
+  martechPromise ??= (async () => {
+    const env = getEnvironment();
+    try {
+      await ready;
+    } catch (e) {
+      warn('sheet unavailable — Analytics and Target are not loaded');
+      return { site: {}, env };
+    }
+    const launch = martechValue('launch');
+    const site = {
+      launch: launch ? { [env]: launch } : {},
+      // consent is required unless the sheet says otherwise
+      consentRequired: martechValue('consentRequired') ?? true,
+      onetrust: {
+        sdk: martechValue('onetrust.sdk'),
+        src: martechValue('onetrust.src'),
+      },
+      target: {
+        enabled: martechValue('target.enabled') ?? false,
+        clientCode: martechValue('target.clientCode'),
+        serverDomain: martechValue('target.serverDomain'),
+        imsOrgId: martechValue('target.imsOrgId'),
+        a4t: martechValue('target.a4t') ?? false,
+        flickerTimeout: martechValue('target.flickerTimeout') ?? 1000,
+      },
+    };
+    // `?consent=accept|decline` (testing) turns consent gating on, whatever the sheet says
+    if (new URLSearchParams(window.location.search).has('consent')) site.consentRequired = true;
+    const beaconRows = rawConfig?.['donate-beacons']?.data;
+    if (beaconRows?.length) site.donateBeacons = parseDonateBeacons(beaconRows);
+    // Target needs all three account settings
+    const { clientCode, serverDomain, imsOrgId } = site.target;
+    if (site.target.enabled && !(clientCode && serverDomain && imsOrgId)) {
+      warn('target.enabled is true but clientCode / serverDomain / imsOrgId is missing — Target not loaded');
+      site.target.enabled = false;
+    }
+    return { site, env };
+  })();
+  return martechPromise;
 }
 
-export default SITES;
+/* ---------- loading ---------- */
+
+/**
+ * @param {object} json
+ */
+function applyConfig(json) {
+  const rows = json?.settings?.data;
+
+  if (!Array.isArray(rows)) {
+    throw new Error('site-config.json: missing settings.data array');
+  }
+
+  const next = Object.create(null);
+
+  rows.forEach((row) => {
+    if (!row || typeof row.key !== 'string' || !row.key.trim()) {
+      throw new Error('site-config.json: settings row missing key');
+    }
+
+    next[row.key.trim()] = row.value == null ? '' : String(row.value);
+  });
+
+  config = next;
+  rawConfig = json;
+
+  window.ustaSiteConfig = Object.freeze({
+    getConfig,
+    getSiteConfig,
+    getMartechConfig,
+    whenSiteConfigReady,
+    isProdEnvironment,
+    getEnvironment,
+  });
+}
+
+async function fetchSiteConfig() {
+  // reuse the request scripts.js started at the beginning of the eager phase
+  const response = await (window.hlx?.siteConfigFetch || fetch(SITE_CONFIG_URL));
+
+  if (!response) {
+    throw new Error(`site-config.json: network error for ${SITE_CONFIG_URL}`);
+  }
+  if (!response.ok) {
+    throw new Error(`site-config.json: HTTP ${response.status} for ${SITE_CONFIG_URL}`);
+  }
+
+  applyConfig(await response.json());
+}
+
+fetchSiteConfig().then(
+  () => resolveReady(),
+  (error) => rejectReady(error instanceof Error ? error : new Error(String(error))),
+);

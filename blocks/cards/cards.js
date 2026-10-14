@@ -78,6 +78,14 @@ function decorateExpand(block) {
       li.classList.toggle('cards-expand-open', !expanded);
     });
 
+    // As on the source, a click anywhere on the card opens the donate overlay.
+    const donateLink = donate.querySelector('a');
+    if (donateLink) {
+      li.addEventListener('click', (e) => {
+        if (!e.target.closest('a')) donateLink.click();
+      });
+    }
+
     li.append(image, panel, donate);
     ul.append(li);
   });
@@ -110,12 +118,20 @@ function decorateNews(block) {
       if (cell.children.length === 1 && cell.querySelector('picture')) {
         cell.className = 'cards-news-card-image';
       } else if (!cell.textContent.trim() && !cell.querySelector('picture')) {
-        // empty image cell (e.g. the current-article card) — drop it
-        cell.remove();
+        // empty image cell (e.g. the current-article card) — keep it as a blank
+        // image-sized placeholder so the body stays below the image row
+        cell.className = 'cards-news-card-image cards-news-card-image-empty';
       } else {
         cell.className = 'cards-news-card-body';
       }
     });
+
+    // no image cell authored at all — add the placeholder so the body sits below it
+    if (!li.querySelector('.cards-news-card-image')) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'cards-news-card-image cards-news-card-image-empty';
+      li.prepend(placeholder);
+    }
 
     const body = li.querySelector('.cards-news-card-body');
     if (body) {
@@ -154,8 +170,12 @@ function decorateProfile(block) {
     });
     ul.append(li);
   });
+  // `bio` cards show a ~555px-wide photo on desktop, so offer a larger rendition there
+  const widths = block.classList.contains('bio')
+    ? [{ media: '(min-width: 768px)', width: '1200' }, { width: '750' }]
+    : [{ width: '750' }];
   ul.querySelectorAll('.cards-profile-card-image img').forEach((img) => {
-    const optimizedPic = createOptimizedPicture(img.src, img.alt, false, [{ width: '750' }]);
+    const optimizedPic = createOptimizedPicture(img.src, img.alt, false, widths);
     // replace the image (and its wrapping <p>, if any) with the optimized picture
     const wrapper = img.closest('picture') || img;
     const p = wrapper.closest('p');

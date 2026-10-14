@@ -26,6 +26,7 @@
   --body-font-family: "Graphik Regular", roboto-fallback, tahoma, sans-serif;
   --heading-font-family: "Graphik XXCond Bold", graphik-xxcond-fallback, "Arial Narrow", tahoma, sans-serif;
   --heading-semibold-font-family: "Graphik Semibold", tahoma, sans-serif;
+  --widget-font-family: "IBM Plex Sans", -apple-system, "Segoe UI", roboto, arial, sans-serif;
 
   /* brand palette + section-band backgrounds (formerly styles/brand.css — inlined
      here to drop the render-blocking `@import url('brand.css')` chain, which cost
@@ -36,7 +37,13 @@
   --brand-orange: #e87722;
   --stats-band-bg: #000;
   --section-blue-bg: #e2f7ff; /* light-blue support band (source #e2f7ff) */
+
+  /* legacy alias — authored spacers on /en/home still say `color: cards-band-bg`;
+     without it those blue strips render transparent. */
+  --cards-band-bg: var(--section-blue-bg);
   --section-yellow-bg: #ffefbe; /* cream/yellow impact-stats band (source #FFEFBE) */
+  --sage-grey-bg: #dcdfcf; /* footer / toc-profile track sage */
+  --pale-grey-bg: #eef0f0; /* video placeholder pale grey */
 
   /* body sizes — mobile-first (source: 16px body @ <768, 18px @ >=768) */
   --body-font-size-m: 16px;
@@ -188,6 +195,15 @@ pre,
 blockquote {
   margin-top: 0.8em;
   margin-bottom: 0.25em;
+}
+
+/* Default-content text rhythm: the source separates a heading and each following
+   paragraph with one blank line (an empty <p>&nbsp;</p> = one 24px body line), e.g.
+   who-we-are "We transform lives…" (24px heading→p and p→p at every viewport).
+   Applied site-wide to authored text paragraphs (CTA button paragraphs keep their
+   own spacing; blocks keep theirs). */
+main .default-content-wrapper > :where(h1, h2, h3, h4, h5, h6, p) + p:not(.button-wrapper) {
+  margin-top: 24px;
 }
 
 /* Default-content lists (e.g. the financials PDF-link list) — the source renders
@@ -371,6 +387,9 @@ button.button.accent:disabled:focus-visible {
   border-color: var(--light-color);
   color: var(--dark-color);
 }
+
+/* cta-button (authorable CTA styles: blue / black / dark / outline + authored
+   colors) lives in styles/foundation-buttons.css, loaded early by scripts.js loadEager(). */
 
 main img {
   max-width: 100%;
@@ -573,6 +592,26 @@ main .section.center-intro > .default-content-wrapper:first-child .button-wrappe
   text-align: center;
 }
 
+/* Section Metadata `background` options (DA library /.da/library/blocks,
+   options tab). scripts.js adds the matching option name as a section class;
+   each option needs a rule here, named exactly like the option — and like the
+   color token it paints, so there is ONE name per color. */
+main .section.section-blue-bg {
+  background-color: var(--section-blue-bg);
+}
+
+main .section.section-yellow-bg {
+  background-color: var(--section-yellow-bg);
+}
+
+main .section.sage-grey-bg {
+  background-color: var(--sage-grey-bg);
+}
+
+main .section.pale-grey-bg {
+  background-color: var(--pale-grey-bg);
+}
+
 /* dark band variant (e.g. stats) */
 main .section.dark {
   background-color: var(--stats-band-bg);
@@ -590,30 +629,63 @@ main .section.dark {
    The source page's H1 sits ~41px below the breadcrumb with no heading margin,
    whereas our global `h1` carries a 0.8em (~80px at 100px) top margin. Zero that
    margin and set the first section's top padding to the measured source gap.
+   Mobile (<768): the source H1 sits 24px below the header (16 container + 8
+   column padding) in a 328px column — a 4px inset each side of the 336 wrapper.
    ------------------------------------------------------------------ */
 body.leadership main > .section:first-of-type {
-  padding-top: 41px;
+  padding-top: 24px;
 }
 
 body.leadership main h1 {
   margin-top: 0;
+  margin-inline: 4px;
 }
 
-/* general — the interior marketing pages (who-we-are, what-we-do, get-involved,
-   our-impact). Their standalone CTAs (LEARN MORE) are the source's SOLID BLUE
-   pill: brand-blue bg, white, 3px radius, 18px Graphik Semibold uppercase, 40px
-   tall. decorateButtons() wraps these in <strong> → the `.primary` (black)
-   treatment, so override EVERY button variant in this theme back to source blue.
-   Scoped to `body.general main` and listing .primary/.secondary/.accent so it
-   outspecifies those variant rules regardless of which one decorateButtons set. */
-body.general main a.button:any-link,
-body.general main a.button.primary,
-body.general main a.button.secondary,
-body.general main a.button.accent {
-  /* source CTA box: border-box, 40px tall, 14px horizontal padding, 1px border.
-     The explicit height + flex centering (from the base .button rule) reproduces
-     the source's fixed 40px pill; horizontal padding + 1px letter-spacing brings
-     the width to the source's ~170px naturally (no fixed width). */
+@media (width >= 768px) {
+  body.leadership main > .section:first-of-type {
+    padding-top: 41px;
+  }
+
+  body.leadership main h1 {
+    margin-inline: 0;
+  }
+}
+
+/* Tabs → panel heading ("Our Staff"): the source gap is a flat 38px below the
+   38px-tall tab at every breakpoint. Our tab nav's 6px bottom padding + the 32px
+   section gap already make 38px, but the global h3 top margin (44.8px from 768)
+   out-collapses the section gap. Zero it so the section gap governs. */
+body.leadership main .toc-profile-panel > .default-content-wrapper:first-child > :first-child {
+  margin-top: 0;
+}
+
+/* "Our Staff" heading → first card row: the source gap is a flat 16px at every
+   breakpoint (h3 margin 0, cards directly below), vs our global 32px/40px
+   default-content → block gap. Profile grid only — the Board tab's `bio` cards
+   keep their own 8px (cards.css). */
+body.leadership main .section > .default-content-wrapper + .cards-wrapper:has(> .cards.profile:not(.bio)) {
+  margin-top: 16px;
+}
+
+/* Site-wide CTA button = the source's SOLID BLUE pill (every page; it was scoped
+   to the `general` theme until 2026-10-07): brand-blue bg, white, 3px radius, 18px
+   Graphik Semibold uppercase, 40px tall. decorateButtons() marks <strong>/<em>
+   links as .primary/.secondary, so every variant is listed to replace the
+   boilerplate black/outline looks. Blocks with their own CTA style (hero, cards
+   support/news/expand, columns feature) use higher-specificity selectors.
+   no-descending-specificity is disabled for this block: it deliberately sits after
+   (and overrides) the boilerplate `a.button.*:hover` defaults above. */
+/* stylelint-disable no-descending-specificity */
+main a.button:any-link,
+main a.button.primary,
+main a.button.secondary,
+main a.button.accent {
+  /* source CTA box: border-box, 40px tall, 14px horizontal padding, 1px border,
+     at least 170px wide (LEARN MORE: 118px label + padding = 148 → 170). The
+     source sets 1px letter-spacing on the <a> but resets it to normal on the inner
+     label span, so the label has no extra tracking (was 128px wide, now 118). */
+  box-sizing: border-box;
+  min-width: 170px;
   height: 40px;
   border: 1px solid transparent;
   border-radius: 3px;
@@ -626,34 +698,35 @@ body.general main a.button.accent {
      is baked into the font file, so weight 600 synthetically over-bolds it. */
   font-weight: 400;
   line-height: 20px;
-  letter-spacing: 1px;
+  letter-spacing: normal;
 }
 
-body.general main a.button:hover,
-body.general main a.button:focus-visible,
-body.general main a.button.primary:hover,
-body.general main a.button.primary:focus-visible,
-body.general main a.button.secondary:hover,
-body.general main a.button.secondary:focus-visible,
-body.general main a.button.accent:hover,
-body.general main a.button.accent:focus-visible {
+main a.button:hover,
+main a.button:focus-visible,
+main a.button.primary:hover,
+main a.button.primary:focus-visible,
+main a.button.secondary:hover,
+main a.button.secondary:focus-visible,
+main a.button.accent:hover,
+main a.button.accent:focus-visible {
   border-color: transparent;
   background-color: var(--link-hover-color);
   color: var(--background-color);
 }
+/* stylelint-enable no-descending-specificity */
 
-/* A general-page intro section that ENDS IN A CTA button (e.g. the "Our
+/* A section that ENDS IN A CTA button (e.g. who-we-are's "Our
    Supporters" band before the cards) leaves the button flush against the section
    edge — its 12px button-wrapper bottom margin collapses into the section boundary
    (section padding-bottom is 0), so the following section sits only the 40px
    section-margin away (button→next-content 40px vs the source's ~70px). Add
    guaranteed bottom breathing room via PADDING (padding doesn't collapse) when the
    section's last content is a button, independent of the trailing content type. */
-body.general main > .section > .default-content-wrapper:last-child > p.button-wrapper:last-child {
+main > .section > .default-content-wrapper:last-child > p.button-wrapper:last-child {
   margin-bottom: 0;
 }
 
-body.general main > .section:has(> .default-content-wrapper:last-child > p.button-wrapper:last-child) {
+main > .section:has(> .default-content-wrapper:last-child > p.button-wrapper:last-child) {
   padding-bottom: 30px;
 }
 
@@ -749,6 +822,14 @@ main .section.center.map-wide > div {
   max-width: none;
   width: calc(100vw - 16px);
   margin-inline: auto;
+}
+
+/* The map fills its band. An explicit width lets its width/height attributes
+   reserve the box BEFORE the lazy image loads — the global `main img { width:
+   auto }` left it 0×0 until then, so it popped open by ~675px and pushed every
+   later section down (e.g. a what-we-do#sustained-… link landed 722px low). */
+main .section.center.map-wide img {
+  width: 100%;
 }
 
 @media (width >= 768px) {
@@ -877,21 +958,156 @@ main .section.center.map-wide > div {
   }
 }
 
+/* split-5-6 — a section WIDTH for an uneven text + image row on the source's
+   12-column grid (Chris Evert campaign page). Measured on the source at
+   390/768/992/1200/1440/1728/1920:
+   - <768: 328 wide (the 336 column minus the source's 4px AEM column margins);
+     768–991: 708 (720 minus 6px). Heading, text and image all share it.
+   - >=992: the normal fluid content column (1170 @1200). The heading spans it;
+     a Columns row inside lays its cells on the shared 12-col grid (30px gap):
+     the TEXT cell spans 5 columns, the IMAGE cell 6, and the 12th stays empty
+     (15..485 + 515..1085 @1200; 15..398 + 428..894 @992).
+   Cells are told apart by the image-cell class columns.js already adds, so it
+   works whichever side the image is authored on. Stacked text → image gap 16px. */
+/* stylelint-disable-next-line no-descending-specificity -- different sections */
+main .section.split-5-6 > div {
+  max-width: 328px;
+}
+
+/* source vertical rhythm (each AEM column pads 8px top + bottom): breadcrumb →
+   heading 7, heading → row 16, paragraphs 24 apart (the source's blank <p>s),
+   text → image 16 when stacked, then 73 from the taller column to the next
+   section (93 stacked: the source image keeps a 20px bottom margin). */
+main .section.split-5-6 {
+  margin-bottom: 73px;
+}
+
+main .section.split-5-6 > .default-content-wrapper > :first-child {
+  margin-top: 7px;
+  margin-bottom: 0;
+}
+
+main .section.split-5-6 > .default-content-wrapper + div[class$="-wrapper"]:not(.default-content-wrapper) {
+  margin-top: 16px;
+}
+
+main .section.split-5-6 .columns > div {
+  gap: 16px;
+}
+
+main .section.split-5-6 .columns p {
+  margin: 0;
+}
+
+main .section.split-5-6 .columns p + p {
+  margin-top: 24px;
+}
+
+main .section.split-5-6 .columns > div > .columns-img-col {
+  margin-bottom: 20px;
+}
+
+@media (width >= 768px) {
+  main .section.split-5-6 > div {
+    max-width: 708px;
+  }
+}
+
+@media (width >= 992px) {
+  main .section.split-5-6 > div {
+    max-width: 1200px;
+  }
+
+  main .section.split-5-6 .columns > div {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--grid-gap, 30px);
+  }
+
+  main .section.split-5-6 .columns > div > div {
+    grid-column: span 5;
+  }
+
+  main .section.split-5-6 .columns > div > .columns-img-col {
+    grid-column: span 6;
+    margin-bottom: 0;
+  }
+}
+
+/* Statement band directly after the home stats bar ("Ready on the court. Ready
+   for life."). The source centres it on a FLUID column (no 336 / tier caps):
+   75vw − 8px (<768: 262 @360 → 442 @600), 7/12 of (100vw − 20px) (768–991:
+   436 @768 → 566 @991), 58.333vw − 30px (≥992: 549 @992 → 670 @1200 → 1090
+   @1920). Spacing (text-line to text-line): stats bar → heading 58 / 64px,
+   heading → copy 12 / 18px, copy → next heading 66 (<768) / 84px. Only the home
+   page has a stats bar, so other `center, medium` bands are unaffected. */
+main > .section.columns-container:has(.columns.stats) + .section.center {
+  margin-top: 50px;
+  margin-bottom: 56px;
+}
+
+main > .section.columns-container:has(.columns.stats) + .section.center > div {
+  width: calc(75vw - 8px);
+  max-width: none;
+}
+
+main > .section.columns-container:has(.columns.stats) + .section.center h2 {
+  margin: 0;
+}
+
+main > .section.columns-container:has(.columns.stats) + .section.center h2 + p {
+  margin-top: 0;
+}
+
+@media (width >= 768px) {
+  main > .section.columns-container:has(.columns.stats) + .section.center {
+    margin-bottom: 72px;
+  }
+
+  main > .section.columns-container:has(.columns.stats) + .section.center > div {
+    width: calc((100vw - 20px) * 7 / 12);
+  }
+}
+
+@media (width >= 992px) {
+  main > .section.columns-container:has(.columns.stats) + .section.center {
+    margin-top: 50px;
+    margin-bottom: 56px;
+  }
+
+  main > .section.columns-container:has(.columns.stats) + .section.center > div {
+    width: min(calc(58.333vw - 30px), 1090px);
+    padding-inline: 0; /* the global ≥992 wrapper gutter would narrow it by 30 */
+  }
+}
+
 /* split-even — a symmetric, block-agnostic TWO-COLUMN section for TWO blocks
    side by side (e.g. a Quote block left + a donation form block right, as on the
-   source's Chris Evert campaign page). Unlike split-left/right (which key off
-   default-content vs block to decide sides), this simply flows EACH direct
-   wrapper into its own equal column in source order — first→left, second→right —
-   so it works for any pair of blocks without nth-child logic. Same centered page
-   content width as the rest of the site (720/970/1170 per tier).
+   source's Chris Evert campaign page). Each direct wrapper flows into its own
+   equal column in source order (first → left, second → right), so it works for
+   any pair of blocks without nth-child logic.
 
-   MOBILE (<768): no grid — the global 336px rule stacks the two blocks in the
-   single content column, in authored order. Two-column split is desktop-only. */
-@media (width >= 768px) {
+   Source (measured 390/768/992/1200/1440): STACKED below 992 (the two blocks one
+   above the other in the normal content column); from 992 two equal columns with
+   a 30px gutter on the normal fluid content column (466 + 466 at 992, 570 + 570
+   from 1200) — the form block centres itself in its column (donate-embed.css). */
+
+/* source: 8px from the last block to the footer strip; stacked (<992) the second
+   block sits 26px below the first (h4 10 + 2 × 8 column padding) */
+main .section.split-even {
+  margin-bottom: 8px;
+}
+
+main .section.split-even > div[class$='-wrapper'] + div[class$='-wrapper'] {
+  margin-top: 26px;
+}
+
+@media (width >= 992px) {
   main > .section.split-even {
     box-sizing: border-box;
-    max-width: 720px;
+    max-width: 1200px; /* same fluid column as `main > .section > div` (−2×15px) */
     margin-inline: auto;
+    padding-inline: 15px;
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
@@ -900,35 +1116,17 @@ main .section.center.map-wide > div {
   }
 
   /* wrappers are grid items — drop the global per-wrapper width cap/centering.
-     min-width:0 stops a wide block's min-content from stealing >1fr (keeps the
-     two columns equal); margin-top:0 cancels the global inter-wrapper spacing
-     (which would otherwise push the 2nd block down out of row alignment). */
+     min-width:0 keeps the two columns equal; margin-top:0 cancels the global
+     inter-wrapper spacing so the second block top-aligns with the first. */
   main .section.split-even > div {
     max-width: none;
     margin-inline: 0;
+    padding-inline: 0;
     min-width: 0;
   }
 
-  /* cancel the global inter-wrapper spacing (which pushes a 2nd block down out
-     of row alignment) — matched at equal specificity to the rule that adds it.
-     This top-aligns the donation form (a `donate-embed` block) with the sibling
-     quote block, matching the source (form top === quote top). Centering of the
-     ~376px FundraiseUp iframe within its column lives in the block's own CSS
-     (blocks/donate-embed/donate-embed.css). */
   main .section.split-even > div[class$='-wrapper'] + div[class$='-wrapper'] {
     margin-top: 0;
-  }
-}
-
-@media (width >= 992px) {
-  main > .section.split-even {
-    max-width: 970px;
-  }
-}
-
-@media (width >= 1200px) {
-  main > .section.split-even {
-    max-width: 1170px;
   }
 }
 
@@ -975,22 +1173,27 @@ main > .section.toc-profile-container + .section.spacer-container {
 
 /* Blue spacer floating after the video / impact feature sections: give the
    spacer section whitespace above and below (source ~56 above / 76 below on
-   desktop, 40/60 on mobile). */
-main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) {
+   desktop, 40/60 on mobile). The strip color is authored either as the current
+   token `section-blue-bg` or the legacy alias `cards-band-bg` — match both. */
+main > .section.spacer-container:has(:is(.spacer[style*='section-blue-bg'], .spacer[style*='cards-band-bg'])) {
   margin: 40px 0 60px;
 }
 
-/* The blue spacer immediately before the light-blue support section sits close:
-   a THIN white gap below it (a 17px white "border" the same height as the
-   strip), then the support section's own top padding gives the heading its room
-   (matches the source ~82px strip-to-heading gap, not the full 76px float). */
-main > .section.spacer-container:has(.spacer[style*='cards-band-bg']):has(+ .section.highlight),
-main > .section.spacer-container:has(.spacer[style*='cards-band-bg']):has(+ .section.section-blue) {
-  margin-bottom: 17px;
+/* The blue spacer immediately before the light-blue support section (source,
+   measured 390/768/992/1440): white gap above the strip 34px (<768) / 50px
+   (>=768), the 17px strip, then a 17px white gap, then the band. The preceding
+   section's own 40px bottom margin would collapse with (and on mobile out-size)
+   the strip's top margin, so it is zeroed and the strip owns the whole gap.
+   (`:has()` can't nest, so this keys on "spacer section, then blue band".) */
+main > .section:has(+ .section.spacer-container + :is(.section.highlight, .section.section-blue)) {
+  margin-bottom: 0;
 }
 
-main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) + .section.highlight,
-main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) + .section.section-blue {
+main > .section.spacer-container:has(:is(.spacer[style*='section-blue-bg'], .spacer[style*='cards-band-bg'])):has(+ :is(.section.highlight, .section.section-blue)) {
+  margin: 34px 0 17px;
+}
+
+main > .section.spacer-container:has(:is(.spacer[style*='section-blue-bg'], .spacer[style*='cards-band-bg'])) + :is(.section.highlight, .section.section-blue) {
   margin-top: 0;
 }
 
@@ -1019,18 +1222,62 @@ main > .section.section-blue {
   margin-bottom: 0;
 }
 
+/* Yellow center-intro band (who-we-are "Our Leadership and Staff"), measured on the
+   source @1440: band top → heading 48px (32px band padding + 16), heading →
+   description 0 (no blank line here), description → LEARN MORE 16px, LEARN MORE →
+   the columns row (Chris Evert photo) 56px. */
+main .section.section-yellow.center-intro > .default-content-wrapper:first-child > :is(h1, h2, h3):first-child {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+
+main .section.section-yellow.center-intro > .default-content-wrapper:first-child > :is(h1, h2, h3) + p {
+  margin-top: 0;
+}
+
+main .section.section-yellow.center-intro > .default-content-wrapper:first-child > p.button-wrapper {
+  margin-top: 16px;
+}
+
+main .section.section-yellow.center-intro > .default-content-wrapper:first-child + .columns-wrapper {
+  margin-top: 56px;
+}
+
 /* footer butts the black spacer above it (no gap) */
 footer {
   margin-top: 0;
 }
 /* stylelint-enable no-descending-specificity */
 
-@media (width >= 992px) {
-  main > .section.spacer-container:has(.spacer[style*='cards-band-bg']) {
-    margin: 56px 0 76px;
+@media (width >= 768px) {
+  main > .section.spacer-container:has(:is(.spacer[style*='section-blue-bg'], .spacer[style*='cards-band-bg'])) {
+    margin-bottom: 76px;
   }
 
+  main > .section.spacer-container:has(:is(.spacer[style*='section-blue-bg'], .spacer[style*='cards-band-bg'])):has(+ :is(.section.highlight, .section.section-blue)) {
+    margin: 50px 0 17px;
+  }
+}
+
+@media (width >= 992px) {
+  main > .section.spacer-container:has(:is(.spacer[style*='section-blue-bg'], .spacer[style*='cards-band-bg'])) {
+    margin-top: 56px;
+  }
+
+  /* source @1440: History text bottom → yellow strip 121px (was 56). */
   main > .section.spacer-container:has(.spacer[style*='section-yellow-bg']) {
-    margin: 56px 0 17px;
+    margin: 121px 0 17px;
+  }
+
+  /* source @1440: Chris Evert photo bottom → yellow band bottom 108px (was 32, the
+     bare section-yellow padding). */
+  main > .section.section-yellow.center-intro {
+    padding-bottom: 108px;
+  }
+
+  /* source @1440: last supporter tile label → black strip above the footer 86px
+     (was 52): tiles section bottom margin 40 → 74. */
+  main > .section.cards-container:has(.cards.tiles) {
+    margin-bottom: 74px;
   }
 }
