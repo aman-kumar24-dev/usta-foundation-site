@@ -5631,3 +5631,26 @@ First of four PRs that move the martech work from `aem-coder-branch` onto develo
   false / true / true+accept / true+decline / missing / ` TRUE `; missing or non-https `script.launch`, lazy tab
   404, delayed tab 404, no config at all, unknown module, `onetrust.*` rows, key-less rows, an extra `script.*` row —
   expected loads, one warning per problem, no page errors.
+
+### 2026-10-14 — Martech restructure 2/4: Hotjar as one `script.hotjar` row
+Second of the four martech PRs (branch `feature/hotjar`).
+- **Config:** Hotjar is one delayed-tab row, `script.hotjar = https://static.hotjar.com/c/hotjar-6402139.js?sv=6`,
+  replacing `hotjarId` / `hotjarHostUrl` / `hotjarVersion`.
+- **Script rows with a module:** loaded as a plain script, `hotjar-<id>.js` throws `_hjSettings is not defined` (in
+  `hjBootstrap`) and never starts — it needs the snippet's globals. The loader now hands a `script.<name>` row to the
+  module `scripts/martech/<name>.js` when one exists, otherwise injects a plain script tag (Launch). Modules are listed
+  in `MODULES` in `loader.js` (now `['hotjar']`), so no lookup request is ever made for a script without a module, and
+  an unknown `<name>.enabled` row only warns. `scripts/martech/hotjar.js` sets `window._hjSettings` and the `hj()`
+  queue from the URL, then injects it; a URL in another form is rejected; skipped when Hotjar is already on the page.
+- **Removed:** `scripts/hotjar-router.js`, its import in `consented.js` (back to the Adobe stub) and the transitional
+  `getConfig()` / `whenSiteConfigReady()` in `site-config.js`.
+- **Config change at merge:** add `script.hotjar` and delete the three `hotjar*` rows right after this PR merges — the
+  sheet is shared, and before the merge develop's code would load the new row as a plain script (the crash above).
+- **Gotchas:** Hotjar only starts over HTTPS (`http://localhost` stops after its first script: "Hotjar only works over
+  HTTPS") and refuses headless browsers ("suspicious userAgent"). Tested on the develop preview over HTTPS with this
+  branch's files served by Playwright and a normal Chrome user agent; Hotjar's data endpoints were blocked.
+- **Verified:** `script.hotjar` → Hotjar script + modules load, `_hjSettings {hjid: 6402139, hjsv: 6}`, no errors; legacy
+  rows only → no Hotjar; consent required → none / with `?consent=accept` → loads; URL without `?sv=` or over http →
+  one warning, not loaded; Hotjar already on the page → not injected again; Launch and other plain `script.*` rows
+  injected directly; only `loader.js` / `hotjar.js` requested from `scripts/martech/`; unlisted module → one warning.
+

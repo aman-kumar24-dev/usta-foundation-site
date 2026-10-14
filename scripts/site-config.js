@@ -86,28 +86,5 @@ export function isConsentRequired() {
   return consentRequired;
 }
 
-/*
- * Transitional, removed by Martech 2/4: develop's hotjar-router.js reads its
- * settings (hotjarId, hotjarHostUrl, hotjarVersion — delayed tab) with
- * getConfig() after whenSiteConfigReady().
- */
-let legacySettings = Object.create(null);
-
-/** @returns {Promise<void>} rejects when the delayed tab is unavailable */
-export function whenSiteConfigReady() {
-  return getSheet('delayed').then((settings) => {
-    if (!Object.keys(settings).length) throw new Error('delayed tab unavailable');
-    legacySettings = settings;
-  });
-}
-
-/**
- * @param {string} key delayed-tab key
- * @returns {string} '' when not set
- */
-export function getConfig(key) {
-  return legacySettings[key] || '';
-}
-
 window.hlx ??= {};
 window.hlx.siteConfig = Object.freeze({ getSheet, isConsentRequired });

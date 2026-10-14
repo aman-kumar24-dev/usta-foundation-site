@@ -31,7 +31,7 @@ One DA sheet, **one tab per page-load phase**, each with `key | value` columns:
 | Key | Value | Effect |
 |---|---|---|
 | `consentRequired` (eager tab) | `true` / `false` | the one consent setting for every vendor — in the eager tab because it decides whether Target may load before the first section; anything else, or no row → warning, consent treated as required |
-| `script.<name>` | https URL | the script is injected once, async, in that tab's phase — after consent when required |
+| `script.<name>` | https URL | loaded once in that tab's phase, after consent when required: by the module `scripts/martech/<name>.js` if there is one (scripts that need page setup first, e.g. Hotjar §4), otherwise as a plain async script tag |
 | `<module>.enabled` | `true` / `false` | runs `scripts/martech/<module>.js` in that tab's phase (vendors that need code) |
 | `<module>.<setting>` | | that module's settings |
 
@@ -53,14 +53,20 @@ uses, add the permission rows, Preview and Publish. No code change.
 1. reads `consentRequired` (`isConsentRequired()`) if the tab lists anything;
 2. injects every `script.<name>` URL (https only; skipped if the page already has that script),
    waiting for consent when it is required — without holding the phase;
-3. runs every module with `<module>.enabled=true`: imports `scripts/martech/<module>.js` (names
-   `/^[a-z][a-z0-9]*$/`, folder fixed in code) and calls its default export with its settings and
-   `ctx`.
+3. runs every module with `<module>.enabled=true`: imports `scripts/martech/<module>.js` and calls
+   its default export with its settings and `ctx`.
+
+Only modules listed in `MODULES` in `scripts/martech/loader.js` are ever imported — add the name
+there when adding a module. So `script.launch` (no module) is injected directly without a lookup
+request, and an unknown `<name>.enabled` row only gives an `unknown module` warning.
+A module for a `script.<name>` row gets `{ url }` (plus any `<name>.*` rows) and loads the
+script itself with `ctx.injectScript(url)`.
 
 | `ctx` field | Meaning |
 |---|---|
 | `consentRequired` | the resolved `consentRequired` value |
 | `whenConsented()` | resolves once the visitor has consented; never resolves otherwise |
+| `injectScript(url)` | injects a script once (skipped if the page already has it) |
 | `warn(message)` | `console.warn('[martech] <module>: …')` |
 
 Modules run in parallel, once per page; a failing module never blocks another. Modules never
@@ -89,6 +95,7 @@ Every martech line in `scripts.js` carries a `martech:` comment.
 |---|---|---|
 | `consent.update` event, `window.hlx.consent` | consent-check.js (later OneTrust) | loader, modules |
 | `window.hlx.siteConfig` (`getSheet`, `isConsentRequired`) | site-config.js | debugging, tests |
+| `window._hjSettings`, `window.hj` | `scripts/martech/hotjar.js`, from the `script.hotjar` URL | Hotjar's script |
 
 ### After an Adobe code drop
 
@@ -122,9 +129,25 @@ view and runs its own rules.
 
 ## 4. Hotjar
 
-_Added by Martech 2/4. Until then develop's `hotjar-router.js` loads Hotjar through
-`consent-check.js` → `consented.js`, from the delayed-tab rows `hotjarId`, `hotjarHostUrl`,
-`hotjarVersion`._
+One row, the Hotjar script URL with the site ID and snippet version in it:
+
+| Tab | Key | Value |
+|---|---|---|
+| delayed | `script.hotjar` | `https://static.hotjar.com/c/hotjar-<site id>.js?sv=<version>` (ustafoundation: `https://static.hotjar.com/c/hotjar-6402139.js?sv=6`) |
+
+- Hotjar's script needs the snippet's page globals before it runs — without them it stops with
+  `_hjSettings is not defined`. So `script.hotjar` is handled by the module
+  `scripts/martech/hotjar.js`: it reads the site ID and version from the URL, sets
+  `window._hjSettings = { hjid, hjsv }` and the `hj()` queue, then injects the script. A URL in any
+  other form is rejected with a warning.
+- **When:** the delayed phase; after consent when `consentRequired` is `true`.
+- **Once:** skipped when Hotjar is already on the page (`window.hj` and `window._hjSettings` set,
+  e.g. by a Tags rule), or the same script is already there. USTA's interim production Tags library
+  still has a Hotjar rule — remove it (or leave `script.hotjar` out of the production config) so
+  Hotjar is not loaded twice.
+- **Kill switch:** remove or blank `script.hotjar`.
+- **Testing:** Hotjar starts only over HTTPS and ignores headless browsers ("suspicious
+  userAgent") — test on a branch preview with a normal browser user agent.
 
 ## 5. Adobe Target
 
