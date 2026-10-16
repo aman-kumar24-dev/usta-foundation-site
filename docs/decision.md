@@ -106,6 +106,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-076 | 2026-10-16 | Codebase switch panel: pick main / uat / develop, Go reloads the canvas with `?ref=<branch>` through the DA SDK | Superseded by D-077 |
 | D-077 | 2026-10-16 | Env selector: Go keeps the open page and only sets `?ref=<branch>`; plugin renamed `env-selector` | Active (in PR to `develop`) |
 | D-078 | 2026-10-16 | Env selector branches come from the DA sheet `/.da/environments/config` (tab `code`); the HTML list is the fallback | Active (in PR to `develop`) |
+| D-079 | 2026-10-16 | Env selector content picker: the hash's site segment is replaced; Go needs both picks and one change | Active (in PR to `develop`) |
 
 ---
 
@@ -422,6 +423,17 @@ ignored. Column names are matched case-insensitively and trimmed; a row whose va
 or has no valid row, the built-in `main`, `uat`, `develop` options in `env-selector.html` are used. *Why:* authors and
 leads can add or rename environments without a code change. *Decided by:* user (sheet, tab, columns); Claude (fallback,
 validation). *Source:* MIGRATION.md 2026-10-16 (Env selector branches from a sheet); PRD R-A7.
+
+**D-079 — Env selector content picker (2026-10-16).** A **Content** list sits before **Branch**, from the sheet's
+`content` tab (`title` = text, `value` = a DA site name). Go splits the open page's hash `#/<org>/<site>/<path>` on `/`,
+replaces the second segment (the site) with the content and sets `?ref=` to the branch; the org and page path are kept
+(`…?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home` → `…?ref=develop#/aman-kumar24-dev/<content>/en/home`).
+Both lists preselect what is open; Go is enabled only when both have a pick and at least one differs (extends D-077's
+"only a different branch"). Without a `content` tab the list holds just the open site; an open site that is not listed
+leaves "Select content". The two pickers share one grid column, so they always have the same width (240 px, shrinking
+together), with Go beside the branch picker. *Why:* switch between content sites and code branches from one panel.
+*Decided by:* user (content list, position, width, the site-segment rule, both picks on Go); Claude (enable rule,
+fallbacks). *Source:* MIGRATION.md 2026-10-16 (Env selector content picker); PRD R-A7.
 
 #### Buttons and links
 

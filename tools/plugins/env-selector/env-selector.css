@@ -56,18 +56,26 @@
   color: var(--es-gray-700);
 }
 
-/* label on top, then one row of controls, then the hint */
+/* the content and branch pickers share one column, so they always have the
+   same width: --es-picker-width, shrinking only when the panel is narrower;
+   the buttons sit in the next column, beside the branch picker. Labels and
+   the hint span both columns. */
 .env-selector .env-selector-form {
   display: grid;
-  gap: 6px;
+  grid-template-columns: minmax(0, var(--es-picker-width)) auto;
+  justify-content: start;
+  align-items: center;
+  gap: 6px 8px;
   margin-top: 20px;
 }
 
-/* a fixed-width picker, then its buttons on the same row; it shrinks only
-   when the panel is narrower than the row */
-.env-selector .env-selector-controls {
+.env-selector .env-selector-label,
+.env-selector .env-selector-hint {
+  grid-column: 1 / -1;
+}
+
+.env-selector .env-selector-actions {
   display: flex;
-  align-items: center;
   gap: 8px;
 }
 
@@ -75,6 +83,11 @@
   color: var(--es-gray-800);
   font-weight: 500;
   line-height: 20px;
+}
+
+/* a gap between the content field and the branch field */
+.env-selector .env-selector-select + .env-selector-label {
+  margin-top: 10px;
 }
 
 .env-selector .env-selector-hint {
@@ -86,7 +99,7 @@
 /* Spectrum picker: a native select with a drawn chevron */
 .env-selector .env-selector-select {
   position: relative;
-  flex: 0 1 var(--es-picker-width);
+  grid-column: 1;
   min-width: 0;
 }
 

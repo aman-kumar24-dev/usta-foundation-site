@@ -1,47 +1,61 @@
 /*
  * Env selector — an Experience Workspace (DA) library plugin. The author picks
- * a code branch and Go reloads the page open in the editor with it: the page's
- * URL gets `?ref=<branch>`, replacing the current ref, or adding it when there
- * is none (no ref means main). In the canvas, `?ref=` sets the code branch for
- * both the page preview and the plugins.
+ * the content (a DA site) and the code branch, and Go opens the page open in
+ * the editor with them. In its canvas URL the site is the second segment of
+ * the hash (#/org/site/path) and the branch is `?ref=`, replaced, or added
+ * when there is none (no ref means main). In the canvas, `?ref=` sets the
+ * code branch for both the page preview and the plugins.
  *
  * The panel is a cross-origin iframe and cannot read the editor's URL, so the
- * URL is rebuilt from what DA sends the panel: the canvas hash
- * (#/org/site/path) and its ref.
+ * URL is rebuilt from what DA sends the panel: the canvas hash and its ref.
  *
- * The branches come from the DA sheet /.da/environments/config (tab `code`:
- * `title` is the option text, `value` the branch); the options in the HTML
- * are the fallback when the sheet cannot be read. The editor path and every
- * message live in the HTML.
+ * Both lists come from the DA sheet /.da/environments/config: tab `content`
+ * for the content, tab `code` for the branches (`title` is the option text,
+ * `value` the site or branch). Without the sheet, the branches fall back to
+ * the options in the HTML and the content to the open site. The editor path
+ * and every message live in the HTML.
  */
 
 const SHEET_PATH = '/.da/environments/config.json';
-const SHEET_TAB = 'code';
 
-// a branch as it appears in an aem.page host: {branch}--{site}--{org}
-const BRANCH = /^[a-z0-9-]+$/;
+// a branch or a site as it appears in an aem.page host: {branch}--{site}--{org}
+const NAME = /^[a-z0-9-]+$/;
 // the editor hash: #/org/site/path
 const HASH = /^#\/[^\s#]+$/;
 
 const $ = (selector) => document.querySelector(selector);
 const form = $('.env-selector-form');
-const select = form.elements.branch;
+const contentSelect = form.elements.content;
+const branchSelect = form.elements.branch;
 const go = $('.env-selector-go');
 const status = $('.env-selector-status');
 
-const state = { actions: null, context: {}, current: null };
+const state = {
+  actions: null,
+  context: {},
+  hash: null,
+  current: { content: null, branch: null },
+};
 
-function say(key, branch = '') {
-  status.textContent = (status.dataset[key] || '').replace('{branch}', branch);
+/** Shows a message from the status element's data-*, filling {content} and {branch} */
+function say(key, names = {}) {
+  status.textContent = (status.dataset[key] || '')
+    .replace(/\{(content|branch)\}/g, (_, name) => names[name] || '');
 }
 
-const listed = (value) => [...select.options].find((option) => option.value === value);
+const listed = (select, value) => [...select.options].find((option) => option.value === value);
 
-/** A branch's name for messages: its title in the list, else the branch itself */
-const labelOf = (value) => {
-  const option = value && listed(value);
+/** A value's name for messages: its title in the list, else the value itself */
+const labelOf = (select, value) => {
+  const option = value && listed(select, value);
   return option ? option.dataset.title || option.textContent : value;
 };
+
+/** The picked value, only when it is one of the listed options */
+function chosen(select) {
+  const { value } = select;
+  return listed(select, value) && NAME.test(value) ? value : null;
+}
 
 /* ---- sheet ------------------------------------------------------------ */
 
@@ -49,38 +63,49 @@ const normalizeRow = (row) => Object.fromEntries(Object.entries(row)
   .map(([k, v]) => [k.trim().toLowerCase(), String(v ?? '').trim()]));
 
 /**
- * The branches in the sheet's `code` tab, in sheet order. Rows whose value
- * is not a branch name are skipped, and so are repeated values.
- * @returns {Promise<{title: string, value: string}[]|null>} null when none
+ * A sheet tab's rows as options, in sheet order. Rows whose value is not a
+ * site or branch name are skipped, and so are repeated values.
+ * @returns {{title: string, value: string}[]|null} null when none
  */
-async function loadBranches({ org, repo } = {}, actions = {}) {
-  if (!org || !repo || !actions.daFetch) return null;
+function tabOptions(json, tab) {
+  const rows = json?.[tab]?.data;
+  if (!Array.isArray(rows)) return null;
+  const options = new Map();
+  rows.map(normalizeRow).forEach(({ title, value }) => {
+    if (NAME.test(value || '') && !options.has(value)) options.set(value, title || value);
+  });
+  return options.size ? [...options].map(([value, title]) => ({ title, value })) : null;
+}
+
+/** The sheet's content and branch options; an empty object when it cannot be read */
+async function loadSheet({ org, repo } = {}, actions = {}) {
+  if (!org || !repo || !actions.daFetch) return {};
   try {
     const resp = await actions.daFetch(`https://admin.da.live/source/${org}/${repo}${SHEET_PATH}`);
-    if (!resp.ok) return null;
-    const rows = (await resp.json())?.[SHEET_TAB]?.data;
-    if (!Array.isArray(rows)) return null;
-    const branches = new Map();
-    rows.map(normalizeRow).forEach(({ title, value }) => {
-      if (BRANCH.test(value || '') && !branches.has(value)) branches.set(value, title || value);
-    });
-    return branches.size ? [...branches].map(([value, title]) => ({ title, value })) : null;
+    if (!resp.ok) return {};
+    const json = await resp.json();
+    return { content: tabOptions(json, 'content'), branch: tabOptions(json, 'code') };
   } catch {
-    return null;
+    return {};
   }
 }
 
-/** Replaces the built-in options, after the "Select a branch" prompt, with the sheet's */
-function renderBranches(branches) {
+/** Replaces a list's options, after its prompt, with the given ones */
+function renderOptions(select, options) {
   const [prompt] = select.options;
-  select.replaceChildren(prompt, ...branches.map(({ title, value }) => new Option(title, value)));
+  select.replaceChildren(prompt, ...options.map(({ title, value }) => new Option(title, value)));
 }
 
-/** The chosen branch, only when it is one of the listed options */
-function chosenBranch() {
-  const { value } = select;
-  return listed(value) && BRANCH.test(value) ? value : null;
+/** Preselects the open content or branch and labels it "(current)"; unlisted, the prompt stays */
+function markCurrent(select, value) {
+  const option = value && listed(select, value);
+  if (!option) return;
+  option.dataset.title = option.textContent;
+  option.textContent = select.dataset.current.replace('{title}', option.dataset.title);
+  select.value = value;
 }
+
+/* ---- editor URL ------------------------------------------------------- */
 
 /**
  * The hash of the page open in the editor. The canvas sends it as `hash`;
@@ -93,42 +118,52 @@ function editorHash({
   return [hash, built].find((h) => typeof h === 'string' && HASH.test(h)) || null;
 }
 
+/** The open page's hash split into org, site, path… */
+const hashParts = () => (state.hash ? state.hash.slice(2).split('/') : []);
+
 /**
- * The editor URL of the open page with `?ref=` set to the branch. Relative,
- * so DA resolves it against its own origin.
+ * The editor URL of the open page with the content as the hash's site and
+ * the branch as `?ref=`. Relative, so DA resolves it against its own origin.
  */
-function switchHref(branch) {
-  const hash = editorHash(state.context);
-  if (!hash) return null;
-  const url = new URL(`${form.dataset.editor}${hash}`, window.location.origin);
+function switchHref(content, branch) {
+  const parts = hashParts();
+  if (parts.length < 2) return null;
+  parts[1] = content;
+  const url = new URL(`${form.dataset.editor}#/${parts.join('/')}`, window.location.origin);
   url.searchParams.set('ref', branch);
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
+/* ---- Go ----------------------------------------------------------------- */
+
 /**
- * Go works only inside DA, for a picked branch (not the "Select a branch"
- * prompt) that differs from the editor's current one
+ * Go works only inside DA, once both lists have a pick (not their prompts),
+ * and only when the picks differ from what the editor has open
  */
 function updateGo() {
-  go.disabled = !state.actions?.setHref || !select.value || select.value === state.current;
+  const unchanged = contentSelect.value === state.current.content
+    && branchSelect.value === state.current.branch;
+  go.disabled = !state.actions?.setHref || !contentSelect.value || !branchSelect.value || unchanged;
 }
 
-select.addEventListener('change', updateGo);
+contentSelect.addEventListener('change', updateGo);
+branchSelect.addEventListener('change', updateGo);
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   if (go.disabled) return;
-  const branch = chosenBranch();
-  if (!branch) {
+  const content = chosen(contentSelect);
+  const branch = chosen(branchSelect);
+  if (!content || !branch) {
     say('invalid');
     return;
   }
-  const href = switchHref(branch);
+  const href = switchHref(content, branch);
   if (!href) {
     say('noPage');
     return;
   }
-  say('switching', labelOf(branch));
+  say('switching', { content: labelOf(contentSelect, content), branch: labelOf(branchSelect, branch) });
   // the panel is a cross-origin iframe: DA's page navigates itself
   state.actions.setHref(href);
 });
@@ -148,21 +183,28 @@ async function init() {
   if (!sdk?.actions) return;
   state.actions = sdk.actions;
   state.context = sdk.context || {};
-  const branches = await loadBranches(state.context, state.actions);
-  if (branches) renderBranches(branches);
+  state.hash = editorHash(state.context);
 
-  // the canvas sends its ?ref= as context.ref, and main when the URL has none
-  // (canvas#/…), so main is preselected then too; an unlisted branch keeps the prompt
-  const current = state.context.ref;
-  if (typeof current === 'string' && BRANCH.test(current)) {
-    state.current = current;
-    const option = listed(current);
-    if (option) {
-      option.dataset.title = option.textContent;
-      option.textContent = select.dataset.current.replace('{branch}', option.dataset.title);
-      select.value = current;
-    }
-    say('current', labelOf(current));
+  // the open site is the hash's second segment; the canvas sends its ?ref= as
+  // context.ref, and main when the URL has none (canvas#/…)
+  const [, site] = hashParts();
+  const { ref } = state.context;
+  if (NAME.test(site || '')) state.current.content = site;
+  if (typeof ref === 'string' && NAME.test(ref)) state.current.branch = ref;
+
+  const sheet = await loadSheet(state.context, state.actions);
+  const openSite = state.current.content;
+  const openSiteOnly = openSite ? [{ title: openSite, value: openSite }] : [];
+  renderOptions(contentSelect, sheet.content || openSiteOnly);
+  if (sheet.branch) renderOptions(branchSelect, sheet.branch);
+  markCurrent(contentSelect, state.current.content);
+  markCurrent(branchSelect, state.current.branch);
+
+  if (state.current.content && state.current.branch) {
+    say('current', {
+      content: labelOf(contentSelect, state.current.content),
+      branch: labelOf(branchSelect, state.current.branch),
+    });
   }
   updateGo();
 }

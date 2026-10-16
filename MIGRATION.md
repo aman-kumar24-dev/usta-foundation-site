@@ -5816,3 +5816,27 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   title for `hotfix-1` give `Production | UAT | QE (current) | Stage | hotfix-1`; status "The editor is using QE."; Go →
   `/canvas?ref=stage#…`, "Reloading the editor with Stage…". No `code` tab, no valid row, and 404 → built-in options. The
   earlier checks still pass.
+
+### 2026-10-16 — Env selector: content picker (site) before the branch picker
+- **Request:** a Content dropdown before Branch, the same width and responsive, with options from the sheet's
+  `content` tab (title/value). Go takes both picks: the content value replaces the site segment of the hash (split on
+  `/`), the branch sets `?ref=`. Example: `https://da.live/canvas?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home`.
+- **Markup:** `#env-selector-content` (prompt "Select content", `data-current="{title} (current)"`) above
+  `#env-selector-branch`; Go moved into `.env-selector-actions` (room for the later button). Messages name both:
+  "The editor is using {content} with {branch} code.", "Opening {content} with {branch} code…".
+- **CSS:** the form is a grid, `minmax(0, var(--es-picker-width)) auto`. Both pickers sit in column 1, so they always have
+  the same width (240 / 240 at 1900 px, 195 / 195 at 320, 155 / 155 at 280, no overflow); Go is in column 2 beside Branch;
+  labels and the hint span both columns. The old `.env-selector-controls` flex row is gone.
+- **JS:** `loadSheet()` returns both tabs (`tabOptions(json, 'content' | 'code')`, the same validation for both: a site or
+  branch name is `^[a-z0-9-]+$`). The open site is the hash's second segment. No `content` tab → the list is just the
+  open site. `switchHref()` replaces `parts[1]` of the hash and sets `ref`. Go is enabled when both lists have a pick and
+  at least one differs from what is open. A hash without a site segment → "could not be found", no navigation.
+- **Gotcha:** a content switch keeps the org and the page path; the panel and its sheet then come from the new site,
+  which needs the plugin registered and its own `/.da/environments/config` (else the defaults).
+- **Verified (Playwright, 56 checks, real sheet JSON):** the user's example → `Select content | Dev Content (current)`,
+  `Select a branch | Main | UAT | Develop` (feature ref unlisted), status "…Dev Content with feature-envselector code.",
+  Go disabled until a branch → `/canvas?ref=develop#/aman-kumar24-dev/usta-foundation-site/en/home`. With a second content
+  row (Foundation Dev): content only → `…?ref=develop#/aman-kumar24-dev/foundation-dev/en/home/get-involved`, content +
+  branch, branch only; re-picking the open values disables Go. No-ref main, an open site not in the tab (prompt, Go waits
+  for it), no sheet / no content tab (open site), classic context, no site segment, tampered value, keyboard (content →
+  branch → Go, type-ahead), markup ref. `test:a11y` passes.

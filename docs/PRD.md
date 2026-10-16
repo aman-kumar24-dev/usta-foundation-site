@@ -187,7 +187,7 @@ the code arrived with PR #9 (§8.6).
 |---|---|
 | Foundation buttons: 5 styles (`styles/foundation-buttons.css`), a separate `a.cta-button` layer on top of the boilerplate buttons (D-071), authored `[style=…, color=…, text-color=…, new-tab=…]` options, link-target rules (internal same tab; external/files new tab; `#_blank` forces new tab, D-016) | **Done**: on `develop` and `main` since PR #9 (`e910fb9`, 2026-10-13, Adobe code drop) |
 | Buttons panel for DA / Experience Workspace (`tools/plugins/buttons`) | **Done**: same PR #9 |
-| Env selector panel for DA / Experience Workspace (`tools/plugins/env-selector`): pick `main` / `uat` / `develop`, **Go** reloads the page open in the canvas with `?ref=<branch>` (R-A7, D-077) | **In progress**: in the `feature/envselector` PR to `develop` (2026-10-16). The first version (codebase switch, D-076) is on `develop` since PR #15 (`2860acd`); not yet registered in the DA config |
+| Env selector panel for DA / Experience Workspace (`tools/plugins/env-selector`): pick the content (site) and the branch, **Go** reopens the page open in the canvas with them (R-A7, D-077 – D-079) | **In progress**: in the `feature/envselector` PR to `develop` (2026-10-16). The first version (codebase switch, D-076) is on `develop` since PR #15 (`2860acd`); not yet registered in the DA config |
 | USTA button system: 28 styles / 68 designs / 85 icons (`styles/usta-buttons.css`, `icons/usta-buttons-icons/`), loaded only on pages with a `cta-usta*` link (`loadUstaButtonsCss()`); scope and naming per D-062, icon list in the DA sheet (D-063) | **Done (code):** on `develop` and `main` since PR #9. Validated 2026-10-11: all 68 designs vs usta.com; 86-page Foundation link regression with 0 differences; Foundation pages load only `foundation-buttons.css`. MIGRATION.md §3 "branch `usta-buttons`, not yet merged" is stale |
 | USTA buttons in DA Layout view, `/.da/library/buttons` USTA rows, publishing sample pages | **Planned** (user-owned, outward-facing steps; the panel Insert/Update and USTA Layout preview are untested because they need a signed-in DA session) |
 | DA block-library integration: (1) `tools/da-library-preview/` runs only on `/.da/library/*` pages; it removes `library-metadata` and start/end marker tables and frames each variant with its name (port of `aemdemos/patients-stryker#312`); (2) `applySectionBackgrounds()` reads `/.da/library/blocks.json` (options tab, key `background`, `name=#hex`) and adds the option name as a section class — a new option needs a `main .section.<name>` rule, and a rename needs code and DA sheet changed together; (3) `/.da/library/buttons` feeds the Buttons panel; (4) `?quick-edit` (Layout view) shows edited CTAs as styled buttons; `?dapreview` loads da.live's preview script | **Done** (code on `develop`/`main`: PR #4 and PR #9). **TBD:** confirm the 2026-09-29 rename to `section-blue-bg` / `section-yellow-bg` was made in the DA sheet |
@@ -227,21 +227,27 @@ the code arrived with PR #9 (§8.6).
   `a.title = a.title || a.textContent` was removed from `decorateButtons()`). Images show their alt as a native hover
   tooltip site-wide (`decorateImageTooltips()`, D-064). **Done:** the tooltip code is
   on `develop` since PR #15 (`2860acd`), 2026-10-16. [MIGRATION.md 2026-10-01, 2026-10-13]
-- **R-A7. Env selector panel (In progress).** An author reloads the page open in Experience Workspace on another code
-  branch: pick a branch, select **Go**. The branches are the `code` tab of the DA sheet `/.da/environments/config`
-  (saved, not published; read through `admin.da.live`): `title` is the option text, `value` the branch (rows whose
-  value is not a branch name, and repeated values, are skipped). Without the sheet or a valid row the panel lists its
-  built-in `main`, `uat`, `develop` (D-078). The panel sets `ref` in the page's canvas URL to the branch,
-  replacing the current one or adding `?ref=<branch>` when the URL has none (no ref means `main`):
-  `da.live/canvas#/usta-digital/foundation-dev/index` → `da.live/canvas?ref=develop#/usta-digital/foundation-dev/index`.
+- **R-A7. Env selector panel (In progress).** An author reopens the page open in Experience Workspace with other content
+  (a DA site) and/or another code branch: pick **Content** and **Branch**, select **Go**. Both lists come from the DA
+  sheet `/.da/environments/config` of the open site (saved, not published; read through `admin.da.live`): tab `content`
+  for the content, tab `code` for the branches; `title` is the option text, `value` the site or branch (values that are
+  not a site/branch name, and repeated values, are skipped). Without the sheet, the branches fall back to the built-in
+  `main`, `uat`, `develop` and the content to the open site (D-078, D-079). Go puts the content into the hash's site
+  segment (`#/<org>/<site>/<path>`, split on `/`, second segment replaced) and the branch into `?ref=` (replaced, or added
+  when the URL has none, which means `main`):
+  `da.live/canvas?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home` with Foundation Dev + Develop →
+  `da.live/canvas?ref=develop#/aman-kumar24-dev/foundation-dev/en/home`. The org and the page path are kept.
   The panel cannot read DA's URL (cross-origin iframe), so it rebuilds it from what DA sends (`hash`, else `org` / `repo`
-  / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). It preselects and marks the
-  current branch (`main` when the URL has no `ref`), otherwise shows "Select a branch" with Go disabled until one is
-  picked. Go is enabled only for a branch other than the current one (re-picking the current branch disables it
-  again); it accepts only a listed branch and stays disabled outside DA. The picker has a fixed 240 px width. The fallback list, editor path and messages live in `env-selector.html`. Registered by hand per DA site
-  (outward-facing): DA config → `library` → `Environment` = `/tools/plugins/env-selector/env-selector.html`. A relative
-  path loads the panel from the `?ref=` branch, so it appears only on branches that have it (flow.md §5 Gotchas).
-  Verified with a simulated DA host, not in a signed-in DA session. [MIGRATION.md 2026-10-16; D-077]
+  / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). Each list preselects and
+  marks the open value ("(current)"); an open value that is not listed leaves the prompt ("Select content" / "Select a
+  branch"). Go is enabled only when both lists have a pick and at least one differs from what is open; it accepts only
+  listed values and stays disabled outside DA. Both pickers share one column: a fixed 240 px, shrinking together in a
+  narrow panel, with Go beside the branch picker. The fallback branches, editor path and messages live in
+  `env-selector.html`. Registered by hand per DA site (outward-facing): DA config → `library` → `Environment` =
+  `/tools/plugins/env-selector/env-selector.html`; after a content switch the panel and its sheet come from the new
+  site, so each listed site needs both. A relative path loads the panel from the `?ref=` branch, so it appears only on
+  branches that have it (flow.md §5 Gotchas). Verified with a simulated DA host, not in a signed-in DA session.
+  [MIGRATION.md 2026-10-16; D-077, D-078, D-079]
 
 ### 4.4 Content import and migration
 

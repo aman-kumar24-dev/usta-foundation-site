@@ -11,34 +11,43 @@
   <main>
     <header class="env-selector-intro">
       <h1 id="env-selector-title">Environment</h1>
-      <p>Pick a code branch, then select Go to reload this page in the editor with it.</p>
+      <p>Pick the content and the code branch, then select Go to open this page with them.</p>
     </header>
 
-    <!-- data-editor: the editor's path; Go keeps the open page and sets ?ref= to the chosen option's value -->
+    <!-- data-editor: the editor's path; Go keeps the open page, puts the content into the hash
+         (#/org/content/path) and the branch into ?ref= -->
     <form class="env-selector-form" aria-labelledby="env-selector-title" data-editor="/canvas">
+      <label class="env-selector-label" for="env-selector-content">Content</label>
+      <div class="env-selector-select">
+        <select id="env-selector-content" name="content" data-current="{title} (current)">
+          <option value="" disabled selected>Select content</option>
+          <!-- filled from the DA sheet /.da/environments/config (tab content); without it, the open site -->
+        </select>
+      </div>
+
       <label class="env-selector-label" for="env-selector-branch">Branch</label>
-      <!-- one row of controls: the branch picker, then its buttons -->
-      <div class="env-selector-controls">
-        <div class="env-selector-select">
-          <select id="env-selector-branch" name="branch" aria-describedby="env-selector-hint"
-            data-current="{branch} (current)">
-            <option value="" disabled selected>Select a branch</option>
-            <!-- built-in branches: replaced by the DA sheet /.da/environments/config (tab code) when it can be read -->
-            <option value="main">main</option>
-            <option value="uat">uat</option>
-            <option value="develop">develop</option>
-          </select>
-        </div>
+      <div class="env-selector-select">
+        <select id="env-selector-branch" name="branch" aria-describedby="env-selector-hint"
+          data-current="{title} (current)">
+          <option value="" disabled selected>Select a branch</option>
+          <!-- built-in branches: replaced by the DA sheet /.da/environments/config (tab code) when it can be read -->
+          <option value="main">main</option>
+          <option value="uat">uat</option>
+          <option value="develop">develop</option>
+        </select>
+      </div>
+      <!-- the buttons that act on both picks -->
+      <div class="env-selector-actions">
         <button type="submit" class="env-selector-go" disabled>Go</button>
       </div>
       <p class="env-selector-hint" id="env-selector-hint">main is production, uat is UAT, develop is QE.</p>
     </form>
 
     <p class="env-selector-status" role="status"
-      data-current="The editor is using {branch}."
+      data-current="The editor is using {content} with {branch} code."
       data-no-page="The page open in the editor could not be found. Reload the editor and try again."
-      data-switching="Reloading the editor with {branch}…"
-      data-invalid="Pick a branch from the list.">Checking the current branch…</p>
+      data-switching="Opening {content} with {branch} code…"
+      data-invalid="Pick the content and a branch from the lists.">Checking the current branch…</p>
   </main>
 </body>
 </html>
