@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codebase</title>
+  <link rel="stylesheet" href="/tools/plugins/codebase-switch/codebase-switch.css">
+  <script type="module" src="/tools/plugins/codebase-switch/codebase-switch.js"></script>
+</head>
+<body class="codebase-switch">
+  <main>
+    <header class="codebase-switch-intro">
+      <h1 id="codebase-switch-title">Codebase</h1>
+      <p>Pick a code branch, then select Go to reload the editor with it.</p>
+    </header>
+
+    <!-- {branch} is replaced with the chosen option's value -->
+    <form class="codebase-switch-form" aria-labelledby="codebase-switch-title"
+      data-url="https://da.live/canvas?ref={branch}#/usta-digital/foundation-dev/index">
+      <label class="codebase-switch-label" for="codebase-switch-branch">Branch</label>
+      <div class="codebase-switch-select">
+        <select id="codebase-switch-branch" name="branch" aria-describedby="codebase-switch-hint"
+          data-current="{branch} (current)">
+          <option value="main">main</option>
+          <option value="uat">uat</option>
+          <option value="develop">develop</option>
+        </select>
+      </div>
+      <button type="submit" class="codebase-switch-go" disabled>Go</button>
+      <p class="codebase-switch-hint" id="codebase-switch-hint">main is production, uat is UAT, develop is QE.</p>
+    </form>
+
+    <p class="codebase-switch-status" role="status"
+      data-current="The editor is using {branch}."
+      data-standalone="Outside Experience Workspace, Go opens it with the chosen branch."
+      data-switching="Reloading the editor with {branch}…"
+      data-invalid="Pick a branch from the list.">Checking the current branch…</p>
+  </main>
+</body>
+</html>
