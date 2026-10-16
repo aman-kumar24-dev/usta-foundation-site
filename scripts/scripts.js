@@ -899,9 +899,18 @@ let templateName = null;
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   // martech: on pages with `Target` metadata (not off/false/no), run the site config's eager
-  // tab (martech/target.js) and hold the first section for it; other pages fetch nothing here
+  // tab (martech/target.js) before the first section shows; other pages fetch nothing here.
+  // The eager tab starts downloading right away, in parallel with the modules.
   const targetMeta = getMetadataNormalized('target').toLowerCase();
-  const martechEager = targetMeta && !['off', 'false', 'no'].includes(targetMeta)
+  const isTargetPage = targetMeta && !['off', 'false', 'no'].includes(targetMeta);
+  if (isTargetPage) {
+    const link = document.createElement('link');
+    Object.assign(link, {
+      rel: 'preload', as: 'fetch', crossOrigin: 'anonymous', href: '/configs/site-config.json?sheet=eager',
+    });
+    document.head.append(link);
+  }
+  const martechEager = isTargetPage
     ? Promise.all([
       import('./site-config.js').then((m) => m.getSheet('eager', 'high')),
       import('./martech/loader.js'),
@@ -940,8 +949,12 @@ async function loadEager(doc) {
     if (main.querySelector('.section:first-of-type a[class*="cta-usta"]')) await loadUstaButtonsCss();
     applySectionBackgrounds(main); // not awaited: the options fetch must not block LCP
     document.body.classList.add('appear');
-    if (martechEager) await martechEager; // martech: Target offers before the first paint
-    await loadSection(main.querySelector('.section'), waitForFirstImage);
+    const firstSection = main.querySelector('.section');
+    // martech: on Target pages the first section loads (hero image included) while Target runs,
+    // but stays invisible until the offers are in, so its first paint already shows them
+    if (martechEager && firstSection) firstSection.style.visibility = 'hidden';
+    await Promise.all([loadSection(firstSection, waitForFirstImage), martechEager]);
+    if (martechEager && firstSection) firstSection.style.visibility = '';
   }
   templateName = await templateCssPromise;
 
