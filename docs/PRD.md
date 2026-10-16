@@ -240,7 +240,7 @@ the code arrived with PR #9 (§8.6).
   The panel cannot read DA's URL (cross-origin iframe), so it rebuilds it from what DA sends (`hash`, else `org` / `repo`
   / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). Each list preselects the open
   value; one the sheet does not list (e.g. a feature branch) is added at the end of its list. The status line reads
-  "Currently on {content} with {branch}" with a green dot. Go is enabled only when both lists have a pick and at least one
+  "Currently on {content} with {branch}" with a green dot; the two names are bold italic accent blue. Go is enabled only when both lists have a pick and at least one
   differs from what is open; it accepts only listed values and stays disabled outside DA. Layout (D-080, D-081): a
   Content card and a CodeBase card (label inside, above the value) and a round arrow Go button, at most 360 px wide; up
   to 576 px the cards stack, the same width, with Go beside the CodeBase card (DA's tools panel opens 400 px wide, so

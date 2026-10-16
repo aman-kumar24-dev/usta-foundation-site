@@ -238,6 +238,13 @@
   display: none;
 }
 
+/* the content and branch names in a message */
+.env-selector .env-selector-name {
+  color: var(--es-accent);
+  font-style: italic;
+  font-weight: 700;
+}
+
 /* customizable select: the open list as a card, the picked row highlighted
    with a check mark on the right; the prompt is not a choice */
 @supports (appearance: base-select) {

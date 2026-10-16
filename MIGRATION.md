@@ -5885,3 +5885,16 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
 - **Verified (Playwright, 82 checks):** one row at 1900 and 577 px (3:4); stacked at 576, 400, 320 and 280 px (cards 296 /
   296, 216 / 216, 176 / 176; Go beside CodeBase); labels "Content" / "CodeBase", not cut; every earlier behaviour check.
   Screenshots at 400 (stacked) and 700 px (row). `test:a11y` passes with no warnings; lint clean.
+
+### 2026-10-16 — Env selector: names in the status line bold italic blue
+- **Request:** in "Currently on Dev Content with feature-envselector", show "Dev Content" and "feature-envselector"
+  italic, bold and blue.
+- **Change:** `say()` splits the message template on `{content}` / `{branch}` and puts each name in a
+  `span.env-selector-name` (`textContent`, so a sheet title with markup stays text). The whole message sits in one
+  wrapper span, because the status line is a flex row (dot + text) and separate items would add gaps around the
+  names. CSS: `.env-selector-name` = accent blue `#3b63fb` (4.8:1 on white), italic, 700. It applies to every message
+  with names, so "Opening {content} with {branch}…" matches.
+- **Verified (Playwright, 85 checks):** both names in `.env-selector-name`, computed `italic` / `700` /
+  `rgb(59, 99, 251)`, one wrapper; the switching message highlights "Dev Content" / "Develop"; a content title
+  `<img src=x onerror=…>Dev` renders as text with no element; earlier checks unchanged. `test:a11y` passes with no
+  warnings; lint clean.

@@ -39,13 +39,24 @@ const state = {
 };
 
 /**
- * Shows a message from the status element's data-*, filling {content} and
- * {branch}; data-tone (the message key) colours its dot
+ * Shows a message from the status element's data-*, with {content} and
+ * {branch} filled in as highlighted names; data-tone (the message key)
+ * colours its dot
  */
 function say(key, names = {}) {
   status.dataset.tone = key;
-  status.textContent = (status.dataset[key] || '')
-    .replace(/\{(content|branch)\}/g, (_, name) => names[name] || '');
+  // split() keeps the captured placeholder names at the odd indexes
+  const parts = (status.dataset[key] || '').split(/\{(content|branch)\}/).map((part, i) => {
+    if (i % 2 === 0) return part;
+    const name = document.createElement('span');
+    name.className = 'env-selector-name';
+    name.textContent = names[part] || '';
+    return name;
+  });
+  // one element for the whole message, so it flows as text beside the dot
+  const message = document.createElement('span');
+  message.append(...parts.filter((part) => part !== ''));
+  status.replaceChildren(message);
 }
 
 const listed = (select, value) => [...select.options].find((option) => option.value === value);
