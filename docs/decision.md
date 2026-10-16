@@ -91,7 +91,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-061 | 2026-10-09 | Fundraise Up widget-card reproductions use the widget's font (IBM Plex Sans) | Active |
 | D-062 | 2026-10-11 | USTA buttons cover usta.com's own system only, named by look (`usta-…`), no size option | Active |
 | D-063 | 2026-10-11 | The USTA icon list lives only in the DA buttons sheet | Active |
-| D-064 | 2026-10-13 | Show image alt text as a hover tooltip site-wide | Active (in PR to `develop`) |
+| D-064 | 2026-10-13 | Show image alt text as a hover tooltip site-wide | Active |
 | D-065 | 2026-10-14 | Committed docs name roles, never people's e-mail addresses | Active |
 | D-066 | 2026-10-14 | Analytics, Hotjar and Target run only when OneTrust groups C0002, C0004 and C0005 are all on | Active (branch only) |
 | D-067 | 2026-10-14 | `consentRequired` fails closed: no row, or any value other than `true`/`false`, counts as required | Active |
@@ -99,7 +99,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-069 | 2026-10-14 | Port martech from `aem-coder-branch` to `develop` in four PRs, one vendor each | Active (1/4, 2/4 done) |
 | D-070 | 2026-09-09 | Hero photos stay CSS backgrounds, with a hidden `role=img` label and an LCP preload | Active |
 | D-071 | 2026-09-29 | CTA buttons are a separate `a.cta-button` layer on top of the boilerplate buttons | Active |
-| D-072 | n/d | `compact-headings` section style: a per-section opt-out of the 24 px rhythm | Active (in PR to `develop`) |
+| D-072 | n/d | `compact-headings` section style: a per-section opt-out of the 24 px rhythm | Active |
 | D-073 | 2026-10-16 | Keep the PRD, decision log and flows in `docs/` with the other project docs | Active |
 | D-074 | 2026-10-16 | Diagrams in `docs/assets/`; architecture prose in one `docs/ARCHITECTURE.md` | Active |
 | D-075 | 2026-10-16 | Agents keep the four project docs current in the same PR as each change | Active |
@@ -386,7 +386,7 @@ hover. `decorateImageTooltips()` in `scripts/scripts.js` is one delegated `mouse
 before the first hover. Decorative (`alt=""`) images are skipped and an authored `title` wins. Links, by contrast, carry
 no `title` tooltip, matching the source (EDS-51, 2026-10-01). *Status:* uncommitted in the working tree on 2026-10-15.
 *Decided by:* n/d ("on request"). *Source:* MIGRATION.md 2026-10-01, 2026-10-13.
-*Update (2026-10-16):* committed in the `feature/codesyncandcodebaseswitch` PR to `develop`.
+*Update (2026-10-16):* committed in the `feature/codesyncandcodebaseswitch` PR to `develop`; on `develop` since PR #15 (`2860acd`).
 
 **D-076 — Codebase switch panel reloads the canvas with `?ref=<branch>` (2026-10-16).** A DA library plugin
 (`tools/plugins/codebase-switch/`) lists the three environment branches `main`, `uat` and `develop` (BRANCHING.md). The author
@@ -659,7 +659,7 @@ that ends in bold + underlined text (a "heading line") has no gap below it. It b
 deviation D-059 accepted. D-059 was decided with no opt-in style (`spaced` was removed), so this adds a per-section
 opt-out. *Decided by:* n/d. *Status:* not committed, not in MIGRATION.md, and no importer emits it; pages need the style
 set in DA. *Source:* `styles/styles.css` (working tree); MIGRATION.md 2026-10-07.
-*Update (2026-10-16):* logged in MIGRATION.md 2026-10-16 and committed in the `feature/codesyncandcodebaseswitch` PR to `develop`.
+*Update (2026-10-16):* logged in MIGRATION.md 2026-10-16 and committed in the `feature/codesyncandcodebaseswitch` PR to `develop`; on `develop` since PR #15 (`2860acd`).
 
 #### Accessibility
 

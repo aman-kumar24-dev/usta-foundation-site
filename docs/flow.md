@@ -148,7 +148,7 @@ flowchart TD
 5. **`loadPage()` starts.** `decorateLinkTargets()` applies the link-target rules to every `main a[href]` now and to later
    links through one capture-phase click listener: `#_blank` forces a new tab, external hosts and files open in a new
    tab, and `#`, `javascript:`, `mailto:`, `tel:`, `?form=` and links with a target are skipped (D-016).
-   `decorateImageTooltips()` adds one delegated `mouseover` listener that copies `alt` to `title` (D-064; in the `feature/codesyncandcodebaseswitch` PR).
+   `decorateImageTooltips()` adds one delegated `mouseover` listener that copies `alt` to `title` (D-064).
    — `scripts/scripts.js:997-1065`
 6. **`loadEager()` setup.** Sets `<html lang="en">`; imports `site-config.js` (defines `getSheet` / `isConsentRequired`,
    sets `window.hlx.siteConfig`, fetches nothing yet, D-015); calls `preloadDisplayFont()` (preload + inline
@@ -1055,7 +1055,7 @@ flowchart TD
 7. **CI and previews.** The push runs `main.yaml` (Build: `npm ci`, `npm run lint` → check `build`). The AEM Code Sync app
    builds the branch preview (about a minute; retry the After URL until 200). `a11y.yml` reads the PR body's first
    `- After:` line, checks its branch part against the PR branch (`feature/`, `bugfix/`, `hotfix/` → `<prefix>-`,
-   lowercased — the lowercasing is in the `feature/codesyncandcodebaseswitch` PR) and runs `npm run test:a11y <After URL>` against the deployed preview
+   lowercased) and runs `npm run test:a11y <After URL>` against the deployed preview
    (D-053). The Code Sync app also posts `aem-psi-check` (PageSpeed on the preview URL; target 100). Check with
    `gh pr checks <n>`.
 8. **Merge and QE.** A reviewer checks the code and preview and merges into `develop`; QE tests on
@@ -1083,7 +1083,7 @@ flowchart TD
 - TBD: the official path for Adobe drops and whether `develop` may be rewritten (§12 Q13); breakpoint/overflow/typography/
   svg checks in CI (§12 Q8); `bugfix/` / `hotfix/` prefixes and a hotfix path (§12 Q14).
 - Proposed: add the 63-character preview-host limit to BRANCHING.md and PR_AGENT.md step 1.
-- In the `feature/codesyncandcodebaseswitch` PR to `develop` (2026-10-16): the process docs this flow relies on (BRANCHING.md, PR_AGENT.md, PRD.md, decision.md, ARCHITECTURE.md, this file, the
+- Done, on `develop` since PR #15 (`2860acd`): the process docs this flow relies on (BRANCHING.md, PR_AGENT.md, PRD.md, decision.md, ARCHITECTURE.md, this file, the
   AGENTS.md / README / PR template / `a11y.yml` / `.hlxignore` changes) (PRD §8 status note).
 
 **Gotchas**

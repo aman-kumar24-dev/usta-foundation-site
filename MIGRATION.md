@@ -5759,4 +5759,4 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   context without `hash` → built from org/repo/path; bad hash → refused; tampered option → refused; markup ref not
   shown; keyboard Tab → Enter; standalone Go disabled; no page errors. `test:a11y` passes. **Not verified:** a signed-in
   DA canvas session.
-- **Docs:** D-077 (supersedes D-076); PRD §4.3 row + R-A7, §12 Q31 partly answered; flow.md §5; ARCHITECTURE.md §2.
+- **Docs:** D-077 (supersedes D-076); PRD §4.3 row + R-A7, §12 Q31 partly answered; flow.md §5; ARCHITECTURE.md §2. PR #15 (codebase switch, code sync) was merged to `develop` as `2860acd` before this change, so it ships on `feature/envselector`; the statuses that said "in the PR" now say "on `develop` since PR #15".
