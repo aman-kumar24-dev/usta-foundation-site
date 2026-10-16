@@ -85,7 +85,7 @@ flowchart TD
     E["lang en, site-config.js import,<br/>display font preload, body classes,<br/>start template CSS and buttons CSS"]
     G["Path under /.da/library/:<br/>decorateLibraryPreview()"]
     H["decorateMain(): tracking links, icons,<br/>auto blocks, section metadata,<br/>sections, blocks, buttons"]
-    T["Target pages only: eager tab +<br/>martech/target.js, offers before<br/>the first section (Martech 3/4)"]
+    T["Target pages only: eager tab +<br/>martech/target.js, in parallel; first<br/>section shown after offers (Martech 3/4)"]
     I["body.appear, then<br/>loadSection(first, waitForFirstImage)<br/>LCP"]
     J["Await template CSS<br/>fonts.css if 900 px or wider"]
   end
@@ -115,7 +115,7 @@ flowchart TD
   E -->|"other pages"| H
   H --> I
   H -->|"Target metadata"| T
-  T --> I
+  T -->|"reveal after offers"| I
   I --> J
   J -->|"not awaited"| K
   J -.-> U
@@ -149,7 +149,7 @@ flowchart TD
    links through one capture-phase click listener: `#_blank` forces a new tab, external hosts and files open in a new
    tab, and `#`, `javascript:`, `mailto:`, `tel:`, `?form=` and links with a target are skipped (D-016).
    `decorateImageTooltips()` adds one delegated `mouseover` listener that copies `alt` to `title` (D-064).
-   — `scripts/scripts.js:1008-1076`
+   — `scripts/scripts.js:1017-1089`
 6. **`loadEager()` setup.** Sets `<html lang="en">`; imports `site-config.js` (defines `getSheet` / `isConsentRequired`,
    sets `window.hlx.siteConfig`, fetches nothing yet, D-015); calls `preloadDisplayFont()` (preload + inline
    `@font-face`, `font-display: block`, D-031). — `scripts/scripts.js:52-73, 899-902`
@@ -158,7 +158,7 @@ flowchart TD
    ignored) and `styles/foundation-buttons.css`, neither awaited (D-032, D-033, D-071). — `scripts/scripts.js:854-929`
 8. **Block library pages.** Under `/.da/library/`, awaits `tools/da-library-preview/da-library-preview.js` and runs
    `decorateLibraryPreview(main)` before decoration (removes `library-metadata` and marker tables, frames each variant).
-   — `scripts/scripts.js:932-937`
+   — `scripts/scripts.js:941-946`
 9. **`decorateMain()`**, in this order: `removeTrackingArtifacts()` (imported `about:` / `_hjSafeContext` links) →
    `decorateIcons()` (`span.icon` → `${codeBasePath}/icons/<name>.svg`, D-038) → `buildAutoBlocks()` (pasted EDS media
    links → `<picture>`, R-A5; `/fragments/` links inlined, not awaited; `/widgets/` links → `widget`) →
@@ -168,30 +168,31 @@ flowchart TD
    `usta-buttons.css` only on pages with a `cta-usta*` link; runs before any block JS, R-A1). — `scripts/scripts.js:822-830`
 10. **Before the first section.** Awaits the buttons CSS only when the first section needs it. Starts
     `applySectionBackgrounds()` (fetches `/.da/library/blocks.json` once, and only if a section has `data-background`).
-    — `scripts/scripts.js:939-941, 756-797`
-11. **LCP.** Adds `body.appear`. On pages with `Target` metadata (not off/false/no) it first awaits the eager martech
-    phase, started at the top of `loadEager()`: the eager config tab (priority high), `martech/loader.js` and
-    `martech/target.js` in parallel, then `runPhase('eager')`. Offers are applied before the first paint, capped by
-    `target.flickerTimeout`; when consent is required the page is not held and Target loads after consent (D-045,
-    D-052; Martech 3/4). Other pages make no config request here. Then awaits
-    `loadSection(first section, waitForFirstImage)`: each block loads its CSS and
-    JS, then the section waits for its first `<img>` and is shown. Hero photos are CSS backgrounds with their own
-    `fetchpriority=high` preload (D-070). — `scripts/scripts.js:942-944`; `scripts/aem.js:520-551, 617-648`
+    — `scripts/scripts.js:948-950, 756-797`
+11. **LCP.** Adds `body.appear`, then awaits `loadSection(first section, waitForFirstImage)`: each block loads its CSS
+    and JS, then the section waits for its first `<img>` and is shown. Hero photos are CSS backgrounds with their own
+    `fetchpriority=high` preload (D-070). On pages with `Target` metadata (not off/false/no) the eager martech phase
+    runs **at the same time**: started at the top of `loadEager()` (a `<link rel=preload>` for the eager config tab,
+    then `martech/loader.js` and `martech/target.js` in parallel and `runPhase('eager')`), it is awaited together with
+    the first section, which loads with `visibility: hidden` and is revealed once both are done. Offers are applied
+    before the first paint, capped by `target.flickerTimeout`; when consent is required the page is not held and
+    Target loads after consent (D-045, D-052, D-084; Martech 3/4). Other pages make no config request here.
+    — `scripts/scripts.js:899-921, 951-957`; `scripts/aem.js:520-551, 617-648`
 12. **Editing helpers.** At `loadPage()`'s first await, `previewEditingCtas()` runs with `?quick-edit` (DA Layout view,
     R-A2) and `loadDa()` imports `da.live/scripts/dapreview.js` with `?dapreview`. — `scripts/scripts.js:655-728, 1074-1081`
 13. **End of eager.** Awaits the template CSS, then `loadFonts()` loads `styles/fonts.css` when the viewport is at least
     900 px wide or `sessionStorage['fonts-loaded']` is set. — `scripts/scripts.js:78-85, 935-944`
 14. **`loadLazy()`: header.** Starts `loadHeader()` without awaiting it: `header.js` fetches `/nav.plain.html`, builds the
-    nav, awaits `buildBreadcrumb()` (flow 4), then appends the nav (R-H1–R-H3). — `scripts/scripts.js:962-963`;
+    nav, awaits `buildBreadcrumb()` (flow 4), then appends the nav (R-H1–R-H3). — `scripts/scripts.js:975-976`;
     `blocks/header/header.js:226-341`
 15. **Template JS and sections.** Awaits `loadTemplateJS()` (on news pages: the Related Articles feed, flow 4), then awaits
     `loadSections(main)` (each remaining section in order; RUM enhancer on sampled views), then awaits
-    `applySectionBackgrounds()` over the whole document (catches fragments and the feed). — `scripts/scripts.js:966-970`
+    `applySectionBackgrounds()` over the whole document (catches fragments and the feed). — `scripts/scripts.js:979-983`
 16. **Footer and the rest.** Starts `loadFooter()` (`/footer.plain.html`, not awaited), scrolls to the URL hash once header
-    and footer resolve, and starts `lazy-styles.css` and `loadFonts()`. — `scripts/scripts.js:972-989`
+    and footer resolve, and starts `lazy-styles.css` and `loadFonts()`. — `scripts/scripts.js:985-1002`
 17. **Delayed phase.** When `loadLazy()` resolves, `setTimeout(loadDelayed, 3000)` (D-039). `loadDelayed()` starts three
     imports and awaits none: `consent-check.js`, `donate.js`, then `martech/loader.js` + `runPhase('delayed')` (flows 2
-    and 3). — `scripts/scripts.js:996-1003, 1066-1071`
+    and 3). — `scripts/scripts.js:1009-1016, 1087-1096`
 18. **404.** With no published page, aem.live serves `404.html`: no `head.html`, its own laxer CSP (no `frame-src`, no
     Trusted Types, N10), `scripts.js` only, a `404` RUM checkpoint. The same `loadPage()` runs; a Go back button is added
     for a same-origin referrer. The `hero (error)` variant is not wired in yet (T7). — `404.html:1-71`
@@ -212,7 +213,7 @@ flowchart TD
 
 - `loadEager()` awaits the template CSS after the first section, so the lazy phase starts only once it loads or fails.
 - On news pages `loadTemplateJS()` is awaited before `loadSections()`: every section after the first stays hidden until
-  `/news-index.json` and the cards block have loaded (`scripts/scripts.js:966-967`).
+  `/news-index.json` and the cards block have loaded (`scripts/scripts.js:979-980`).
 - The 3 s timer starts when `loadLazy()` resolves (all sections + template JS), not after the header and footer.
 - Nav and footer content never goes through `decorateMain()`: no icons, auto-blocks, section metadata or buttons, and
   their links get targets only at click time.
@@ -252,7 +253,7 @@ flowchart TD
   end
   subgraph Page["scripts.js page phases"]
     S0["scripts.js top level<br/>Trusted Types default policy + CSP"]
-    P1["loadEager()<br/>import site-config.js, no fetch"]
+    P1["loadEager()<br/>import site-config.js<br/>Target pages: preload eager tab"]
     P2["loadLazy()<br/>no martech hook today"]
     P3["loadDelayed()<br/>3 s after lazy"]
   end
@@ -267,12 +268,14 @@ flowchart TD
     L2["loadScript()<br/>https only, whenConsented()"]
     L3["injectScript()<br/>async script tag"]
     L4["runModule('hotjar')<br/>hotjar.js sets _hjSettings"]
+    L0["runPhase('eager')<br/>Target pages only"]
+    L5["loadModule('target')<br/>target.js: at.js, offers"]
   end
   V1["Adobe Tags embed<br/>script.launch"]
   V2["Hotjar script<br/>script.hotjar"]
+  V3["at.js + Target delivery<br/>first section shown after offers"]
   D1["donate.js<br/>Fundraise Up, not gated"]
   subgraph Later["Planned or branch only"]
-    X1["Target eager hook + anti-flicker<br/>Martech 3/4, built on aem-coder-branch"]:::planned
     X2["Fundraise Up on interaction + beacons<br/>Martech 4/4, built on aem-coder-branch"]:::planned
     X3["OneTrust, groups C0002+C0004+C0005<br/>branch one-trust, planned lazy module"]:::planned
     X4["window.dataLayer<br/>branch feature/data-layer-1"]:::planned
@@ -297,7 +300,11 @@ flowchart TD
   L3 --> V1
   L4 --> V2
   S0 -.->|"allows script.src"| L3
-  P1 -.-> X1
+  P1 -->|"Target metadata"| L0
+  A2 -.->|"eager tab"| L0
+  L0 -->|"same cached promise"| C2
+  L0 --> L5
+  L5 --> V3
   P1 -.-> X4
   P2 -.-> X2
   P2 -.-> X3
@@ -319,11 +326,12 @@ flowchart TD
 4. **Trust chain.** The CSP allows only nonce'd scripts and the scripts they create (`'strict-dynamic'`), and the
    pass-through `createScriptURL` in the `default` Trusted Types policy is what lets the loader set `script.src`.
    — `scripts/scripts.js:20-43`; `head.html:1-8`
-5. **Phases.** `loadEager()` imports `site-config.js` (no fetch); `loadLazy()` has no martech hook yet (the lazy tab is
-   never read); `loadDelayed()`, 3 s after lazy, starts `consent-check.js`, `donate.js` (not consent-gated) and
+5. **Phases.** `loadEager()` imports `site-config.js`; on pages with `Target` metadata it also preloads the eager tab
+   and runs `runPhase('eager')` alongside the first section (step 14; flow 1 step 11). `loadLazy()` has no martech hook
+   yet (the lazy tab is never read); `loadDelayed()`, 3 s after lazy, starts `consent-check.js`, `donate.js` (not consent-gated) and
    `martech/loader.js` + `runPhase('delayed')`, none awaited. The loader comes after `donate.js` so the interim Launch
    library's Fundraise Up rules see the stub (`7e3c377`); this is not enforced, but holds in practice because the loader
-   waits for sheet fetches first. — `scripts/scripts.js:899-911, 951-992`
+   waits for sheet fetches first. — `scripts/scripts.js:899-921, 951-957, 1009-1016`
 6. **Consent requirement.** `consent-check.js` runs `initFromSiteConfig()` → `isConsentRequired()`, which fetches the
    `eager` tab once (cached promise). A missing row, any value other than `true`/`false`, or a failed fetch warns and
    counts as **required** (D-067, R-M1). — `scripts/site-config.js:32-44, 53-87`; `scripts/consent-check.js:54-65`
@@ -348,14 +356,16 @@ flowchart TD
     `scripts/martech/hotjar.js:11-31`
 13. **`<module>.enabled` rows.** `false` skips, other values warn, unknown names warn `unknown module`; the loader does
     **not** wait for consent on this path, so the module must use `ctx`. The phase resolves when every module settles.
-    develop has no such row yet. — `scripts/martech/loader.js:124-142, 158`
+    The first such row is `target.enabled` (eager tab). — `scripts/martech/loader.js:130-142, 144-159`
+14. **Target (eager phase, pages with `Target` metadata).** `target.js` validates its six eager-tab rows (one warning
+    naming every problem, then nothing loads), skips when `window.adobe.target` already exists, and loads at.js 2.11.4
+    (VisitorAPI first only for `target.a4t=server`). With `consentRequired=false` it resolves once the page-load offers are
+    in, capped by `target.flickerTimeout`, so the first section is revealed with the offers applied; offers for later
+    sections apply as they decorate. With `true` it resolves at once and starts Target after consent (D-045, D-052,
+    D-084). — `scripts/martech/target.js:95-112, 148-203, 209-220`
 
 **Planned and branch only**
 
-- **Martech 3/4 — Target (Planned; reference build on `aem-coder-branch`):** eager hook, `target.enabled` row, a
-  `scripts/martech/target.js` module; at.js 2.11.4 only on pages with `Target` metadata; the first section waits for
-  offers up to `target.flickerTimeout` (1000 ms); with consent required, Target starts after consent and does not hold
-  first paint; A4T client mode (D-045, D-052). `getSheet(name, priority)` already accepts a fetch priority for this.
 - **Martech 4/4 — Fundraise Up (Planned; reference build on `aem-coder-branch`):** a lazy-tab row; the widget loads on
   first deliberate interaction or with `?form=`; donation beacons are sent from code (D-046; flow 3).
 - **OneTrust (Branch only `one-trust`):** Consent Mode v2 defaults denied; the OneTrust stub from `onetrust.*` settings;
@@ -395,7 +405,7 @@ flowchart TD
 - An Adobe code drop can replace `scripts.js`, `consent-check.js`, `consented.js` and `donate.js` wholesale: run the
   checks in docs/MARTECH.md "After an Adobe code drop" (PRD §8.6).
 
-*Related:* D-012, D-015, D-021, D-039, D-040, D-044–D-049, D-052, D-057, D-060, D-066–D-069; PRD §4.6 (R-M1–R-M6), §8.3
+*Related:* D-012, D-015, D-021, D-039, D-040, D-044–D-049, D-052, D-057, D-060, D-066–D-069, D-084; PRD §4.6 (R-M1–R-M6), §8.3
 R-E1, §11, §12 Q9; `docs/assets/martech.svg`.
 
 ---
@@ -470,12 +480,12 @@ flowchart TD
    ending in `?form=<CODE>`, because DA publishing turns a query-only href into `/` (D-025, R-D1).
    — `blocks/cards/cards.js:12-25`
 2. **Link targets.** `decorateLinkTarget()` skips every `[?&]form=` href, so donate links open in the same tab (D-016).
-   — `scripts/scripts.js:1024-1032`
+   — `scripts/scripts.js:1037-1045`
 3. **Cards and nav.** `decorateExpand()` moves the 4th cell into `.cards-expand-donate`; a click anywhere on the card
    that is not a link calls `donateLink.click()`. `header.js` marks the first `.nav-tools` link as `nav-donate`; its
    authored href stays until `donate.js` rewrites it. — `blocks/cards/cards.js:59-87`; `blocks/header/header.js:295-300`
 4. **Timing.** `loadDelayed()` runs 3 s after `loadLazy()` and imports `donate.js` (not consent-gated, D-039).
-   — `scripts/scripts.js:996-1003, 1066-1071`
+   — `scripts/scripts.js:1009-1016, 1087-1096`
 5. **Rewrite.** `donate.js` evaluates once per page: `wireDonateTriggers()` scans every `a[href*="form="]` once and sets
    the href to `<current path>?form=<CODE>`. — `scripts/donate.js:148-161`
 6. **Widget load.** `loadFundraiseUp()` returns if `window.FundraiseUp` exists; otherwise it patches the iframe
@@ -504,7 +514,7 @@ flowchart TD
 
 12. The loader injects `script.launch` (after the consent gate, flow 2). The interim Launch library sends the page view
     and has its own Fundraise Up rules, which attach only if the `window.FundraiseUp` stub exists when it runs; site code
-    on develop sends no donation beacons. — `scripts/scripts.js:999-1001`; `7e3c377`
+    on develop sends no donation beacons. — `scripts/scripts.js:1012-1014`; `7e3c377`
 
 **Planned and branch only** (Martech 4/4, D-046, D-069; reference build on `aem-coder-branch`, ported by PR)
 
@@ -617,9 +627,9 @@ flowchart TD
 **Steps — page load**
 
 4. **Eager.** `loadTemplateCSS()` adds `body.news` and loads `news.css`; `decorateSectionMetadata()` turns the slot into
-   `.section.related-articles`; every section is hidden until loaded; only the first is shown. — `scripts/scripts.js:899-956`
+   `.section.related-articles`; every section is hidden until loaded; only the first is shown. — `scripts/scripts.js:899-969`
 5. **Lazy.** `loadHeader()` starts (not awaited), then `loadTemplateJS()` is awaited, then `loadSections()`: the
-   breadcrumb and the feed run in parallel. — `scripts/scripts.js:962-967`
+   breadcrumb and the feed run in parallel. — `scripts/scripts.js:975-980`
 6. **Breadcrumb.** `header.js` fetches `/nav.plain.html` (if that fails, no breadcrumb); `buildBreadcrumb()` returns null at
    `/`; otherwise `fetchPathTitleMap()` maps each path to `breadcrumbtitle`, else `title` (empty map on error).
    — `blocks/header/header.js:26-61, 226-229`
@@ -642,7 +652,7 @@ flowchart TD
     `decorateBlock()` + `loadBlock()` → `cards.js` `decorateNews()`. — `templates/news/news.js:82-171`;
     `blocks/cards/cards.js:111-160`
 13. **Reveal.** `loadSections()` shows the remaining sections (the cards block is already loaded); then the footer and the
-    hash scroll, so `#related-articles` finds the heading. — `scripts/scripts.js:967-986`
+    hash scroll, so `#related-articles` finds the heading. — `scripts/scripts.js:980-999`
 
 **Planned and open**
 
@@ -746,7 +756,7 @@ flowchart TD
    `<div class="cards expand">` and loads `blocks/cards/` (D-023, PRD §4.2). — `scripts/aem.js:520-577`
 2. **Block library.** Authors insert blocks, variants and sections from `/.da/library/` (index sheet `blocks.json`, one doc
    per block). Library pages render through `tools/da-library-preview/`, which strips the library tables and labels each
-   variant before decoration (PRD §4.3). — `scripts/scripts.js:934-937`; `tools/da-library-preview/da-library-preview.js`
+   variant before decoration (PRD §4.3). — `scripts/scripts.js:943-946`; `tools/da-library-preview/da-library-preview.js`
 3. **Sections.** A horizontal rule splits sections; a `Section Metadata` table's `Style` takes a comma list of composable
    styles (`center, narrow`, `section-yellow, center-intro`; D-024); other keys become `data-*` attributes
    (`profile-anchor`, D-028; `background`). — `scripts/scripts.js:738-754`

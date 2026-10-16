@@ -111,6 +111,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-081 | 2026-10-16 | Env selector: label "CodeBase"; cards stack up to 576 px (panel-only step, outside the site breakpoints) | Active (in PR to `develop`) |
 | D-082 | 2026-10-16 | Env selector CodeBase is an editable combobox: typed/pasted branches, host-name form, listed with the sheet's | Active (in PR to `develop`); "never filters" superseded by D-083 |
 | D-083 | 2026-10-16 | Env selector "All branches" from the EDS admin API (fetchBranches, adapted from adobe-rnd/aem-apps); typing filters both groups | Active (in PR to `develop`) |
+| D-084 | 2026-10-16 | Target pages load the first section while Target runs, hidden until the offers are in; no speculative at.js preload | Active (Martech 3/4) |
 
 ---
 
@@ -720,6 +721,16 @@ on the per-phase config and loader (D-015), one per PR: Analytics → Hotjar →
 by:* n/d. *Source:* MIGRATION.md 2026-10-14 (Martech restructure 1/4).
 *Correction (2026-10-16):* 1/4 was pushed straight to `develop` with no PR (GitHub lists no PR for its three commits);
 only 2/4 went through a PR (#14).
+
+**D-084 — Target pages: load the first section while Target runs (2026-10-16, Martech 3/4).** The first version of the
+eager hook awaited Target before `loadSection()`, so the hero image only started after config tab → modules → at.js →
+delivery, and mobile Lighthouse on the preview `/en/home` fell from 99 to 94 (LCP 1.83 → 2.98 s). Now the eager tab is
+preloaded at the start of `loadEager()`, and the first section loads in parallel with `visibility: hidden`, revealed once
+both it and Target are done: the first paint still shows the offers (D-045). Localhost `/en/home`: 80 / LCP 4.69 s → 89 /
+3.41 s (median of 3). A speculative `modulepreload` of at.js was measured too (89 / 3.42 s, no gain) and dropped, because it
+costs ~34 KB on Target pages where Target ends up off (production until the cutover). *Why:* recover the mobile score
+without giving up the anti-flicker guarantee. *Decided by:* user, 2026-10-16 ("speed up the Target hold"); the at.js
+preload left out on the measurement. *Source:* MIGRATION.md 2026-10-16.
 
 #### Added by the completeness pass (2026-10-15)
 

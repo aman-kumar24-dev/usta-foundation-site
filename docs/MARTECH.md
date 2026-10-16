@@ -106,7 +106,7 @@ Every martech line in `scripts.js` carries a `martech:` comment.
 | Phase | Hook | Added by |
 |---|---|---|
 | delayed | end of `loadDelayed`: `import('./martech/loader.js').then((m) => m.runPhase('delayed'))` | Martech 1/4 |
-| eager | top of `loadEager`, pages with `Target` metadata only: fetch the eager tab (priority high), import `loader.js` + `target.js`, `runPhase('eager')`; awaited right before the first `loadSection` | Martech 3/4 |
+| eager | top of `loadEager`, pages with `Target` metadata only: preload the eager tab, import `loader.js` + `target.js`, `runPhase('eager')`; awaited together with the first `loadSection`, which stays `visibility: hidden` until both are done | Martech 3/4 |
 
 ### Window contracts
 
@@ -193,10 +193,13 @@ the module; the aem.live settings (`bodyHidingEnabled`, `pageLoadEnabled`, `view
 - **Which pages:** only pages with `Target` metadata (any value except `off` / `false` / `no`; also
   via bulk metadata). Other pages load no Target code and make no config request before the first
   paint. Only enable it on pages with live activities: at.js costs LCP on throttled mobile.
-- **Flicker-free:** with `consentRequired=false` the first section waits for the page-load offers
-  (capped by `target.flickerTimeout`); offers are applied as sections and blocks finish decorating,
-  so the first paint already shows them. Slower than the cap → the page renders and the offer
-  applies on arrival; slower than at.js's 3000 ms timeout → the offer is dropped.
+- **Flicker-free:** with `consentRequired=false` the first section loads (blocks, hero image) while
+  Target runs, but stays invisible (`visibility: hidden`) until the page-load offers are in, capped
+  by `target.flickerTimeout`; it is then revealed with the offers applied. Offers for later sections
+  apply as they decorate. Slower than the cap → the page renders and the offer applies on arrival;
+  slower than at.js's 3000 ms timeout → the offer is dropped. The eager tab is preloaded at the start
+  of `loadEager`; at.js is fetched only once Target has decided to run (a speculative preload gained
+  nothing and cost ~34 KB on pages where Target ends up off).
 - **Consent required:** the page is not held; at.js loads only after consent (`consent.update`),
   and the offer then applies on arrival.
 - **Skipped** when `window.adobe.target` already exists (e.g. a Tags library that still contains

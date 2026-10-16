@@ -6050,3 +6050,20 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   (WCAG 2.0–2.2 A/AA) with the grouped list open and a row active: 0 violations. `test:a11y` passes; lint clean.
 - **Not verified:** the real API with a signed-in DA session (needs the panel registered; the author's token must have
   access to the site's code in the admin API).
+
+### 2026-10-16 — Target pages: first section loads while Target runs (mobile Lighthouse)
+Branch `feature/target` (Martech 3/4), after mobile Lighthouse dropped on the preview `/en/home`: 94 / LCP 2.98 s vs develop
+99 / 1.83 s (median of 3; non-Target pages unchanged at 100). Cause: the eager hook awaited Target before `loadSection()`,
+so the hero image started only after the chain config tab → `loader.js`/`target.js` → at.js → delivery.
+- **Fix (`scripts/scripts.js` `loadEager`):** a `<link rel=preload as=fetch>` for `/configs/site-config.json?sheet=eager` at
+  the start of `loadEager`, and the first section now loads **in parallel** with the eager phase, with
+  `visibility: hidden` until both are done, so the first paint still shows the offers (no flicker, no layout shift: the
+  space is kept). D-084.
+- **Measured (localhost `/en/home`, mobile Lighthouse, median of 3):** before 80 / LCP 4.69 s; after 89 / 3.41 s; with an
+  extra speculative at.js `modulepreload` 89 / 3.42 s — no gain, and ~34 KB wasted where Target ends up off, so not kept.
+- **Verified:** the 9 local Target cases pass (offer in the first painted frame; eager tab fetched once; hero image request
+  at ~0.07–0.14 s instead of after the delivery; 2 s delivery → paint at the 1 s cap; disabled / invalid / consent-required /
+  already-loaded → no at.js).
+- **Gotcha:** the PageSpeed Insights API has a daily quota (HTTP 429 once spent); local Lighthouse 12 (`npx lighthouse@12`
+  with Chrome) gives the same simulated-mobile numbers for before/after comparisons.
+
