@@ -12,7 +12,8 @@ description: The completion protocol — never claim done without verifying. Loa
 4. **Accessibility (any UI change):** `npm run test:a11y http://localhost:3000/<path>` — no critical/serious violations (this is where missing alt text is caught).
 5. **Visual:** confirm the change at `localhost:3000` (screenshot to `/tmp/` if needed).
 6. **Review the diff** — remove dead code, leftover attempts, stray `console.log`.
-7. **Report honestly** — if a check failed or a step was skipped, say so with the output. Don't hedge a real pass; don't claim an unverified one.
+7. **Docs** — log the change in `MIGRATION.md` and update the affected `docs/PRD.md`, `docs/decision.md`, `docs/flow.md` and `docs/ARCHITECTURE.md` (AGENTS.md, Migration-Log and Project-Docs Rules), or state that none is affected.
+8. **Report honestly** — if a check failed or a step was skipped, say so with the output. Don't hedge a real pass; don't claim an unverified one.
 
 ## Pitfalls
 - **"Done" before running the a11y test** → missing alt text / contrast failures ship. Run it.

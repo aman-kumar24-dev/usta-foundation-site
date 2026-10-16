@@ -16,3 +16,5 @@ migration-work/footer-validation/
 
 # Playwright a11y test artifacts
 test-results/
+
+.archify
