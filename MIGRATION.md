@@ -5760,3 +5760,21 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   shown; keyboard Tab → Enter; standalone Go disabled; no page errors. `test:a11y` passes. **Not verified:** a signed-in
   DA canvas session.
 - **Docs:** D-077 (supersedes D-076); PRD §4.3 row + R-A7, §12 Q31 partly answered; flow.md §5; ARCHITECTURE.md §2. PR #15 (codebase switch, code sync) was merged to `develop` as `2860acd` before this change, so it ships on `feature/envselector`; the statuses that said "in the PR" now say "on `develop` since PR #15".
+
+### 2026-10-16 — Env selector: fixed-width picker, white background, "Select a branch" prompt
+- **Request:** the picker spanned the whole page; give it a fixed width. Drop the "Open this panel from Experience
+  Workspace…" message. White background. The picker shows the selected branch, or "Select a branch" when none is
+  (remember `canvas#` with no `ref` is `main`). A second button will come later (needs its own requirement; not built).
+- **Markup:** the picker and Go sit in `.env-selector-controls`, a flex row, so a later button just goes after Go. The
+  first `<option value="" disabled selected>` is the "Select a branch" prompt (text in the HTML). `data-standalone` removed.
+- **CSS:** body background `--es-gray-25` (white; `--es-gray-75` removed). The picker is `flex: 0 1 var(--es-picker-width)`
+  (240 px) and shrinks only when the panel is narrower (155 px at a 280 px panel, no overflow). Go is `flex: none`. The
+  status box is `width: fit-content` instead of full width.
+- **JS:** `updateGo()` enables Go only inside DA and once a branch is chosen, also on `change`. The current branch from
+  `context.ref` is preselected; the canvas sends `main` when its URL has no `ref`, so `canvas#/…` preselects
+  "main (current)". An unlisted branch (e.g. a feature branch) keeps the prompt, and the status still names it.
+  Standalone: no message, prompt shown, Go disabled.
+- **Verified (Playwright, 31 checks):** standalone at 1900 px: no status box, prompt shown, Go disabled, picker 240 px
+  with Go 8 px after it, body `rgb(255, 255, 255)`. In a simulated DA host: the earlier 26 checks still pass, and
+  `ref=feature-x` keeps the prompt with Go disabled until a pick. Panel widths 280 / 320 px: no overflow. `test:a11y`
+  passes.

@@ -7,7 +7,6 @@
 .env-selector {
   /* Spectrum 2, light theme */
   --es-gray-25: #fff;
-  --es-gray-75: #f3f3f3;
   --es-gray-100: #e9e9e9;
   --es-gray-200: #e1e1e1;
   --es-gray-500: #8f8f8f;
@@ -20,11 +19,12 @@
   --es-font: "Adobe Clean", adobe-clean, "Source Sans Pro", -apple-system, "Segoe UI", roboto, sans-serif;
   --es-radius-field: 8px;
   --es-pad: 24px;
+  --es-picker-width: 240px;
   --es-fast: 130ms;
 
   min-height: 100vh;
   margin: 0;
-  background-color: var(--es-gray-75);
+  background-color: var(--es-gray-25);
   color: var(--es-gray-900);
   font-family: var(--es-font);
   font-size: 14px;
@@ -56,17 +56,19 @@
   color: var(--es-gray-700);
 }
 
-/* label on top, then picker and Go on one row, then the hint */
+/* label on top, then one row of controls, then the hint */
 .env-selector .env-selector-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 8px;
+  gap: 6px;
   margin-top: 20px;
 }
 
-.env-selector .env-selector-label,
-.env-selector .env-selector-hint {
-  grid-column: 1 / -1;
+/* a fixed-width picker, then its buttons on the same row; it shrinks only
+   when the panel is narrower than the row */
+.env-selector .env-selector-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .env-selector .env-selector-label {
@@ -84,6 +86,8 @@
 /* Spectrum picker: a native select with a drawn chevron */
 .env-selector .env-selector-select {
   position: relative;
+  flex: 0 1 var(--es-picker-width);
+  min-width: 0;
 }
 
 .env-selector .env-selector-select select {
@@ -125,6 +129,7 @@
 
 /* Spectrum accent button: pill, bold label */
 .env-selector .env-selector-go {
+  flex: none;
   min-width: 64px;
   min-height: 44px;
   border: 0;
@@ -154,7 +159,11 @@
   cursor: not-allowed;
 }
 
+/* as wide as its message, never the whole panel */
 .env-selector .env-selector-status {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
   margin-top: 16px;
   border: 1px solid var(--es-gray-200);
   border-radius: var(--es-radius-field);

@@ -59,12 +59,16 @@ function switchHref(branch) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
+/** Go works only inside DA, once a branch is picked (not the "Select a branch" prompt) */
+function updateGo() {
+  go.disabled = !state.actions?.setHref || !select.value;
+}
+
+select.addEventListener('change', updateGo);
+
 form.addEventListener('submit', (e) => {
   e.preventDefault();
-  if (!state.actions?.setHref) {
-    say('standalone');
-    return;
-  }
+  if (go.disabled) return;
   const branch = chosenBranch();
   if (!branch) {
     say('invalid');
@@ -95,14 +99,13 @@ async function init() {
     sdk = await Promise.race([DA_SDK, timeout(3000)]);
   } catch { /* not in DA */ }
 
-  if (!sdk?.actions) {
-    say('standalone');
-    return;
-  }
+  status.textContent = '';
+  if (!sdk?.actions) return;
   state.actions = sdk.actions;
   state.context = sdk.context || {};
 
-  // the canvas sends its ?ref= as context.ref, main when the URL has none
+  // the canvas sends its ?ref= as context.ref, and main when the URL has none
+  // (canvas#/…), so main is preselected then too; an unlisted branch keeps the prompt
   const current = state.context.ref;
   if (typeof current === 'string' && BRANCH.test(current)) {
     state.current = current;
@@ -112,10 +115,8 @@ async function init() {
       select.value = current;
     }
     say('current', current);
-  } else {
-    status.textContent = '';
   }
-  go.disabled = false;
+  updateGo();
 }
 
 init();

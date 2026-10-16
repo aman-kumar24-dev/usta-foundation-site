@@ -233,8 +233,9 @@ the code arrived with PR #9 (§8.6).
   `da.live/canvas#/usta-digital/foundation-dev/index` → `da.live/canvas?ref=develop#/usta-digital/foundation-dev/index`.
   The panel cannot read DA's URL (cross-origin iframe), so it rebuilds it from what DA sends (`hash`, else `org` / `repo`
   / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). It preselects and marks the
-  current branch, does nothing but say so when that branch is picked again, accepts only a listed branch, and keeps Go
-  disabled outside DA. The list, editor path and messages live in `env-selector.html`. Registered by hand per DA site
+  current branch (`main` when the URL has no `ref`), otherwise shows "Select a branch" with Go disabled until one is
+  picked; it does nothing but say so when the current branch is picked again, accepts only a listed branch, and keeps
+  Go disabled outside DA. The picker has a fixed 240 px width. The list, editor path and messages live in `env-selector.html`. Registered by hand per DA site
   (outward-facing): DA config → `library` → `Environment` = `/tools/plugins/env-selector/env-selector.html`. A relative
   path loads the panel from the `?ref=` branch, so it appears only on branches that have it (flow.md §5 Gotchas).
   Verified with a simulated DA host, not in a signed-in DA session. [MIGRATION.md 2026-10-16; D-077]
