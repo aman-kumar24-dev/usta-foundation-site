@@ -5682,6 +5682,7 @@ Second of the four martech PRs (branch `feature/hotjar`).
 - **Verified:** homepage — 12/13 images get a title equal to their alt; the 1 decorative image gets none.
 
 ### 2026-10-16 — Codebase switch panel (DA / Experience Workspace plugin)
+*Renamed `env-selector` and changed to keep the open page, same day: see "Env selector" below.*
 - **Request:** a DA panel like Buttons with a dropdown of code branches (`main`, `uat`, `develop`) and a **Go** button
   that reloads the editor at `https://da.live/canvas?ref=<branch>#/usta-digital/foundation-dev/index`.
 - **Files:** `tools/plugins/codebase-switch/codebase-switch.{html,js,css}`. The branch list, the URL template
@@ -5730,3 +5731,32 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
 - **Verified (localhost:3000):** `check:overflow` and `check:typography` pass on `/`, get-involved, who-we-are and
   our-impact; `test:a11y /` passes. **Not re-checked:** who-we-are's History → yellow strip gap against the 2026-10-07
   entry.
+
+### 2026-10-16 — Env selector: renamed from codebase switch, Go keeps the open page
+- **Request:** rename the plugin `env-selector`. Go must take the URL of the page open in the editor and change only
+  the branch. Edge case: `https://da.live/canvas#/usta-digital/foundation-dev/index` has no `ref` and means `main`, so
+  `canvas#` becomes `canvas?ref=<branch>#`.
+- **Files:** `tools/plugins/env-selector/env-selector.{html,js,css}` (`git mv` from `codebase-switch`; classes
+  `env-selector-*`, tokens `--es-*`; title and heading "Environment"). The HTML now holds the editor path
+  (`data-editor="/canvas"`) instead of a full URL template.
+- **Logic:** the panel is a cross-origin iframe and cannot read DA's URL. DA sends no `Referrer-Policy`, so the frame's
+  referrer is just `https://da.live/`, and a referrer never carries the `#…` part. The URL is rebuilt from the SDK
+  context the canvas sends: `hash` (`#/org/site/path`), else `#/<org>/<repo><path>` (classic editor). Then
+  `searchParams.set('ref', branch)` replaces the ref or adds it, and `setHref` gets a relative
+  `/canvas?ref=<branch>#/…`, which DA resolves on its own origin. A hash that is not `#/…` with no org/repo → message,
+  no navigation.
+- **Behaviour changes:** the author stays on the same page (and site); picking the current branch (a URL with no ref
+  counts as `main`) says "The editor is already using …" and does not reload; outside DA, Go stays disabled ("Open this
+  panel from Experience Workspace…") instead of opening DA.
+- **Known limit:** other query parameters on DA's URL (e.g. `nx=`) are not visible to the panel and are dropped.
+- **Register:** DA config → `library` → title `Environment`, path `/tools/plugins/env-selector/env-selector.html`.
+- **Local dev gotcha:** `aem up` refuses to start on `feature/codesyncandcodebaseswitch` ("exceeds the 63 character
+  limit for DNS labels", even with `--url`), because it builds `<branch>--usta-foundation-site--aman-kumar24-dev`. The
+  panel was tested from a plain static server on port 3000 (it needs no AEM content).
+- **Verified (Playwright, 26 checks, simulated DA host):** `ref=develop` on `/en/home/get-involved` → uat sends
+  `/canvas?ref=uat#/usta-digital/foundation-dev/en/home/get-involved`; no ref (`main`) on `index` → develop sends
+  `/canvas?ref=develop#/usta-digital/foundation-dev/index`; same branch → no `setHref`; feature-branch ref; classic
+  context without `hash` → built from org/repo/path; bad hash → refused; tampered option → refused; markup ref not
+  shown; keyboard Tab → Enter; standalone Go disabled; no page errors. `test:a11y` passes. **Not verified:** a signed-in
+  DA canvas session.
+- **Docs:** D-077 (supersedes D-076); PRD §4.3 row + R-A7, §12 Q31 partly answered; flow.md §5; ARCHITECTURE.md §2.

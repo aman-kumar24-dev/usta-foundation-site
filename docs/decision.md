@@ -103,7 +103,8 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-073 | 2026-10-16 | Keep the PRD, decision log and flows in `docs/` with the other project docs | Active |
 | D-074 | 2026-10-16 | Diagrams in `docs/assets/`; architecture prose in one `docs/ARCHITECTURE.md` | Active |
 | D-075 | 2026-10-16 | Agents keep the four project docs current in the same PR as each change | Active |
-| D-076 | 2026-10-16 | Codebase switch panel: pick main / uat / develop, Go reloads the canvas with `?ref=<branch>` through the DA SDK | Active (in PR to `develop`) |
+| D-076 | 2026-10-16 | Codebase switch panel: pick main / uat / develop, Go reloads the canvas with `?ref=<branch>` through the DA SDK | Superseded by D-077 |
+| D-077 | 2026-10-16 | Env selector: Go keeps the open page and only sets `?ref=<branch>`; plugin renamed `env-selector` | Active (in PR to `develop`) |
 
 ---
 
@@ -397,6 +398,19 @@ not navigate `window.top` from inside the cross-origin iframe. Outside DA it fal
 Only a listed branch is accepted. The branch list, URL and messages live in `codebase-switch.html` (Localization Rule).
 *Decided by:* user (options, Go button, target URL); Claude (`setHref`, allow-list). *Source:* MIGRATION.md 2026-10-16.
 Open: keep the author's current page and site instead of `foundation-dev` `index` (PRD §12 Q31).
+*Superseded by D-077 (2026-10-16), before merge.*
+
+**D-077 — Env selector keeps the open page and only sets `?ref=` (2026-10-16).** Replaces D-076's fixed target URL. The
+plugin is renamed `env-selector` (`tools/plugins/env-selector/`, DA library title `Environment`). Go takes the page open
+in the editor and sets `ref` in its canvas URL to the chosen branch: an existing `?ref=` is replaced, and a URL with none
+(`da.live/canvas#/…`, which means `main`) gets `canvas?ref=<branch>#/…`. The panel is a cross-origin iframe and DA sends
+no referrer beyond its origin (and a referrer never carries the hash), so the URL is rebuilt from the SDK context: the
+canvas `hash`, else `#/<org>/<repo><path>`, on the editor path `/canvas` from the HTML. It goes to `setHref` as a
+relative `/canvas?ref=…#…`, so DA resolves it on its own origin. Other query parameters on DA's URL are not known and
+are dropped. Picking the current branch does not reload; outside DA, Go stays disabled (no page to switch). *Why:*
+authors stay on the page they are editing, and the panel works on every site it is registered on. *Decided by:* user
+(rename, keep the current URL, the no-ref case); Claude (rebuild from context, relative `setHref`, no-op on the same
+branch). *Source:* MIGRATION.md 2026-10-16 (Env selector); PRD R-A7, §12 Q31.
 
 #### Buttons and links
 
@@ -691,3 +705,4 @@ still open (PRD §12).
 | 2026-10-06 audit (same day) | Decorative Related Articles thumbnails (`alt=""`, `aria-hidden`) | D-056 |
 | `style="usta"` + size options | One USTA style with height / width / font-size / shape / padding / disabled options | D-062 |
 | 2026-10-11 in-code list | `USTA_ICONS` allow-list in `scripts.js` and the panel | D-063 |
+| D-076 | Codebase switch panel with a fixed target URL (`…/foundation-dev/index`) | D-077 |

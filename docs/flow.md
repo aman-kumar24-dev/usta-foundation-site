@@ -680,7 +680,7 @@ flowchart TD
   subgraph DA["DA authoring at da.live"]
     LIB["Block library<br/>/.da/library/blocks.json and block docs"]
     BTN["Buttons panel<br/>tools/plugins/buttons/buttons.html"]
-    CBS["Codebase switch panel<br/>tools/plugins/codebase-switch"]
+    ENV["Env selector panel<br/>tools/plugins/env-selector"]
     DOC["Page doc<br/>block tables, Section Metadata, Metadata"]
     FRAG["Fragment docs<br/>/nav and /footer"]
     EW["Layout view iframe<br/>ref--repo--org.preview.da.live<br/>?quick-edit=on"]
@@ -707,7 +707,7 @@ flowchart TD
   SYNC["npm run da:sync<br/>from aemdemos/foundation-usta<br/>Branch only: aem-coder-branch"]:::planned
   LIB -->|"insert block or section"| DOC
   BTN -->|"sendHTML: marks or options suffix"| DOC
-  CBS -->|"setHref: reload canvas with ?ref=branch"| EW
+  ENV -->|"setHref: same page with ?ref=branch"| EW
   DOC -->|"Preview"| PREV
   FRAG -->|"Preview"| PREV
   PREV -->|"Publish"| PUB
@@ -773,10 +773,11 @@ flowchart TD
 14. **Local preview.** `aem up` serves code from the working copy and content from aem.page: a never-previewed page 404s,
     and so do the indexes (slug crumbs, no feed). Content not yet in DA goes in `drafts/` with `--html-folder drafts`;
     restart the CLI after adding a draft (PRD §7).
-15. **Codebase switch.** In the Codebase panel the author picks `main`, `uat` or `develop` and selects Go. The panel
-    sends `setHref` with `https://da.live/canvas?ref=<branch>#/usta-digital/foundation-dev/index`, and DA reloads. The
-    canvas then renders the preview and loads plugins from that branch (R-A7, D-076). The panel preselects the
-    `context.ref` DA sends it. — `tools/plugins/codebase-switch/codebase-switch.js`
+15. **Env selector.** In the Environment panel the author picks `main`, `uat` or `develop` and selects Go. The panel
+    rebuilds the open page's canvas URL from DA's context (`hash`, else `org` / `repo` / `path`), sets `ref` to the
+    branch (added when the URL has none, which means `main`) and sends it with `setHref`, e.g.
+    `/canvas?ref=uat#/usta-digital/foundation-dev/en/home`; DA reloads. The canvas then renders the preview and loads
+    plugins from that branch (R-A7, D-077). Picking the current branch only says so. — `tools/plugins/env-selector/env-selector.js`
 
 **Planned and branch only**
 
@@ -787,8 +788,8 @@ flowchart TD
   without a signed-in DA session); delete `blocks/library-metadata/` once confirmed in Experience Workspace.
 - **TBD:** confirm the `background` option rename to `section-*-bg` in the DA sheet; index definitions and Buttons plugin
   registration for each new repoless site (R-Q1, R-A3, R-E1).
-- **Planned (user-owned, outward-facing):** register the Codebase switch panel in the DA config `library` sheet (R-A7).
-  Its target page and its registration path are open (PRD §12 Q31).
+- **Planned (user-owned, outward-facing):** register the Env selector panel in the DA config `library` sheet (R-A7).
+  Its registration path is open (PRD §12 Q31).
 
 **Gotchas**
 
@@ -805,13 +806,13 @@ flowchart TD
 - The `/.da/library/buttons` sheet is saved, not published (the panel reads it through `admin.da.live`); without its
   `icon` row the Icon dropdown shows only "No icon".
 - The Buttons panel hand-copies parts of `scripts.js` (styles, USTA words, colour logic): change both in the same PR.
-- A plugin registered with a relative path loads from the `?ref=` branch. After the Codebase switch moves the editor to
-  a branch without `tools/plugins/codebase-switch/`, the panel is missing there: change `?ref=` in the address bar to
-  get back. Go always opens `foundation-dev` `index`, not the author's current page.
+- A plugin registered with a relative path loads from the `?ref=` branch. After the Env selector moves the editor to a
+  branch without `tools/plugins/env-selector/`, the panel is missing there: change `?ref=` in the address bar to get
+  back. The panel cannot read DA's URL, so other query parameters on it (e.g. `nx=`) are not carried over.
 - DA publishing turns query-only hrefs into `/` and strips fragment-only `#ID` hrefs (D-025, R-D2).
 - Agent access to DA needs the "Allow LLM to use my Adobe credentials" opt-in; a 401 means it is off (PRD §11).
 
-*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-076; PRD §4.1
+*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-077; PRD §4.1
 R-T2/R-T3, §4.2, §4.3, §4.4 R-I3/R-I10, §4.7, §4.8, §7, §8.3; [tools/plugins/buttons/README.md](../tools/plugins/buttons/README.md).
 
 ---
