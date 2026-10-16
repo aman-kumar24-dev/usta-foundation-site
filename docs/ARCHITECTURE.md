@@ -21,7 +21,7 @@ lift-and-shift of the existing sites (D-006).
 |---|---|---|
 | **Visitor's browser** | Loads the page HTML, then runs `aem.js` + `scripts.js` in three phases: eager (first section, LCP), lazy (header, other sections, footer), delayed (third parties, 3 s later; D-039) | flow.md §1 |
 | **aem.live / aem.page** | Edge Delivery: renders each DA document as HTML with `head.html`, serves the code that Code Sync pushed for each branch, serves sheets as JSON, and builds the query indexes on publish. `aem.page` = preview, `aem.live` = published | flow.md §5; PRD §4.8 |
-| **DA content** | Pages, the `/nav` and `/footer` fragments, `/fragments/…`, the block library `/.da/library/…`, and the per-site `/configs/site-config` sheet | flow.md §5; PRD §4.3 |
+| **DA content** | Pages, the `/nav` and `/footer` fragments, `/fragments/…`, the block library `/.da/library/…`, the Env selector branches `/.da/environments/config`, and the per-site `/configs/site-config` sheet | flow.md §5; PRD §4.3 |
 | **Authors and martech admins** | Edit and publish content in DA; martech admins alone can edit the config sheet (D-049) | flow.md §2, §5 |
 | **Code repository + AEM Code Sync** | Every pushed branch becomes a preview host `https://{branch}--<site>--<org>.aem.page/`; `main` is production | flow.md §7; [BRANCHING.md](BRANCHING.md) |
 | **Importer tools** | `tools/importer` and `tools/assets` turn source-site pages into DA documents; upload to DA only on request | flow.md §6; PRD §4.4 |

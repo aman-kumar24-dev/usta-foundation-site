@@ -7,9 +7,16 @@
  *
  * The panel is a cross-origin iframe and cannot read the editor's URL, so the
  * URL is rebuilt from what DA sends the panel: the canvas hash
- * (#/org/site/path) and its ref. The branch list, the editor path and every
+ * (#/org/site/path) and its ref.
+ *
+ * The branches come from the DA sheet /.da/environments/config (tab `code`:
+ * `title` is the option text, `value` the branch); the options in the HTML
+ * are the fallback when the sheet cannot be read. The editor path and every
  * message live in the HTML.
  */
+
+const SHEET_PATH = '/.da/environments/config.json';
+const SHEET_TAB = 'code';
 
 // a branch as it appears in an aem.page host: {branch}--{site}--{org}
 const BRANCH = /^[a-z0-9-]+$/;
@@ -29,6 +36,45 @@ function say(key, branch = '') {
 }
 
 const listed = (value) => [...select.options].find((option) => option.value === value);
+
+/** A branch's name for messages: its title in the list, else the branch itself */
+const labelOf = (value) => {
+  const option = value && listed(value);
+  return option ? option.dataset.title || option.textContent : value;
+};
+
+/* ---- sheet ------------------------------------------------------------ */
+
+const normalizeRow = (row) => Object.fromEntries(Object.entries(row)
+  .map(([k, v]) => [k.trim().toLowerCase(), String(v ?? '').trim()]));
+
+/**
+ * The branches in the sheet's `code` tab, in sheet order. Rows whose value
+ * is not a branch name are skipped, and so are repeated values.
+ * @returns {Promise<{title: string, value: string}[]|null>} null when none
+ */
+async function loadBranches({ org, repo } = {}, actions = {}) {
+  if (!org || !repo || !actions.daFetch) return null;
+  try {
+    const resp = await actions.daFetch(`https://admin.da.live/source/${org}/${repo}${SHEET_PATH}`);
+    if (!resp.ok) return null;
+    const rows = (await resp.json())?.[SHEET_TAB]?.data;
+    if (!Array.isArray(rows)) return null;
+    const branches = new Map();
+    rows.map(normalizeRow).forEach(({ title, value }) => {
+      if (BRANCH.test(value || '') && !branches.has(value)) branches.set(value, title || value);
+    });
+    return branches.size ? [...branches].map(([value, title]) => ({ title, value })) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Replaces the built-in options, after the "Select a branch" prompt, with the sheet's */
+function renderBranches(branches) {
+  const [prompt] = select.options;
+  select.replaceChildren(prompt, ...branches.map(({ title, value }) => new Option(title, value)));
+}
 
 /** The chosen branch, only when it is one of the listed options */
 function chosenBranch() {
@@ -82,7 +128,7 @@ form.addEventListener('submit', (e) => {
     say('noPage');
     return;
   }
-  say('switching', branch);
+  say('switching', labelOf(branch));
   // the panel is a cross-origin iframe: DA's page navigates itself
   state.actions.setHref(href);
 });
@@ -102,6 +148,8 @@ async function init() {
   if (!sdk?.actions) return;
   state.actions = sdk.actions;
   state.context = sdk.context || {};
+  const branches = await loadBranches(state.context, state.actions);
+  if (branches) renderBranches(branches);
 
   // the canvas sends its ?ref= as context.ref, and main when the URL has none
   // (canvas#/…), so main is preselected then too; an unlisted branch keeps the prompt
@@ -110,10 +158,11 @@ async function init() {
     state.current = current;
     const option = listed(current);
     if (option) {
-      option.textContent = select.dataset.current.replace('{branch}', current);
+      option.dataset.title = option.textContent;
+      option.textContent = select.dataset.current.replace('{branch}', option.dataset.title);
       select.value = current;
     }
-    say('current', current);
+    say('current', labelOf(current));
   }
   updateGo();
 }

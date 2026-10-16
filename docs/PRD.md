@@ -228,14 +228,17 @@ the code arrived with PR #9 (§8.6).
   tooltip site-wide (`decorateImageTooltips()`, D-064). **Done:** the tooltip code is
   on `develop` since PR #15 (`2860acd`), 2026-10-16. [MIGRATION.md 2026-10-01, 2026-10-13]
 - **R-A7. Env selector panel (In progress).** An author reloads the page open in Experience Workspace on another code
-  branch: pick `main`, `uat` or `develop`, select **Go**. The panel sets `ref` in the page's canvas URL to the branch,
+  branch: pick a branch, select **Go**. The branches are the `code` tab of the DA sheet `/.da/environments/config`
+  (saved, not published; read through `admin.da.live`): `title` is the option text, `value` the branch (rows whose
+  value is not a branch name, and repeated values, are skipped). Without the sheet or a valid row the panel lists its
+  built-in `main`, `uat`, `develop` (D-078). The panel sets `ref` in the page's canvas URL to the branch,
   replacing the current one or adding `?ref=<branch>` when the URL has none (no ref means `main`):
   `da.live/canvas#/usta-digital/foundation-dev/index` → `da.live/canvas?ref=develop#/usta-digital/foundation-dev/index`.
   The panel cannot read DA's URL (cross-origin iframe), so it rebuilds it from what DA sends (`hash`, else `org` / `repo`
   / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). It preselects and marks the
   current branch (`main` when the URL has no `ref`), otherwise shows "Select a branch" with Go disabled until one is
   picked. Go is enabled only for a branch other than the current one (re-picking the current branch disables it
-  again); it accepts only a listed branch and stays disabled outside DA. The picker has a fixed 240 px width. The list, editor path and messages live in `env-selector.html`. Registered by hand per DA site
+  again); it accepts only a listed branch and stays disabled outside DA. The picker has a fixed 240 px width. The fallback list, editor path and messages live in `env-selector.html`. Registered by hand per DA site
   (outward-facing): DA config → `library` → `Environment` = `/tools/plugins/env-selector/env-selector.html`. A relative
   path loads the panel from the `?ref=` branch, so it appears only on branches that have it (flow.md §5 Gotchas).
   Verified with a simulated DA host, not in a signed-in DA session. [MIGRATION.md 2026-10-16; D-077]

@@ -773,8 +773,9 @@ flowchart TD
 14. **Local preview.** `aem up` serves code from the working copy and content from aem.page: a never-previewed page 404s,
     and so do the indexes (slug crumbs, no feed). Content not yet in DA goes in `drafts/` with `--html-folder drafts`;
     restart the CLI after adding a draft (PRD §7).
-15. **Env selector.** In the Environment panel the author picks `main`, `uat` or `develop` and selects Go. The panel
-    rebuilds the open page's canvas URL from DA's context (`hash`, else `org` / `repo` / `path`), sets `ref` to the
+15. **Env selector.** The Environment panel lists the branches from the `code` tab of `/.da/environments/config`
+    (`title` = text, `value` = branch; read with the SDK's `daFetch` from `admin.da.live`, falling back to the built-in
+    `main`, `uat`, `develop`, D-078). The author picks one and selects Go. The panel rebuilds the open page's canvas URL from DA's context (`hash`, else `org` / `repo` / `path`), sets `ref` to the
     branch (added when the URL has none, which means `main`) and sends it with `setHref`, e.g.
     `/canvas?ref=uat#/usta-digital/foundation-dev/en/home`; DA reloads. The canvas then renders the preview and loads
     plugins from that branch (R-A7, D-077). Go is disabled while the current branch is selected. — `tools/plugins/env-selector/env-selector.js`
@@ -803,6 +804,8 @@ flowchart TD
 - In the Layout view never modify anything inside `.ProseMirror` (DA saves it back); the selectors depend on DA internals.
 - DA loads the Buttons panel and Layout code from `main` unless opened with `?ref=<branch>` (`ref=local` renders
   unstyled), and the Insert-block dialog loads the `main` preview: authoring-tool fixes reach authors only via `main`.
+- The `/.da/environments/config` sheet (Env selector) is saved, not published, and read the same way; only its `code`
+  tab is used, and a value that is not a branch name (lowercase letters, digits, `-`) is skipped.
 - The `/.da/library/buttons` sheet is saved, not published (the panel reads it through `admin.da.live`); without its
   `icon` row the Icon dropdown shows only "No icon".
 - The Buttons panel hand-copies parts of `scripts.js` (styles, USTA words, colour logic): change both in the same PR.
@@ -812,7 +815,7 @@ flowchart TD
 - DA publishing turns query-only hrefs into `/` and strips fragment-only `#ID` hrefs (D-025, R-D2).
 - Agent access to DA needs the "Allow LLM to use my Adobe credentials" opt-in; a 401 means it is off (PRD §11).
 
-*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-077; PRD §4.1
+*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-077, D-078; PRD §4.1
 R-T2/R-T3, §4.2, §4.3, §4.4 R-I3/R-I10, §4.7, §4.8, §7, §8.3; [tools/plugins/buttons/README.md](../tools/plugins/buttons/README.md).
 
 ---

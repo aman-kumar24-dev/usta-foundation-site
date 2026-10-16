@@ -105,6 +105,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-075 | 2026-10-16 | Agents keep the four project docs current in the same PR as each change | Active |
 | D-076 | 2026-10-16 | Codebase switch panel: pick main / uat / develop, Go reloads the canvas with `?ref=<branch>` through the DA SDK | Superseded by D-077 |
 | D-077 | 2026-10-16 | Env selector: Go keeps the open page and only sets `?ref=<branch>`; plugin renamed `env-selector` | Active (in PR to `develop`) |
+| D-078 | 2026-10-16 | Env selector branches come from the DA sheet `/.da/environments/config` (tab `code`); the HTML list is the fallback | Active (in PR to `develop`) |
 
 ---
 
@@ -411,6 +412,16 @@ are dropped. Picking the current branch does not reload; outside DA, Go stays di
 authors stay on the page they are editing, and the panel works on every site it is registered on. *Decided by:* user
 (rename, keep the current URL, the no-ref case); Claude (rebuild from context, relative `setHref`, no-op on the same
 branch). *Source:* MIGRATION.md 2026-10-16 (Env selector); PRD R-A7, §12 Q31.
+
+**D-078 — Env selector branches come from a DA sheet (2026-10-16).** The dropdown options are the `code` tab of the DA
+sheet `/.da/environments/config` (created by the user): `title` is the option text and `value` the branch written to
+`?ref=`. It is read like the Buttons panel's `/.da/library/buttons` sheet, through the SDK's `daFetch` from
+`https://admin.da.live/source/<org>/<repo>/.da/environments/config.json`, so it is saved, not published. Other tabs are
+ignored. Column names are matched case-insensitively and trimmed; a row whose value is not a branch name
+(`^[a-z0-9-]+$`) or repeats an earlier value is skipped; an empty title shows the value. When the sheet cannot be read
+or has no valid row, the built-in `main`, `uat`, `develop` options in `env-selector.html` are used. *Why:* authors and
+leads can add or rename environments without a code change. *Decided by:* user (sheet, tab, columns); Claude (fallback,
+validation). *Source:* MIGRATION.md 2026-10-16 (Env selector branches from a sheet); PRD R-A7.
 
 #### Buttons and links
 

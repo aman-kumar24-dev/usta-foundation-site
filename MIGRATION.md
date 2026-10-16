@@ -5790,3 +5790,26 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   (main) → disabled until another branch is picked; feature-branch ref → prompt, Go disabled until a pick. Type-ahead on
   macOS (`u` / `d` / `m`): uat enabled, develop disabled, main enabled (macOS arrow keys open the menu instead).
   `test:a11y` passes.
+
+### 2026-10-16 — Env selector: branches from the DA sheet `/.da/environments/config`
+- **Request:** read the dropdown options from the sheet the user created at `/.da/environments/config.json`, the way the
+  Buttons panel reads `/.da/library/buttons.json`: use its `code` tab, where `title` and `value` are the options.
+- **Code:** `SHEET_PATH = '/.da/environments/config.json'`, `SHEET_TAB = 'code'`. `loadBranches()` reads
+  `https://admin.da.live/source/<org>/<repo>/.da/environments/config.json` with the SDK's `daFetch` (as Buttons'
+  `loadSheet()`), takes `json.code.data`, lower-cases and trims the keys and values (as Buttons' `normalizeRow`), keeps
+  rows whose `value` is branch-shaped (`^[a-z0-9-]+$`), drops repeated values, and uses the value when the title is empty.
+  `renderBranches()` replaces the built-in options after the "Select a branch" prompt (`new Option(title, value)`, no
+  HTML). Messages use the title ("The editor is using QE."); `?ref=` uses the value. The "(current)" label keeps the
+  title in `data-title`.
+- **Fallback:** sheet missing (404), unreadable, without a `code` tab, or with no valid row → the built-in `main`, `uat`,
+  `develop` options in the HTML.
+- **Not seen:** the real sheet. `admin.da.live` and `content.da.live` both return 401 without a DA sign-in, so the
+  shape assumed is DA's multi-sheet JSON (`{":names": ["code", …], "code": {"data": [{title, value}]}}`).
+- **Open:** the hint "main is production, uat is UAT, develop is QE." is still fixed text in the HTML and can disagree
+  with the sheet.
+- **Verified (Playwright, 44 checks; sheet served by a route in the simulated DA host):** the request goes to
+  `admin.da.live/source/usta-digital/foundation-dev/.da/environments/config.json`; rows Production/main, UAT/uat,
+  QE/develop, `Feature/X` (skipped), duplicate uat (skipped), ` Stage `/` stage ` with capitalised keys, and an empty
+  title for `hotfix-1` give `Production | UAT | QE (current) | Stage | hotfix-1`; status "The editor is using QE."; Go →
+  `/canvas?ref=stage#…`, "Reloading the editor with Stage…". No `code` tab, no valid row, and 404 → built-in options. The
+  earlier checks still pass.
