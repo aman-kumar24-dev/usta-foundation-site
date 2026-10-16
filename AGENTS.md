@@ -28,7 +28,14 @@ These load-bearing rules are enforced by skills and by deterministic checkers. S
 - **The Security Rule.** Client-side code is public. Never commit secrets. Never use `eval`/`new Function`. Validate external input. Sanitize author/external HTML with DOMPurify before `innerHTML`. → `security`
 - **The Localization Rule.** No hard-coded user-facing strings — source from content or make data-driven. → `eds-code-conventions`
 - **The Content-Import Rule.** Import a source site's pages with a **profile-driven, hash-free, selector-based importer built ONCE per page-template** (not per page) — never hand-edit `content/` to *create* blocks/HTML. Match blocks on **stable semantic selectors, most-portable-first**; use per-page **hash** selectors only for section breaks/metadata — never to match a block. Reuse first (a DEFAULT profile auto-imports; twins share a profile); add a new parser only for a genuinely new variant. Per page: measure the live DOM → profile → bundle → import → **finalize assets** (docs → `content/assets/docs/…`, inline images → `content/media-da/…`, doc links rewritten to **absolute** `…aem.live/assets/docs/…`) → verify → visual-parity → back up the known-good script/manifest → log it. Completeness <~90% is expected — verify by eye. DA publishing is outward-facing — **on request only**. → `content-import`
-- **The Migration-Log Rule.** Keep a living **`MIGRATION.md`** at the project root — the project's running memory, so anyone (human or agent) can pick up the work without re-deriving what was already learned. On the **first task**, if it doesn't exist, seed it by copying **`MIGRATION.template.md`** → `MIGRATION.md`. Then **append as you go** — every time you build or change a **block, template, or section**, and whenever you solve something non-obvious or are corrected, add to it *before* claiming that task done (this is part of the build loop, not an afterthought). Record: the **discovered design system** (breakpoints, the grid/section system, tokens, fonts — cross-link `tools/quality/breakpoints.json`); **per-template and per-section details** (structure, authoring model, section styles, decisions and why); **block variants** and their authoring contracts; **non-obvious fixes, gotchas, and dead ends**; and any **deviation from a rule** with its justification. Newest dated entry at the bottom. The live `MIGRATION.md` is **project-specific — never copied between projects** (only `MIGRATION.template.md` is shared), like `PROJECT-*.md`.
+- **The Migration-Log Rule.** Keep a living **`MIGRATION.md`** at the project root — the project's running memory, so anyone (human or agent) can pick up the work without re-deriving what was already learned. On the **first task**, if it doesn't exist, seed it by copying **`MIGRATION.template.md`** → `MIGRATION.md`. Then **append as you go** — every time you build or change a **block, template, section, or global script (martech and config rows included)**, and whenever you solve something non-obvious or are corrected, add to it *before* claiming that task done (this is part of the build loop, not an afterthought). Record: the **discovered design system** (breakpoints, the grid/section system, tokens, fonts — cross-link `tools/quality/breakpoints.json`); **per-template and per-section details** (structure, authoring model, section styles; each decision as a one-line `D-xxx` link to `docs/decision.md`); **block variants** and their authoring contracts; **non-obvious fixes, gotchas, and dead ends**; and any **deviation from a rule** (its justification is a `D-xxx` entry; link it). Newest dated entry at the bottom. The live `MIGRATION.md` is **project-specific — never copied between projects** (only `MIGRATION.template.md` is shared), like `PROJECT-*.md`.
+- **The Project-Docs Rule.** Four living docs in `docs/` sit beside `MIGRATION.md`, each with one job: **`docs/PRD.md`** (what the product must do, with a status per requirement, plus risks and open questions), **`docs/decision.md`** (why — every choice someone would otherwise re-open), **`docs/flow.md`** (how things run now, step by step) and **`docs/ARCHITECTURE.md`** (the parts, sites, hosts and code layout). Keep them true **in the same task and PR as the change**, *before* claiming it done. A change that does not come through your own PR (an answer from the user or customer, an Adobe drop into `main`, a Lead's promotion, another developer's merge) is written up in the next `feature/*` → `develop` PR (docs-only if nothing else is pending), citing the PR, commit or date that made it.
+  1. **`docs/PRD.md`** — when scope, a requirement or its status changes, or you find a new risk or open question. Write the status as it will stand once your PR merges, with its source (`PR #n`, file:line, commit or MIGRATION.md entry): **Done / In progress / Planned / TBD**, plus *branch only* for code not yet on `develop`. When code reaches `develop`, `uat` or `main`, also fix the *branch only*, *on `develop` only* and *not on `main`* tags it carries. Mark a closed risk **Resolved.** An unknown that needs an owner's answer is **TBD** with a §12 question. When a §12 question is answered, keep its number, strike its title and write **Answered** — see D-xxx (like Q6); if only part is settled, write *Partly answered* plus a *Still open:* line (like Q4). A choice goes in `decision.md`; a plain fact goes, with its source, in the PRD section it belongs to. Bump *Last updated*.
+  2. **`docs/decision.md`** — when a choice between options is made (by the user, the customer, a Lead, or you within an approved plan). Add the next `D-xxx` row at the bottom of the index, and its detail block under the matching topic heading in *Decision details* (never after the *Superseded or reverted* table) with *Why:*, *Decided by:* and *Source:* (an answer given in chat is `user, YYYY-MM-DD`; an unknown is `n/d`). **Never edit a past entry's decision or why:** a changed or reverted decision gets a new entry, the old entry's index status becomes `Superseded by D-xxx` (or `Reverted`), and a row goes in the *Superseded or reverted* table; a factual fix gets a dated *Correction* note. The index *Status* column is live: update it when the state changes (e.g. drop `(branch only)` once the code is on `develop`) and add a dated note to the detail block.
+  3. **`docs/flow.md`** — when a change alters how a flow runs, for example a page-load phase or hook, the order of `decorateMain()`, a site-config tab, row type or martech module, a metadata key (also list it in the authoring flow's Metadata step) or query-index field, an authoring tool, an import step, a release lane or CI check, or a value, default or limit a step states (`MAX_LIMIT`, the 3 s timer). Update every flow that shows it, the §0 system map included: the steps (anchor code refs on the function name; give a line number only after re-checking it), the Mermaid diagram (every node and edge label in double quotes; no `#` or `;` inside labels; planned or branch-only nodes take `:::planned`, removed once the code is on `develop`) and the *Planned* and *Gotchas* lists; bump *Last updated*. A decided but unbuilt change goes in that flow's *Planned* list. When a file the flows cite is replaced wholesale (e.g. by an Adobe drop), re-trace every step that cites it.
+  4. **`docs/ARCHITECTURE.md`** — when a part, site, host or the code layout changes (a new top-level folder, a new script under `scripts/`, a new vendor, a new site, the CDN in front). Keep the diagram file names in `docs/assets/`: README, `docs/BRANCHING.md` and `docs/MARTECH.md` embed them.
+
+  For every update, first `grep -n` all four files for each file, function, metadata key, vendor, block and `D-` / `R-` / `§12 Q` id the change touches, and fix every hit: one feature usually sits in several PRD sections, flows and decisions. Do any PRD §11 mitigation that says "in the next … PR". Where a PRD row or a flow defers detail to a topic doc (`docs/MARTECH.md`, `docs/BRANCHING.md`, `templates/news/RELATED-ARTICLES.md`, `tools/plugins/buttons/README.md`), update that doc in the same PR. Link between the files instead of copying (`D-041`, `PRD §4.6`, `flow.md §2`). Never invent facts. If a change touches none of them, write "Project docs: none affected" in the PR Summary.
 - **Verify before claiming done.** Before writing "done"/"fixed"/"implemented", you MUST run the full quality gate and **paste the actual command output** for each — a completion claim without shown output is invalid:
   1. `npm run lint`
   2. `node tools/quality/breakpoint-check.mjs`
@@ -37,7 +44,7 @@ These load-bearing rules are enforced by skills and by deterministic checkers. S
   5. `npm run check:svg` — when any SVG under `icons/` was added or changed (flags oversized SVGs; rasterize with `npm run convert:svg` — see `svg-assets`).
   6. `npm run test:a11y <url>` — for any UI/CSS change (needs the dev server up + deps installed; if it genuinely cannot run, say so explicitly and run the others).
 
-  Then confirm the change visually at `localhost:3000` and review the diff for dead code. If any check fails, fix it and re-run — this is a loop, not a one-shot report. Never assert a pass from memory. → `verify-before-claiming`, `quality-tooling`
+  Then confirm the change visually at `localhost:3000`, review the diff for dead code, and update `MIGRATION.md` and the `docs/` files the change affects (The Migration-Log and Project-Docs Rules). If any check fails, fix it and re-run — this is a loop, not a one-shot report. Never assert a pass from memory. → `verify-before-claiming`, `quality-tooling`
 
 ---
 
@@ -93,6 +100,14 @@ The repository provides the basic structure, blocks, and configuration needed to
     ├── aem.js           # Core AEM Library for Edge Delivery page decoration logic (NEVER MODIFY THIS FILE)
     ├── scripts.js       # Global JavaScript utilities, main entry point for page decoration
     └── delayed.js       # Delayed functionality such as martech loading
+├── docs/            # Project docs, kept current per The Project-Docs Rule
+    ├── PRD.md          # Requirements with status, risks, open questions
+    ├── decision.md     # Decision log (D-xxx), append-only
+    ├── flow.md         # End-to-end flows with Mermaid diagrams
+    ├── BRANCHING.md    # Branching and release
+    ├── MARTECH.md      # Martech config sheet and loader
+    ├── ARCHITECTURE.md # Components, code layout, repoless plan
+    └── assets/         # Diagrams (SVG) used by the docs and README
 ├── fonts/           # Web fonts
 ├── icons/           # SVG icons
 ├── head.html        # Global HTML head content
@@ -203,16 +218,29 @@ With this information, you can construct URLs for the preview environment (same 
 - **Production Live**: `https://main--{repo}--{owner}.aem.live/`
 - **Feature Preview**: `https://{branch}--{repo}--{owner}.aem.page/`
 
+### Branching strategy
+
+Code moves one way through four branches, each mapped to an environment. Full detail: `docs/BRANCHING.md`.
+
+`feature/*` (local) → `develop` (QE env) → `uat` (UAT env) → `main` (production)
+
+- **No direct commits** to `develop`, `uat` or `main` — pull requests only.
+- Branch `feature/<TicketAndName>` off `develop`. After `feature/` the name is **one word** (no hyphens or spaces), e.g. `feature/EDS5hotjarintegration`.
+- **Rebase** the feature branch on `develop` before raising a PR.
+- **Code only moves forward**: `develop` → `uat` → `main`. Never merge `uat` or `main` into a feature branch.
+- PR owners: the developer opens `feature/*` → `develop`; **Leads** open `develop` → `uat` and `uat` → `main`. An agent never opens a PR into `uat` or `main` unless the user asks.
+
 ### Publishing Process
-1. Push changes to a feature branch
+1. Create a feature branch from `develop` and push your changes to it
 2. AEM Code Sync automatically processes changes making them available on feature preview environment for that branch
 3. Run a PageSpeed Insights check at https://developers.google.com/speed/pagespeed/insights/?url=YOUR_URL against the feature preview URL and fix any issues. Target a score of 100
-4. Open a pull request to merge changes to `main`
-   1. in the PR description, include a link to `https://{branch}--{repo}--{owner}.aem.page/{path}` with a path to a file that illustrates the change you've made. This is the same path you have been testing with locally. WITHOUT THIS YOUR PR WILL BE REJECTED
+4. Rebase on `develop`, then open a pull request into `develop` (follow `PR_AGENT.md`, which fills in `.github/pull_request_template.md`)
+   1. in the PR description, include a link for **each site that has content** (`foundation-dev` now; `foundation-com`, `usta-dev` and `usta-com` once they have content — all share this codebase; dev content is `<name>-dev`, prod content is `<name>-com`) to `https://{branch}--{site}--{owner}.aem.page/{path}` (branch lowercased, `/` replaced by `-`), plus the same page on the target branch as the "before" link, with a path to a file that illustrates the change you've made. This is the same path you have been testing with locally. WITHOUT THIS YOUR PR WILL BE REJECTED
    2. If an existing page to demonstrate your changes doesn't exist, create test content as a static html file and ask the user for help copying it to a cms content page you can link in the PR
 5. use `gh pr checks` to verify the status of code synchronization, linting, and performance tests
-6. A human reviewer will review the code, inspect the provided URL and merge the PR
-7. AEM Code Sync updates the main branch for production
+6. A human reviewer will review the code, inspect the provided URL and merge the PR into `develop`; QE tests it there
+7. After QE sign-off, a Lead promotes `develop` → `uat`; after business sign-off in UAT, a Lead promotes `uat` → `main`
+8. AEM Code Sync updates the main branch for production
 
 ## Troubleshooting
 
@@ -240,7 +268,7 @@ See The Security Rule above and `skills/security` for the full recipe.
 - Follow the existing code style and patterns
 - Test changes locally before committing
 - Follow the Publishing Process documented above
-- Update documentation for significant changes
+- Update `MIGRATION.md` and the affected `docs/` files in the same PR as the change (The Migration-Log and Project-Docs Rules)
 
 ## If all else fails
 

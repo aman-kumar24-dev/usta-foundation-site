@@ -5,6 +5,20 @@ configured per environment in the authored `/configs/site-config` sheet and load
 `scripts/martech/loader.js`. Each environment is its own DA site with its own sheet, so the code
 has no environment logic. A vendor is switched on, off or changed in the sheet, not in code.
 
+## Overview
+
+![Martech loading: page phases, loader, consent gate, vendor modules and tags, with the per-site config sheet](assets/martech.svg)
+
+1. `scripts.js` calls the loader at the end of each page-load phase (`runPhase`).
+2. The loader reads that phase's tab of the site config sheet through `site-config.js`.
+3. When consent is required, vendor loading waits for the `consent.update` event.
+4. Plain `script.<name>` rows are injected directly; vendors that need setup first run through
+   their module in `scripts/martech/`.
+5. Martech admins edit the sheet in DA. Each site has its own sheet in its own content, so the
+   same code serves every site and environment.
+
+Full architecture of the site: see the [README](../README.md#architecture).
+
 ## 1. The config: `/configs/site-config`
 
 One DA sheet, **one tab per page-load phase**, each with `key | value` columns:
@@ -45,6 +59,10 @@ the read row), or a folder rule `/<site>/configs/+**`.
 
 Create its DA site, add `/configs/site-config` with the three tabs and the rows of the vendors it
 uses, add the permission rows, Preview and Publish. No code change.
+
+With the planned repoless setup (USTAFoundation.com and USTA.com sharing this repo), each site
+keeps its own DA content source and therefore its own `/configs/site-config` sheet, so vendors
+and consent settings stay independent per site.
 
 ## 2. How it loads
 

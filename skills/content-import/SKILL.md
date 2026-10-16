@@ -43,7 +43,8 @@ page. For each page: measure the LIVE DOM → **only if it differs**, add/adjust
 `B.*`/registry; new parser only for a genuinely new variant) — **same-shape pages skip this entirely**
 → re-bundle (esbuild) → import (single URL is fine) → **finalize assets**
 (`tools/assets/finalize-page.mjs`) → verify at every breakpoint → visual-parity pass → asset audit →
-**back up** the known-good script + manifest → log the page in `MIGRATION.md`.
+**back up** the known-good script + manifest → log the page in `MIGRATION.md` and update the template's status in
+`docs/PRD.md` §4.1 (and `docs/flow.md` §6 if an import step changed).
 
 ## Downloadable assets (every page with download links — guide §5)
 - Our-host docs → `content/assets/docs/<page-path>/…`; inline `<img>` → `content/media-da/…` (NEVER

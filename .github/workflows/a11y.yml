@@ -38,7 +38,7 @@ jobs:
           PR_BRANCH: ${{ github.head_ref }}
         run: |
           URL_BRANCH=$(echo "$AFTER_URL" | sed 's|https://||' | cut -d'.' -f1 | sed 's/--.*//')
-          NORMALIZED_PR_BRANCH=$(echo "$PR_BRANCH" | sed -E 's/^(feature|bugfix|hotfix)\//\1-/')
+          NORMALIZED_PR_BRANCH=$(echo "$PR_BRANCH" | sed -E 's/^(feature|bugfix|hotfix)\//\1-/' | tr '[:upper:]' '[:lower:]')
           if [ "$URL_BRANCH" != "$NORMALIZED_PR_BRANCH" ]; then
            echo "❌ After URL branch does not match PR branch. Update the After URL in the PR description."
             exit 1

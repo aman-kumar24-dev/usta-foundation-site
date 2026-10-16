@@ -5654,3 +5654,79 @@ Second of the four martech PRs (branch `feature/hotjar`).
   one warning, not loaded; Hotjar already on the page → not injected again; Launch and other plain `script.*` rows
   injected directly; only `loader.js` / `hotjar.js` requested from `scripts/martech/`; unlisted module → one warning.
 
+### 2026-10-13 — Homepage QA: LEARN MORE size (768/992) + mobile text-column width (375)
+- **Issue 1 (LEARN MORE wider at 768 / 992): not reproducible.** Measured source vs local, aem.page and aem.live at
+  767/768/800/900/991/992: hero + collage LEARN MORE are **147.4×40** on both (cropped screenshots pixel-identical);
+  cards-support LEARN MORE text links 112.6 on both. The only real button delta was **below 375**: the collage
+  LEARN MORE was a fixed `width: 211px`, but the source is a FLUID 8-of-12 column of the text column's grid (12px
+  gutter) → 200 @320. Now `calc((100% + 12px) * 2 / 3 - 12px)` (210 @375, 199 @320; label min-width still wins ≥768).
+- **Issue 2 (375 text column too wide): fixed.** The source's AEM text column sits INSIDE the 336px mobile content
+  column — **4px** each side for the video feature's text cell and the support band (intro + cards) → 328 (x24),
+  **7.5px** for the collage heading + text cell → 321 (x27). EDS ran text edge-to-edge in 336 (x20), so paragraphs
+  wrapped to fewer lines. Added mobile `padding-inline` on those cells/wrappers (cards.css support intro + `ul`,
+  columns.css collage default-content + text cell, video text cell), reset at 768. Video/collage images untouched.
+  Moved the video text cell's ≥992 `padding: 16px 15px 0` into the later ≥992 rule for the same selector so the
+  cascade order is base → 768 reset → 992 (otherwise the base 4px would override it).
+- **Verified:** every `main` heading/paragraph at 375 now matches source x/width/line-count (were 1 line short on 5
+  paragraphs); 768/992/1200 unchanged from before. Known, unreported: at 768 the source insets the same text by 6px
+  (708 vs our 720, same line breaks) and the collage text sits at x394 vs our 391 / 515 vs 503 @992.
+
+### 2026-10-13 — Site-wide image tooltips (alt text on hover)
+- **Request:** show each image's alt text as a tooltip on hover, on every image across the site.
+- **Implementation:** `decorateImageTooltips()` in `scripts/scripts.js`, called from `loadPage()`. It's one delegated
+  `mouseover` listener on `document` that copies `alt` → `title` the first time an image is hovered, giving the native
+  browser tooltip. It's delegated (same pattern as `decorateLinkTargets`) so images built later — header, footer, block
+  JS, related-articles feeds — are covered without per-block changes. No CSS, no cost before the first hover.
+- **Skipped on purpose:** decorative images (`alt=""`, so no empty tooltips) and images that already have a `title`
+  (an authored title wins).
+- **Verified:** homepage — 12/13 images get a title equal to their alt; the 1 decorative image gets none.
+
+### 2026-10-16 — Codebase switch panel (DA / Experience Workspace plugin)
+- **Request:** a DA panel like Buttons with a dropdown of code branches (`main`, `uat`, `develop`) and a **Go** button
+  that reloads the editor at `https://da.live/canvas?ref=<branch>#/usta-digital/foundation-dev/index`.
+- **Files:** `tools/plugins/codebase-switch/codebase-switch.{html,js,css}`. The branch list, the URL template
+  (`data-url`, `{branch}` placeholder) and every message are in the HTML, so adding a branch or changing the target needs
+  no JS change. The CSS copies the Buttons panel's Spectrum 2 look under its own `--cs-*` tokens and loads no site styles.
+- **How it works:** in the canvas, `?ref=` sets the code branch for both the WYSIWYG preview (`fetchWysiwygBranch`) and
+  the plugin sources (`https://<ref>--<site>--<org>.aem.live/…`), so rewriting `ref` switches the whole codebase. The
+  panel is a cross-origin iframe, so Go calls the DA SDK's `setHref` and DA sets its own `location.href` (both
+  `/canvas` and the classic `/edit` library handle it; `isValidHref` allows only https URLs or `/paths`). Outside DA, Go
+  falls back to `window.open(url, '_top')`. Go stays disabled until the SDK has answered or timed out after 3 s.
+- **Current branch:** DA sends `context.ref` (canvas: its `?ref=`, `main` when there is none). That option is preselected
+  and labelled "develop (current)", and the status reads "The editor is using develop.". An unlisted ref such as a
+  feature branch is named but not preselected; a ref that is not branch-shaped (`^[a-z0-9-]+$`) is not shown.
+- **Validation:** Go accepts only a listed, branch-shaped option value and `encodeURIComponent`s it.
+- **Register (user-owned, outward-facing, not done):** DA config → `library` sheet → title `Codebase`, path
+  `/tools/plugins/codebase-switch/codebase-switch.html`. **Gotcha:** a relative path loads the panel from the `?ref=`
+  branch, so once the editor is on a branch without this folder (e.g. `uat` before promotion) the panel is missing:
+  edit `?ref=` in the address bar to get back, or register one absolute URL to a branch that has it (PRD §12 Q31).
+- **Known limit (as asked):** Go always opens `foundation-dev` `index`, not the author's current page or site (PRD §12 Q31).
+- **Verified (localhost:3000 + Playwright, 20 checks):** standalone status text, options and `window.open(…, '_top')`
+  URL. In a simulated DA host (SDK handshake with `context.ref`, records port messages): `setTitle` = "Codebase";
+  `ref=develop` preselected and marked current; Go sends `setHref` with the exact URL for main, uat and develop;
+  keyboard Tab → Enter works; an injected option `x#/other/site?` is refused ("Pick a branch from the list.", no
+  `setHref`); `ref=feature-x` is named but not preselected; a markup ref is not shown; no page errors. `test:a11y`
+  passes. **Not verified:** a signed-in DA canvas session (needs registration + a pushed branch).
+- **Docs:** PRD §4.3 row + R-A7, §12 Q31; decision D-076; flow.md §5 (diagram, step 15, Gotchas); ARCHITECTURE.md §2.
+
+### 2026-10-16 — Logged before commit: spacing and layout CSS from the working tree
+These changes sat in the `develop` working tree with no log entry (PRD §11 risk "Uncommitted CSS on `develop` is not
+logged"). They are logged here as they go into the `feature/codesyncandcodebaseswitch` PR. Author and date: n/d.
+- **`compact-headings` on every page (D-072):** moved from `templates/news/news.css` (news only) to `styles/styles.css`.
+  Inside a section with `Style | compact-headings`: a heading in default content or in a columns text cell has no bottom
+  margin and the next paragraph no top margin; a heading that ends the default content sits straight on the block
+  below; a paragraph ending in bold + underlined text (a "heading line") still has no gap below it. Source reference:
+  get-involved text gap 12 px <768 / 18 px ≥768 under a 44 / 76 px H2.
+- **Yellow bands (≥992):** a non-center-intro `section-yellow` that starts with a columns block has bottom padding
+  100 px (was 70). The spacer before any non-center-intro yellow band gets `margin-top: 60px` (source 56–80 px;
+  get-involved, YPI, our-impact). The ≥992 rule `margin: 121px 0 17px` on every yellow spacer (who-we-are History →
+  strip 121 px @1440) was removed, so center-intro bands such as who-we-are fall back to the 40 px rule.
+- **Text-left columns rows (992–1200):** `blocks/columns/columns.css` insets a text-first row 15 px each side while
+  `100vw ≤ 1200` (`margin-inline: clamp(0px, (1201px - 100vw) * 15, 15px)`), except in `split-5-6` sections. Measured
+  on get-involved, who-we-are, our-impact, YPI and special-funds. It is a hidden max-width step (PRD §12 Q21).
+- **Stylelint:** three `no-descending-specificity` disables on `split-5-6` rules ("different sections").
+- **Process docs** in the same PR (AGENTS.md, README, PR template, `PR_AGENT.md`, `a11y.yml` lower-casing,
+  `.hlxignore` `docs/*`, `docs/`) are recorded in D-073 – D-075, not here.
+- **Verified (localhost:3000):** `check:overflow` and `check:typography` pass on `/`, get-involved, who-we-are and
+  our-impact; `test:a11y /` passes. **Not re-checked:** who-we-are's History → yellow strip gap against the 2026-10-07
+  entry.
