@@ -238,11 +238,13 @@ the code arrived with PR #9 (§8.6).
   `da.live/canvas?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home` with Foundation Dev + Develop →
   `da.live/canvas?ref=develop#/aman-kumar24-dev/foundation-dev/en/home`. The org and the page path are kept.
   The panel cannot read DA's URL (cross-origin iframe), so it rebuilds it from what DA sends (`hash`, else `org` / `repo`
-  / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). Each list preselects and
-  marks the open value ("(current)"); an open value that is not listed leaves the prompt ("Select content" / "Select a
-  branch"). Go is enabled only when both lists have a pick and at least one differs from what is open; it accepts only
-  listed values and stays disabled outside DA. Both pickers share one column: a fixed 240 px, shrinking together in a
-  narrow panel, with Go beside the branch picker. The fallback branches, editor path and messages live in
+  / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). Each list preselects the open
+  value; one the sheet does not list (e.g. a feature branch) is added at the end of its list. The status line reads
+  "Currently on {content} with {branch}" with a green dot. Go is enabled only when both lists have a pick and at least one
+  differs from what is open; it accepts only listed values and stays disabled outside DA. Layout (D-080): one row of a
+  Content card and a Branch card (label inside, above the value; 3:4, shrinking with the panel, at most 360 px with Go)
+  and a round arrow Go button; DA's panel header shows the title. In browsers with customizable selects the open list
+  is a card with a highlighted, check-marked row; elsewhere the native list. The fallback branches, editor path and messages live in
   `env-selector.html`. Registered by hand per DA site (outward-facing): DA config → `library` → `Environment` =
   `/tools/plugins/env-selector/env-selector.html`; after a content switch the panel and its sheet come from the new
   site, so each listed site needs both. A relative path loads the panel from the `?ref=` branch, so it appears only on

@@ -5840,3 +5840,30 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   branch, branch only; re-picking the open values disables Go. No-ref main, an open site not in the tab (prompt, Go waits
   for it), no sheet / no content tab (open site), classic context, no site segment, tampered value, keyboard (content →
   branch → Go, type-ahead), markup ref. `test:a11y` passes.
+
+### 2026-10-16 — Env selector redesign (user's mockup)
+- **Request:** match the mockup: the Content and Branch cards and a round arrow Go button in one row, a green-dot status
+  line, the branch list as a card with a check mark; the status text "Currently on {content} with {branch}".
+- **Header:** the mockup's "[icon] Environment" bar is DA's own tool-panel header (`ew-tool-panel`: close button + the
+  view picker showing the title the panel sends with `setTitle`), so the panel draws none; its `<h1>` is visually hidden
+  for screen readers. The intro text and the fixed branch hint are removed.
+- **Cards:** `.env-selector-field` = the label (11 px, uppercase) absolutely on top of a full-card `<select>` (56 px high,
+  12 px radius, value 16 px bold under the label), with a drawn chevron. The row is a grid `3fr 4fr auto`, at most 360 px;
+  the cards shrink with the panel (labels fit from 320 px). Values stay on one line with an ellipsis. Focus or an open
+  list gives the card a 2 px accent border (`select:is(:focus, :open)`). The "Select …" prompt is grey regular weight.
+- **Open list:** `@supports (appearance: base-select)`: `::picker(select)` is a rounded, shadowed card; rows 44 px; the
+  picked row light blue and bold with `::checkmark` on the right; the prompt hidden; `::picker-icon` hidden (the card has its
+  own chevron). The ellipsis needs a `<button><selectedcontent>` inside each select (the select's own text cannot be
+  styled); browsers without customizable select drop both tags and show the native list. `renderOptions()` now removes
+  only the options, so the button survives.
+- **Go:** 56 px accent circle with an inline arrow SVG, `aria-label="Go"`; grey when disabled.
+- **Status:** `say()` sets `data-tone` to the message key; the dot is green (`current`), blue (`switching`), red
+  (`invalid`, `noPage`). Messages: "Currently on {content} with {branch}", "Opening {content} with {branch}…".
+- **Lists:** an open site or branch the sheet does not list is appended and preselected (`selectCurrent()`), as the
+  mockup shows `feature-envselector` under develop; no "(current)" suffix any more.
+- **Deviation from the mockup:** card borders stay `#8f8f8f` (3.3:1) instead of the mockup's lighter grey, for the ≥ 3:1
+  UI-border rule. Labels/values use the panel's font stack (Adobe Clean when installed, else the system font).
+- **Verified:** screenshots at 400 px (closed, list open, changed picks) and 300 / 1900 px; Playwright 63 checks (3:4 row,
+  360 px cap, 56 px Go, no overflow at 280 / 320 / 1900, labels not cut from 320, real sheet + example URL, appended open
+  values, status text and tones, every URL case, keyboard Tab + type-ahead on the customizable select); `test:a11y`
+  passes with no warnings; lint clean (no stylelint disables needed for the new syntax).

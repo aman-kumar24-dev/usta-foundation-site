@@ -106,7 +106,8 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-076 | 2026-10-16 | Codebase switch panel: pick main / uat / develop, Go reloads the canvas with `?ref=<branch>` through the DA SDK | Superseded by D-077 |
 | D-077 | 2026-10-16 | Env selector: Go keeps the open page and only sets `?ref=<branch>`; plugin renamed `env-selector` | Active (in PR to `develop`) |
 | D-078 | 2026-10-16 | Env selector branches come from the DA sheet `/.da/environments/config` (tab `code`); the HTML list is the fallback | Active (in PR to `develop`) |
-| D-079 | 2026-10-16 | Env selector content picker: the hash's site segment is replaced; Go needs both picks and one change | Active (in PR to `develop`) |
+| D-079 | 2026-10-16 | Env selector content picker: the hash's site segment is replaced; Go needs both picks and one change | Active (in PR to `develop`); layout and unlisted-value parts superseded by D-080 |
+| D-080 | 2026-10-16 | Env selector design from the user's mockup: one row of field cards + round Go, unlisted open values added, "Currently on …" status | Active (in PR to `develop`) |
 
 ---
 
@@ -434,6 +435,22 @@ leaves "Select content". The two pickers share one grid column, so they always h
 together), with Go beside the branch picker. *Why:* switch between content sites and code branches from one panel.
 *Decided by:* user (content list, position, width, the site-segment rule, both picks on Go); Claude (enable rule,
 fallbacks). *Source:* MIGRATION.md 2026-10-16 (Env selector content picker); PRD R-A7.
+*Partly superseded by D-080 (2026-10-16):* the equal-width column and the "Select content" prompt for an unlisted open
+site.
+
+**D-080 — Env selector design from the user's mockup (2026-10-16).** The panel follows the user's mockup. (1) DA's panel
+header already shows the title the panel sends, so the panel draws no header; its `<h1>` is visually hidden. (2) One row:
+a Content card and a Branch card, each with its label inside above the picked value, sharing the row 3:4 (the branch
+card is wider for branch names) and shrinking with the panel, then a 56 px round Go button with an arrow (`aria-label`
+"Go"); the row is at most 360 px wide. This replaces D-079's equal-width column. (3) The open list uses the customizable
+select (`appearance: base-select`, `::picker(select)`, `::checkmark`, `<button><selectedcontent>` for the ellipsis) where
+the browser has it, and the native list elsewhere. (4) An open site or branch that the sheet does not list (e.g.
+`feature-envselector`) is added at the end of its list and preselected, as in the mockup, instead of showing the prompt
+(D-079); there is no "(current)" suffix. (5) The status line is a dot (green: what is open, blue: switching, red: a
+problem) and "Currently on {content} with {branch}" (the user's wording). The fixed branch hint is removed. (6) Card
+borders stay Spectrum gray 500 (`#8f8f8f`, 3.3:1 on white) rather than the mockup's lighter grey, for the ≥ 3:1 UI-border
+rule (skills/accessibility). *Decided by:* user (mockup, status text); Claude (base-select with fallback, the border
+colour, tones). *Source:* MIGRATION.md 2026-10-16 (Env selector redesign); PRD R-A7.
 
 #### Buttons and links
 
@@ -729,3 +746,4 @@ still open (PRD §12).
 | `style="usta"` + size options | One USTA style with height / width / font-size / shape / padding / disabled options | D-062 |
 | 2026-10-11 in-code list | `USTA_ICONS` allow-list in `scripts.js` and the panel | D-063 |
 | D-076 | Codebase switch panel with a fixed target URL (`…/foundation-dev/index`) | D-077 |
+| D-079 (layout, unlisted value) | Equal-width pickers in one column; "Select content" prompt for an unlisted open site | D-080 |

@@ -12,8 +12,9 @@
  * Both lists come from the DA sheet /.da/environments/config: tab `content`
  * for the content, tab `code` for the branches (`title` is the option text,
  * `value` the site or branch). Without the sheet, the branches fall back to
- * the options in the HTML and the content to the open site. The editor path
- * and every message live in the HTML.
+ * the options in the HTML. An open site or branch that is not listed (e.g. a
+ * feature branch) is added to its list, so each list starts on what is open.
+ * The editor path and every message live in the HTML.
  */
 
 const SHEET_PATH = '/.da/environments/config.json';
@@ -37,8 +38,12 @@ const state = {
   current: { content: null, branch: null },
 };
 
-/** Shows a message from the status element's data-*, filling {content} and {branch} */
+/**
+ * Shows a message from the status element's data-*, filling {content} and
+ * {branch}; data-tone (the message key) colours its dot
+ */
 function say(key, names = {}) {
+  status.dataset.tone = key;
   status.textContent = (status.dataset[key] || '')
     .replace(/\{(content|branch)\}/g, (_, name) => names[name] || '');
 }
@@ -46,10 +51,7 @@ function say(key, names = {}) {
 const listed = (select, value) => [...select.options].find((option) => option.value === value);
 
 /** A value's name for messages: its title in the list, else the value itself */
-const labelOf = (select, value) => {
-  const option = value && listed(select, value);
-  return option ? option.dataset.title || option.textContent : value;
-};
+const labelOf = (select, value) => (value && listed(select, value)?.textContent) || value;
 
 /** The picked value, only when it is one of the listed options */
 function chosen(select) {
@@ -92,16 +94,18 @@ async function loadSheet({ org, repo } = {}, actions = {}) {
 
 /** Replaces a list's options, after its prompt, with the given ones */
 function renderOptions(select, options) {
-  const [prompt] = select.options;
-  select.replaceChildren(prompt, ...options.map(({ title, value }) => new Option(title, value)));
+  [...select.options].slice(1).forEach((option) => option.remove());
+  select.append(...options.map(({ title, value }) => new Option(title, value)));
 }
 
-/** Preselects the open content or branch and labels it "(current)"; unlisted, the prompt stays */
-function markCurrent(select, value) {
-  const option = value && listed(select, value);
-  if (!option) return;
-  option.dataset.title = option.textContent;
-  option.textContent = select.dataset.current.replace('{title}', option.dataset.title);
+/**
+ * Preselects the open content or branch. One the list does not have (e.g. a
+ * feature branch) is added at the end, so the author can see it and pick it
+ * again.
+ */
+function selectCurrent(select, value) {
+  if (!value) return;
+  if (!listed(select, value)) select.append(new Option(value, value));
   select.value = value;
 }
 
@@ -193,12 +197,10 @@ async function init() {
   if (typeof ref === 'string' && NAME.test(ref)) state.current.branch = ref;
 
   const sheet = await loadSheet(state.context, state.actions);
-  const openSite = state.current.content;
-  const openSiteOnly = openSite ? [{ title: openSite, value: openSite }] : [];
-  renderOptions(contentSelect, sheet.content || openSiteOnly);
+  renderOptions(contentSelect, sheet.content || []);
   if (sheet.branch) renderOptions(branchSelect, sheet.branch);
-  markCurrent(contentSelect, state.current.content);
-  markCurrent(branchSelect, state.current.branch);
+  selectCurrent(contentSelect, state.current.content);
+  selectCurrent(branchSelect, state.current.branch);
 
   if (state.current.content && state.current.branch) {
     say('current', {

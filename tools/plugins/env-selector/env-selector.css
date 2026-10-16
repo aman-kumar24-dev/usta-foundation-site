@@ -1,12 +1,17 @@
 /*
- * Env selector panel (Experience Workspace library), in the same Adobe
- * Spectrum 2 look as the Buttons panel (tools/plugins/buttons/buttons.css):
- * the Adobe Clean type stack, the Spectrum gray scale and accent blue, 8px
- * field corners, pill call-to-action. The panel loads no site styles.
+ * Env selector panel (Experience Workspace library). DA's panel header shows
+ * the title, so the panel is one row: a Content card and a Branch card (each
+ * with its label inside, above the picked value) and a round Go button, then a
+ * status line with a coloured dot. Spectrum 2 greys and accent blue, the Adobe
+ * Clean type stack. Where the browser has customizable selects
+ * (appearance: base-select), the open list is styled too: a rounded card, a
+ * highlighted row and a check mark on the picked option; elsewhere the native
+ * list is used. The panel loads no site styles.
  */
 .env-selector {
   /* Spectrum 2, light theme */
   --es-gray-25: #fff;
+  --es-gray-75: #f3f3f3;
   --es-gray-100: #e9e9e9;
   --es-gray-200: #e1e1e1;
   --es-gray-500: #8f8f8f;
@@ -16,10 +21,14 @@
   --es-accent: #3b63fb;
   --es-accent-hover: #274dea;
   --es-accent-down: #1d3ecf;
+  --es-accent-subtle: #edf1ff;
+  --es-positive: #12805c;
+  --es-negative: #d73220;
   --es-font: "Adobe Clean", adobe-clean, "Source Sans Pro", -apple-system, "Segoe UI", roboto, sans-serif;
-  --es-radius-field: 8px;
-  --es-pad: 24px;
-  --es-picker-width: 240px;
+  --es-radius-card: 12px;
+  --es-pad: 20px;
+  --es-form-width: 360px;
+  --es-control-height: 56px;
   --es-fast: 130ms;
 
   min-height: 100vh;
@@ -32,14 +41,19 @@
 }
 
 .env-selector main {
-  padding: 24px var(--es-pad) 32px;
+  padding: var(--es-pad);
 }
 
-.env-selector h1 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.3;
+/* DA's panel header shows the title; the heading stays for screen readers */
+.env-selector .env-selector-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .env-selector p {
@@ -51,27 +65,89 @@
   outline-offset: 2px;
 }
 
-.env-selector .env-selector-intro p {
-  margin-top: 4px;
-  color: var(--es-gray-700);
-}
-
-/* the content and branch pickers share one column, so they always have the
-   same width: --es-picker-width, shrinking only when the panel is narrower;
-   the buttons sit in the next column, beside the branch picker. Labels and
-   the hint span both columns. */
+/* one row: the Content card, the Branch card (wider, for branch names) and Go;
+   the cards share the row 3:4 and shrink with the panel */
 .env-selector .env-selector-form {
   display: grid;
-  grid-template-columns: minmax(0, var(--es-picker-width)) auto;
-  justify-content: start;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) auto;
   align-items: center;
-  gap: 6px 8px;
-  margin-top: 20px;
+  gap: 8px;
+  max-width: var(--es-form-width);
 }
 
-.env-selector .env-selector-label,
-.env-selector .env-selector-hint {
-  grid-column: 1 / -1;
+/* a field card: the select fills it, so the whole card opens the list; the
+   label sits on top of it, above the picked value */
+.env-selector .env-selector-field {
+  position: relative;
+  min-width: 0;
+}
+
+.env-selector .env-selector-label {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  left: 12px;
+  overflow: hidden;
+  color: var(--es-gray-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.env-selector .env-selector-field select {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--es-control-height);
+  border: 1px solid var(--es-gray-500);
+  border-radius: var(--es-radius-card);
+  padding: 25px 34px 7px 12px;
+  overflow: hidden;
+  background-color: var(--es-gray-25);
+  color: var(--es-gray-900);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color var(--es-fast);
+}
+
+.env-selector .env-selector-field select:hover {
+  border-color: var(--es-gray-800);
+}
+
+/* focused or open: the card border turns accent blue, 2px (:is() keeps the
+   rule in browsers that do not know :open) */
+.env-selector .env-selector-field select:is(:focus, :open) {
+  outline: 2px solid var(--es-accent);
+  outline-offset: -1px;
+}
+
+/* the "Select …" prompt reads as a placeholder */
+.env-selector .env-selector-field select:has(option[value=""]:checked) {
+  color: var(--es-gray-700);
+  font-weight: 400;
+}
+
+.env-selector .env-selector-field::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--es-gray-700);
+  border-bottom: 1.5px solid var(--es-gray-700);
+  pointer-events: none;
+  transform: translateY(-75%) rotate(45deg);
 }
 
 .env-selector .env-selector-actions {
@@ -79,83 +155,24 @@
   gap: 8px;
 }
 
-.env-selector .env-selector-label {
-  color: var(--es-gray-800);
-  font-weight: 500;
-  line-height: 20px;
-}
-
-/* a gap between the content field and the branch field */
-.env-selector .env-selector-select + .env-selector-label {
-  margin-top: 10px;
-}
-
-.env-selector .env-selector-hint {
-  color: var(--es-gray-700);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-/* Spectrum picker: a native select with a drawn chevron */
-.env-selector .env-selector-select {
-  position: relative;
-  grid-column: 1;
-  min-width: 0;
-}
-
-.env-selector .env-selector-select select {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 44px;
-  border: 1px solid var(--es-gray-500);
-  border-radius: var(--es-radius-field);
-  padding: 10px 36px 10px 12px;
-  background-color: var(--es-gray-25);
-  color: var(--es-gray-900);
-  font-family: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  appearance: none;
-  transition: border-color var(--es-fast);
-}
-
-.env-selector .env-selector-select select:hover {
-  border-color: var(--es-gray-800);
-}
-
-.env-selector .env-selector-select select:focus-visible {
-  border-color: var(--es-accent);
-}
-
-.env-selector .env-selector-select::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 16px;
-  width: 7px;
-  height: 7px;
-  border-right: 2px solid var(--es-gray-800);
-  border-bottom: 2px solid var(--es-gray-800);
-  pointer-events: none;
-  transform: translateY(-75%) rotate(45deg);
-}
-
-/* Spectrum accent button: pill, bold label */
+/* Spectrum accent, round, an arrow */
 .env-selector .env-selector-go {
-  flex: none;
-  min-width: 64px;
-  min-height: 44px;
+  display: grid;
+  place-items: center;
+  width: var(--es-control-height);
+  height: var(--es-control-height);
   border: 0;
-  border-radius: 22px;
-  padding: 10px 24px;
+  border-radius: 50%;
+  padding: 0;
   background-color: var(--es-accent);
   color: var(--es-gray-25);
-  font-family: var(--es-font);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.3;
   cursor: pointer;
   transition: background-color var(--es-fast);
+}
+
+.env-selector .env-selector-go svg {
+  width: 24px;
+  height: 24px;
 }
 
 .env-selector .env-selector-go:hover {
@@ -172,22 +189,111 @@
   cursor: not-allowed;
 }
 
-/* as wide as its message, never the whole panel */
+/* the dot: green for what is open, blue while switching, red for a problem */
 .env-selector .env-selector-status {
-  box-sizing: border-box;
-  width: fit-content;
-  max-width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: var(--es-form-width);
   margin-top: 16px;
-  border: 1px solid var(--es-gray-200);
-  border-radius: var(--es-radius-field);
-  padding: 8px 12px;
-  background-color: var(--es-gray-25);
   color: var(--es-gray-700);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.env-selector .env-selector-status::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background-color: var(--es-positive);
+}
+
+.env-selector .env-selector-status[data-tone="switching"]::before {
+  background-color: var(--es-accent);
+}
+
+.env-selector .env-selector-status:is([data-tone="invalid"], [data-tone="noPage"])::before {
+  background-color: var(--es-negative);
 }
 
 .env-selector .env-selector-status:empty {
   display: none;
+}
+
+/* customizable select: the open list as a card, the picked row highlighted
+   with a check mark on the right; the prompt is not a choice */
+@supports (appearance: base-select) {
+  .env-selector .env-selector-field select,
+  .env-selector .env-selector-field ::picker(select) {
+    appearance: base-select;
+  }
+
+  .env-selector .env-selector-field select::picker-icon {
+    display: none;
+  }
+
+  .env-selector .env-selector-field select > button {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+  }
+
+  .env-selector .env-selector-field selectedcontent {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .env-selector .env-selector-field ::picker(select) {
+    margin-top: 8px;
+    border: 1px solid var(--es-gray-200);
+    border-radius: var(--es-radius-card);
+    padding: 6px;
+    background-color: var(--es-gray-25);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  }
+
+  .env-selector .env-selector-field option {
+    gap: 12px;
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--es-gray-900);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 20px;
+    cursor: pointer;
+  }
+
+  .env-selector .env-selector-field option:hover,
+  .env-selector .env-selector-field option:focus-visible {
+    outline: none;
+    background-color: var(--es-gray-75);
+  }
+
+  .env-selector .env-selector-field option:checked {
+    background-color: var(--es-accent-subtle);
+    font-weight: 700;
+  }
+
+  .env-selector .env-selector-field option::checkmark {
+    order: 1;
+    margin-left: auto;
+    color: var(--es-accent);
+  }
+
+  .env-selector .env-selector-field option[value=""] {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -9,26 +9,27 @@
 </head>
 <body class="env-selector">
   <main>
-    <header class="env-selector-intro">
-      <h1 id="env-selector-title">Environment</h1>
-      <p>Pick the content and the code branch, then select Go to open this page with them.</p>
-    </header>
+    <!-- DA's panel header already shows the title (the panel sends it), so the heading is for screen readers only -->
+    <h1 class="env-selector-title" id="env-selector-title">Environment</h1>
 
     <!-- data-editor: the editor's path; Go keeps the open page, puts the content into the hash
          (#/org/content/path) and the branch into ?ref= -->
     <form class="env-selector-form" aria-labelledby="env-selector-title" data-editor="/canvas">
-      <label class="env-selector-label" for="env-selector-content">Content</label>
-      <div class="env-selector-select">
-        <select id="env-selector-content" name="content" data-current="{title} (current)">
+      <div class="env-selector-field">
+        <label class="env-selector-label" for="env-selector-content">Content</label>
+        <select id="env-selector-content" name="content">
+          <!-- customizable select: shows the picked option so it can be cut with an ellipsis;
+               browsers without it ignore the button and keep their native select -->
+          <button type="button"><selectedcontent></selectedcontent></button>
           <option value="" disabled selected>Select content</option>
-          <!-- filled from the DA sheet /.da/environments/config (tab content); without it, the open site -->
+          <!-- filled from the DA sheet /.da/environments/config (tab content) and the open site -->
         </select>
       </div>
 
-      <label class="env-selector-label" for="env-selector-branch">Branch</label>
-      <div class="env-selector-select">
-        <select id="env-selector-branch" name="branch" aria-describedby="env-selector-hint"
-          data-current="{title} (current)">
+      <div class="env-selector-field">
+        <label class="env-selector-label" for="env-selector-branch">Branch</label>
+        <select id="env-selector-branch" name="branch">
+          <button type="button"><selectedcontent></selectedcontent></button>
           <option value="" disabled selected>Select a branch</option>
           <!-- built-in branches: replaced by the DA sheet /.da/environments/config (tab code) when it can be read -->
           <option value="main">main</option>
@@ -36,18 +37,23 @@
           <option value="develop">develop</option>
         </select>
       </div>
+
       <!-- the buttons that act on both picks -->
       <div class="env-selector-actions">
-        <button type="submit" class="env-selector-go" disabled>Go</button>
+        <button type="submit" class="env-selector-go" aria-label="Go" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
-      <p class="env-selector-hint" id="env-selector-hint">main is production, uat is UAT, develop is QE.</p>
     </form>
 
     <p class="env-selector-status" role="status"
-      data-current="The editor is using {content} with {branch} code."
+      data-current="Currently on {content} with {branch}"
       data-no-page="The page open in the editor could not be found. Reload the editor and try again."
-      data-switching="Opening {content} with {branch} code…"
-      data-invalid="Pick the content and a branch from the lists.">Checking the current branch…</p>
+      data-switching="Opening {content} with {branch}…"
+      data-invalid="Pick the content and a branch from the lists."></p>
   </main>
 </body>
 </html>
