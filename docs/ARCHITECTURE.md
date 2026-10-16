@@ -30,7 +30,7 @@ lift-and-shift of the existing sites (D-006).
 | **Header and footer** | `blocks/header` and `blocks/footer`, built from the `/nav` and `/footer` fragments; the header also builds the breadcrumb from `/query-index.json` | PRD §4.7; flow.md §4 |
 | **Martech loader** | `scripts/site-config.js` reads the config sheet (one tab per phase, D-015); `scripts/martech/loader.js` injects vendor scripts and modules after the consent gate (`scripts/consent-check.js`) | [MARTECH.md](MARTECH.md); flow.md §2 |
 | **Donations** | `scripts/donate.js` and `blocks/donate-embed` load the Fundraise Up widget (overlay and inline form) | flow.md §3; PRD §4.5 |
-| **Third parties** | Adobe Tags (Analytics), Hotjar, Fundraise Up, YouTube, Instagram; planned: Adobe Target, OneTrust, a data layer | PRD §4.6, §10 |
+| **Third parties** | Adobe Tags (Analytics), Hotjar, Adobe Target (pages with `Target` metadata), Fundraise Up, YouTube, Instagram; planned: OneTrust, a data layer | PRD §4.6, §10 |
 
 ---
 
@@ -43,7 +43,7 @@ lift-and-shift of the existing sites (D-006).
 | `scripts/aem.js` | Vendored Edge Delivery library. **Never modify** (N2) |
 | `scripts/scripts.js` | Page loading and global decoration: `loadPage()`, `loadEager()`, `loadLazy()`, `loadDelayed()` |
 | `scripts/site-config.js` | Reads `/configs/site-config` tabs; `isConsentRequired()` |
-| `scripts/martech/` | `loader.js` (`runPhase()`) and vendor modules (`hotjar.js`) |
+| `scripts/martech/` | `loader.js` (`runPhase()`) and vendor modules (`hotjar.js`, `target.js` + `target-a4t.js`; at.js and VisitorAPI in `vendor/`) |
 | `scripts/consent-check.js`, `scripts/consented.js` | Placeholder consent gate (to be replaced by OneTrust) |
 | `scripts/donate.js` | Fundraise Up loader and donate-link rewrite |
 | `styles/` | `styles.css` (critical: tokens, grid, sections, default content), `lazy-styles.css`, `fonts.css`, `foundation-buttons.css`, `usta-buttons.css` |
@@ -67,7 +67,7 @@ There is no build step and no `scripts/delayed.js`: delayed work lives in `loadD
 | No build step, no runtime dependencies, no frameworks; native ES modules with `.js` imports | Edge Delivery serves the files as they are | PRD N1; D-010 |
 | `scripts/aem.js`, `head.html`, `package-lock.json`, `node_modules/` are never modified | Vendored or platform-owned | PRD N2 |
 | CSP with `'strict-dynamic'` and Trusted Types: only the nonce'd modules and the scripts they create run | Third-party scripts must be injected from code (the martech loader), never inline | PRD N10 |
-| Three-phase loading; third parties only in the delayed phase (except `donate-embed`) | PageSpeed target 100 | PRD N4; D-039 |
+| Three-phase loading; third parties only in the delayed phase (except `donate-embed`, and Adobe Target in the eager phase on pages with `Target` metadata) | PageSpeed target 100 | PRD N4; D-039, D-045 |
 | Configuration is data in the per-site DA sheet, not code; no environment logic in code | Each environment is its own DA site | D-015, D-048; PRD R-M2 |
 | Mobile-first `min-width` breakpoints 768 / 992 / 1200; one shared grid; the source's type scale | Lift-and-shift parity | D-007; PRD §5 |
 | Files not listed in `.hlxignore` are served by Code Sync | Dev tooling must be excluded | PRD N11 |
@@ -97,8 +97,8 @@ There is no build step and no `scripts/delayed.js`: delayed work lives in `loadD
 ![Martech loading: page phases, loader, consent gate, vendor modules and tags, with the per-site config sheet](assets/martech.svg)
 
 Vendors are rows in the per-site config sheet, read per page-load phase and loaded by `scripts/martech/loader.js` after
-the consent gate. Today only the delayed phase is wired (Tags, Hotjar); Target, Fundraise Up as a config row and OneTrust
-are planned (D-069). Detail: [MARTECH.md](MARTECH.md), flow.md §2, PRD §4.6.
+the consent gate. The delayed phase is wired (Tags, Hotjar), and the eager phase on pages with `Target` metadata (Adobe
+Target, Martech 3/4); Fundraise Up as a config row and OneTrust are planned (D-069). Detail: [MARTECH.md](MARTECH.md), flow.md §2, PRD §4.6.
 
 ---
 

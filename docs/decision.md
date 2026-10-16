@@ -72,14 +72,14 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-042 | 2026-09-22 | News `Publication Date` only where the source shows a real date; `News Tags` from the source `data-tags` | Active (importer not updated) |
 | D-043 | 2026-09-24 | Brand tokens live in `styles/styles.css` `:root`; no `styles/brand.css`, no CSS `@import` | Active |
 | D-044 | 2026-09-27 | Adobe Analytics via the Tags (Launch) embed only, reusing USTA's library for now | Active |
-| D-045 | 2026-09-27 | Adobe Target moves out of Tags into site code (at.js), only on pages with `Target` metadata | Active (branch only) |
+| D-045 | 2026-09-27 | Adobe Target moves out of Tags into site code (at.js), only on pages with `Target` metadata | Active (Martech 3/4) |
 | D-046 | 2026-09-27 | Fundraise Up loads only on deliberate interaction; donation beacons are sent from code | Active (branch only) |
 | D-047 | 2026-09-27 | ustafoundation needs no consent gate (`consentRequired = false`); other sites set their own | Active (confirm before `one-trust` merges) |
 | D-048 | 2026-09-28 | Martech settings live in an authored DA sheet per site, not in the DA org/site config | Active |
 | D-049 | 2026-09-28 | The martech config sheet is admin-only (DA org permission rows) | Active |
 | D-050 | 2026-09-28 | Mirror DA content from `aemdemos/foundation-usta` with a sync tool, on request | Active (tool branch only) |
 | D-051 | 2026-09-30 | Remove the Reactions widget from all news pages; retire `custom-widget-reactions` | Active |
-| D-052 | 2026-10-01 | Analytics for Target (A4T) in client-side mode, with no VisitorAPI | Active (branch only) |
+| D-052 | 2026-10-01 | Analytics for Target (A4T) in client-side mode, with no VisitorAPI | Active (Martech 3/4) |
 | D-053 | n/d | Accept named axe exceptions for source parity | Active |
 | D-054 | 2026-10-02 | Uneven text + image rows use the `split-5-6` section style; alignment lives in blocks | Active |
 | D-055 | 2026-10-02 | Homepage video uses the real YouTube player, mounted 300 px before the viewport | Active |
@@ -96,7 +96,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-066 | 2026-10-14 | Analytics, Hotjar and Target run only when OneTrust groups C0002, C0004 and C0005 are all on | Active (branch only) |
 | D-067 | 2026-10-14 | `consentRequired` fails closed: no row, or any value other than `true`/`false`, counts as required | Active |
 | D-068 | 2026-10-14 | Each vendor is one `script.<name>` row; a module in `scripts/martech/` only when it needs page setup | Active |
-| D-069 | 2026-10-14 | Port martech from `aem-coder-branch` to `develop` in four PRs, one vendor each | Active (1/4, 2/4 done) |
+| D-069 | 2026-10-14 | Port martech from `aem-coder-branch` to `develop` in four PRs, one vendor each | Active (1/4–3/4 done) |
 | D-070 | 2026-09-09 | Hero photos stay CSS backgrounds, with a hidden `role=img` label and an LCP preload | Active |
 | D-071 | 2026-09-29 | CTA buttons are a separate `a.cta-button` layer on top of the boilerplate buttons | Active |
 | D-072 | n/d | `compact-headings` section style: a per-section opt-out of the 24 px rhythm | Active |
@@ -111,6 +111,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-081 | 2026-10-16 | Env selector: label "CodeBase"; cards stack up to 576 px (panel-only step, outside the site breakpoints) | Active (in PR to `develop`) |
 | D-082 | 2026-10-16 | Env selector CodeBase is an editable combobox: typed/pasted branches, host-name form, listed with the sheet's | Active (in PR to `develop`); "never filters" superseded by D-083 |
 | D-083 | 2026-10-16 | Env selector "All branches" from the EDS admin API (fetchBranches, adapted from adobe-rnd/aem-apps); typing filters both groups | Active (in PR to `develop`) |
+| D-084 | 2026-10-16 | Target pages load the first section while Target runs, hidden until the offers are in; no speculative at.js preload | Active (Martech 3/4) |
 
 ---
 
@@ -633,8 +634,8 @@ untouchable `head.html` would not allow. *Why:* requested method; keeps the exis
 only on pages with `Target` metadata and `target.enabled`. *Why:* keeps at.js off all other pages. Two at.js instances
 conflict, so production stays off until USTA's Tags library drops Target. Anti-flicker: the first section waits for the
 page-load offers, capped by `target.flickerTimeout` (1000 ms). When consent is required, Target starts only after consent
-and does not hold first paint. *Decided by:* user. *Status:* built on `aem-coder-branch` only (`1958509`, `138d4af`);
-ported in Martech 3/4. *Source:* `.ema/plan.md` §3 and `.ema/design.md` §5 on that branch; MIGRATION.md 2026-10-14.
+and does not hold first paint. *Decided by:* user. *Status:* ported in Martech 3/4 (`feature/target`) as
+`scripts/martech/target.js`, configured by the eager tab; reference build on `aem-coder-branch` (`1958509`, `138d4af`). *Source:* `.ema/plan.md` §3 and `.ema/design.md` §5 on that branch; MIGRATION.md 2026-10-14.
 
 **D-046 — Fundraise Up on interaction; donation analytics from code (2026-09-27).** *Why:* loaded at ~3 s in the delayed
 phase, the widget's third-party cookies and CPU fell inside Lighthouse runs. Moving it to first interaction took standard
@@ -716,10 +717,20 @@ comes from the site config only; the Hotjar rule in USTA's Launch library is to 
 
 **D-069 — Martech moves over in four PRs (2026-10-14).** `aem-coder-branch` is not merged as is. Each vendor is rebuilt
 on the per-phase config and loader (D-015), one per PR: Analytics → Hotjar → Target → Fundraise Up. 1/4 (`2e8c8f0`,
-`7e3c377`, `2cb2e68`) and 2/4 (PR #14, `b6236c7`) are on `develop`; 3/4 Target and 4/4 Fundraise Up remain. *Decided
+`7e3c377`, `2cb2e68`) and 2/4 (PR #14, `b6236c7`) are on `develop`; 3/4 Target is `feature/target` (PR to `develop`); 4/4 Fundraise Up remains. *Decided
 by:* n/d. *Source:* MIGRATION.md 2026-10-14 (Martech restructure 1/4).
 *Correction (2026-10-16):* 1/4 was pushed straight to `develop` with no PR (GitHub lists no PR for its three commits);
 only 2/4 went through a PR (#14).
+
+**D-084 — Target pages: load the first section while Target runs (2026-10-16, Martech 3/4).** The first version of the
+eager hook awaited Target before `loadSection()`, so the hero image only started after config tab → modules → at.js →
+delivery, and mobile Lighthouse on the preview `/en/home` fell from 99 to 94 (LCP 1.83 → 2.98 s). Now the eager tab is
+preloaded at the start of `loadEager()`, and the first section loads in parallel with `visibility: hidden`, revealed once
+both it and Target are done: the first paint still shows the offers (D-045). Localhost `/en/home`: 80 / LCP 4.69 s → 89 /
+3.41 s (median of 3). A speculative `modulepreload` of at.js was measured too (89 / 3.42 s, no gain) and dropped, because it
+costs ~34 KB on Target pages where Target ends up off (production until the cutover). *Why:* recover the mobile score
+without giving up the anti-flicker guarantee. *Decided by:* user, 2026-10-16 ("speed up the Target hold"); the at.js
+preload left out on the measurement. *Source:* MIGRATION.md 2026-10-16.
 
 #### Added by the completeness pass (2026-10-15)
 
