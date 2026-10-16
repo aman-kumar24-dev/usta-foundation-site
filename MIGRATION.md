@@ -5803,8 +5803,11 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   title in `data-title`.
 - **Fallback:** sheet missing (404), unreadable, without a `code` tab, or with no valid row → the built-in `main`, `uat`,
   `develop` options in the HTML.
-- **Not seen:** the real sheet. `admin.da.live` and `content.da.live` both return 401 without a DA sign-in, so the
-  shape assumed is DA's multi-sheet JSON (`{":names": ["code", …], "code": {"data": [{title, value}]}}`).
+- **Real sheet (confirmed later the same day, from the JSON the user shared):** tabs `code` (Main/`main`, UAT/`uat`,
+  Develop/`develop`) and `content` (Dev Content/`usta-foundation-site`, not used by the panel yet). It is DA's multi-sheet
+  JSON as assumed (`admin.da.live` / `content.da.live` return 401 without a DA sign-in). Fed to the simulated DA host:
+  `Select a branch | Main | UAT | Develop (current)` for `ref=develop`, `Main (current)` for no ref; Go → the right
+  `?ref=`; 10 checks pass.
 - **Open:** the hint "main is production, uat is UAT, develop is QE." is still fixed text in the HTML and can disagree
   with the sheet.
 - **Verified (Playwright, 44 checks; sheet served by a route in the simulated DA host):** the request goes to
