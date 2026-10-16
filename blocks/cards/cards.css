@@ -1015,10 +1015,16 @@ main .section > .default-content-wrapper + .cards-wrapper:has(> .cards.profile.b
    Values from source computed styles (our-impact.html) at 390/768/992/1200.
 
    The round crop + white ring is baked into the source PNG, so the image is a
-   plain square (border-radius 0). Source lays images in one 4-col grid and the
-   number+caption pairs in a second 4-col grid below; we model each column as a
-   single stacked card (image → number → caption), which is visually identical
-   per column and the natural EDS authoring model. */
+   plain square (border-radius 0). Source lays ALL images in one grid and the
+   number+caption pairs in a SECOND grid below — so on mobile the 4 images stack
+   first, then the 4 stats, and at 768–991 the images are 4-up while the stats
+   are 2×2. We keep one authored card per row (image + stat stay paired in the
+   DOM) and reproduce the two grids with `display: contents` on the <li> + `order`
+   on the image / stat body, so every image auto-places before every stat body.
+
+   Vertical rhythm comes from the source's own boxes: each image has 36px below
+   it; each stat body is padded (24/34 mobile, 40/50 from 768) so last image →
+   first number = 60 / 76 and caption → next number = 58 / 90, like source. */
 
 /* The yellow band is NOT the block's job — it comes from the `section-yellow`
    section style (styles.css), which paints the full-bleed background + vertical
@@ -1028,25 +1034,34 @@ main .section > .default-content-wrapper + .cards-wrapper:has(> .cards.profile.b
   list-style: none;
   margin: 0 auto;
 
-  /* Mobile: source caps the single-column stat card at a fixed 336px, CENTERED,
-     so it pulls away from the edges as the viewport widens (imgL 31@390 → 86@500,
-     clearing the floating Donate button) rather than scaling. The 768 tier below
-     sets its own max-width, releasing this cap. */
-  max-width: 336px;
+  /* Mobile: source caps the single-column stat column at a fixed 328px (its AEM
+     column sits 4px inside the 336px content column), CENTERED, so it pulls away
+     from the edges as the viewport widens (x31 @390, x56 @440) rather than
+     scaling. The 768 tier below sets its own max-width, releasing this cap. */
+  max-width: 328px;
   padding: 0;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 40px 30px;
+  gap: 0 30px;
 }
 
+/* The <li> boxes dissolve so its image and stat body become items of the ONE
+   grid above; `order` sends all images before all stat bodies. */
 .cards.stats > ul > li {
-  margin: 0;
-  text-align: center;
+  display: contents;
 }
 
 /* Circular photo — square PNG with the ring pre-baked; full-width on mobile. */
 .cards.stats .cards-stats-card-image {
+  order: 0;
+  margin-bottom: 36px;
   line-height: 0;
+}
+
+.cards.stats .cards-stats-card-body {
+  order: 1;
+  padding: 24px 0 34px;
+  text-align: center;
 }
 
 .cards.stats .cards-stats-card-image img {
@@ -1059,10 +1074,9 @@ main .section > .default-content-wrapper + .cards-wrapper:has(> .cards.profile.b
 }
 
 /* Large stat number: 90px / 99px / 500, Graphik XXCond Bold, black, centered.
-   Source gap image→number: 60px on mobile, 76px from the 768 tier (the images
-   sit in a separate grid with generous bottom spacing before the numbers row). */
+   Its distance from the images comes from the image margin + body padding. */
 .cards.stats .cards-stats-card-number {
-  margin: 60px 0 0;
+  margin: 0;
 }
 
 .cards.stats .cards-stats-card-number h2,
@@ -1104,27 +1118,43 @@ main .section > .default-content-wrapper + .cards-wrapper:has(> .cards.profile.b
   }
 
   .cards.stats > ul {
-    /* 4-up, centered; source 768 column ≈ 4×168 + 3×12 = 708, capped to the
-       content width (viewport − 60). */
+    /* 4-up images, centered; source 768 column ≈ 4×168 + 3×12 = 708, capped to
+       the content width (viewport − 60). */
     max-width: min(708px, calc(100vw - 60px));
     margin-inline: auto;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 40px 12px;
+    gap: 0 12px;
     padding: 0;
   }
 
-  /* image→number gap grows to 76px from the 768 tier (source). */
-  .cards.stats .cards-stats-card-number {
-    margin-top: 76px;
+  /* 768–991: the stats sit 2×2 — each body spans two image columns (348px @768)
+     with its caption narrowed to a centered 228px, like source. Rows are
+     separated by the body padding: 76px image→number, 90px caption→number. */
+  .cards.stats .cards-stats-card-body {
+    grid-column: span 2;
+    padding: 40px 0 50px;
+  }
+
+  .cards.stats .cards-stats-card-caption {
+    padding-inline: 60px;
   }
 }
 
-/* Desktop: 4-up, source content column = 4×270 + 3×30 = 1170, centered; gap 30px. */
+/* Desktop: 4-up images AND 4-up stats, source content column = 4×270 + 3×30 =
+   1170, centered; gap 30px. */
 @media (width >= 992px) {
   .cards.stats > ul {
     /* source insets 30px each side (image at x15 @1200 → content 1170). */
     max-width: min(1170px, calc(100vw - 30px));
-    gap: 40px 30px;
+    gap: 0 30px;
+  }
+
+  .cards.stats .cards-stats-card-body {
+    grid-column: auto;
+  }
+
+  .cards.stats .cards-stats-card-caption {
+    padding-inline: 0;
   }
 }
 

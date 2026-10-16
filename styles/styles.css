@@ -813,6 +813,34 @@ main .section.wide > div {
   }
 }
 
+/* A `center wide` intro that leads straight into a COLUMNS section (our-impact
+   "Young people aren't ready." + the stat list / photo row). The source sets this
+   intro narrower than `wide`, with the paragraph tight under the heading:
+   588px @768–991, then a 10-of-12 column span of the content container
+   (772 @992 → 945 @1200 → 970 from 1230). Mobile is unchanged. The columns
+   section's own spacing lives in blocks/columns/columns.css. */
+@media (width >= 768px) {
+  main > .section.center.wide:has(+ .section.columns-container) > .default-content-wrapper {
+    max-width: 588px;
+  }
+
+  main > .section.center.wide:has(+ .section.columns-container) > .default-content-wrapper > h2 {
+    margin-bottom: 0;
+  }
+
+  main > .section.center.wide:has(+ .section.columns-container) > .default-content-wrapper > h2 + p {
+    margin-top: 0;
+  }
+}
+
+@media (width >= 992px) {
+  main > .section.center.wide:has(+ .section.columns-container) > .default-content-wrapper {
+    box-sizing: border-box;
+    padding-inline: 0;
+    max-width: calc((min(100% - 60px, 1170px) + var(--grid-gap)) * 10 / 12 - var(--grid-gap));
+  }
+}
+
 /* compact-headings — the text sits straight under its heading instead of the
    default one-blank-line (24px) rhythm. Opt-in per section via section-metadata
    `Style | compact-headings`, on ANY page (composable, e.g. `center, medium,

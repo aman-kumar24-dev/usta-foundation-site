@@ -187,20 +187,27 @@ function decorateProfile(block) {
 
 function decorateStats(block) {
   /* Each authored row = one stat card: [image cell, number cell, caption cell].
-     Convert to <ul>/<li> and tag the cells so CSS can target them. */
+     Convert to <ul>/<li> and tag the cells so CSS can target them. The number +
+     caption are wrapped in one body so CSS can lay all images out first and the
+     stat bodies as their own grid below (source order), while each <li> keeps
+     its image and stat together for assistive tech. */
   const ul = document.createElement('ul');
   [...block.children].forEach((row) => {
     const li = document.createElement('li');
-    while (row.firstElementChild) li.append(row.firstElementChild);
+    const body = document.createElement('div');
+    body.className = 'cards-stats-card-body';
     let textIdx = 0;
-    [...li.children].forEach((div) => {
+    [...row.children].forEach((div) => {
       if (div.querySelector('picture') || div.querySelector('img')) {
         div.className = 'cards-stats-card-image';
+        li.append(div);
       } else {
         div.className = textIdx === 0 ? 'cards-stats-card-number' : 'cards-stats-card-caption';
         textIdx += 1;
+        body.append(div);
       }
     });
+    if (body.children.length) li.append(body);
     ul.append(li);
   });
   block.textContent = '';

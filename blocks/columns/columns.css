@@ -984,3 +984,58 @@ main .section:has(.columns.profile) > .default-content-wrapper + .columns-wrappe
     padding: 50px 15px 63px;
   }
 }
+
+/* --- Stat list + photo row after a `center wide` intro (our-impact "Young people
+   aren't ready.": four h3 + p stat pairs beside a classroom photo) ---
+   Source (measured 768/880/991/992/1100/1200/1440), tablet + desktop only — mobile
+   is unchanged:
+   - intro → first stat 56px; the photo starts 8px ABOVE the first stat ≥992
+     (the source text column carries an 8px top inset);
+   - each stat paragraph sits straight under its h3 (0) and the next h3 follows
+     24px below it — the generic columns rhythm (24 / 44.8) made the list ~170px
+     taller than the photo, leaving a large white gap before the yellow band;
+   - 768–991 the stacked list is a centered 588px column and the photo 708px;
+   - section → yellow strip: 64px below the list, 76px below the photo. */
+@media (width >= 768px) {
+  main > .section.center.wide + .section.columns-container {
+    margin-top: 56px;
+    margin-bottom: 64px;
+  }
+
+  main > .section.center.wide + .section.columns-container .columns > div > div:not(.columns-img-col) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 588px;
+    margin-inline: auto;
+  }
+
+  main > .section.center.wide + .section.columns-container .columns > div > div > p {
+    margin: 0;
+  }
+
+  main > .section.center.wide + .section.columns-container .columns > div > div > p + h3 {
+    margin-top: 24px;
+  }
+
+  main > .section.center.wide + .section.columns-container .columns > div > .columns-img-col {
+    box-sizing: border-box;
+    padding: 0 6px 12px;
+  }
+}
+
+@media (width >= 992px) {
+  main > .section.center.wide + .section.columns-container {
+    margin-top: 48px;
+  }
+
+  main > .section.center.wide + .section.columns-container .columns > div > div:not(.columns-img-col) {
+    width: auto;
+    max-width: none;
+    margin-inline: 0;
+    padding-top: 8px;
+  }
+
+  main > .section.center.wide + .section.columns-container .columns > div > .columns-img-col {
+    padding-inline: 0;
+  }
+}
