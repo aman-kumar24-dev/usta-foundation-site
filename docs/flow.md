@@ -148,7 +148,7 @@ flowchart TD
 5. **`loadPage()` starts.** `decorateLinkTargets()` applies the link-target rules to every `main a[href]` now and to later
    links through one capture-phase click listener: `#_blank` forces a new tab, external hosts and files open in a new
    tab, and `#`, `javascript:`, `mailto:`, `tel:`, `?form=` and links with a target are skipped (D-016).
-   `decorateImageTooltips()` adds one delegated `mouseover` listener that copies `alt` to `title` (D-064; in the `feature/codesyncandcodebaseswitch` PR).
+   `decorateImageTooltips()` adds one delegated `mouseover` listener that copies `alt` to `title` (D-064).
    — `scripts/scripts.js:997-1065`
 6. **`loadEager()` setup.** Sets `<html lang="en">`; imports `site-config.js` (defines `getSheet` / `isConsentRequired`,
    sets `window.hlx.siteConfig`, fetches nothing yet, D-015); calls `preloadDisplayFont()` (preload + inline
@@ -680,7 +680,7 @@ flowchart TD
   subgraph DA["DA authoring at da.live"]
     LIB["Block library<br/>/.da/library/blocks.json and block docs"]
     BTN["Buttons panel<br/>tools/plugins/buttons/buttons.html"]
-    CBS["Codebase switch panel<br/>tools/plugins/codebase-switch"]
+    ENV["Env selector panel<br/>tools/plugins/env-selector"]
     DOC["Page doc<br/>block tables, Section Metadata, Metadata"]
     FRAG["Fragment docs<br/>/nav and /footer"]
     EW["Layout view iframe<br/>ref--repo--org.preview.da.live<br/>?quick-edit=on"]
@@ -707,7 +707,8 @@ flowchart TD
   SYNC["npm run da:sync<br/>from aemdemos/foundation-usta<br/>Branch only: aem-coder-branch"]:::planned
   LIB -->|"insert block or section"| DOC
   BTN -->|"sendHTML: marks or options suffix"| DOC
-  CBS -->|"setHref: reload canvas with ?ref=branch"| EW
+  ENV -->|"setHref: same page, picked site and ?ref=branch"| EW
+  API["EDS admin API<br/>api.aem.live org/repos/site/code"] -->|"code branches, with the DA token"| ENV
   DOC -->|"Preview"| PREV
   FRAG -->|"Preview"| PREV
   PREV -->|"Publish"| PUB
@@ -773,10 +774,18 @@ flowchart TD
 14. **Local preview.** `aem up` serves code from the working copy and content from aem.page: a never-previewed page 404s,
     and so do the indexes (slug crumbs, no feed). Content not yet in DA goes in `drafts/` with `--html-folder drafts`;
     restart the CLI after adding a draft (PRD §7).
-15. **Codebase switch.** In the Codebase panel the author picks `main`, `uat` or `develop` and selects Go. The panel
-    sends `setHref` with `https://da.live/canvas?ref=<branch>#/usta-digital/foundation-dev/index`, and DA reloads. The
-    canvas then renders the preview and loads plugins from that branch (R-A7, D-076). The panel preselects the
-    `context.ref` DA sends it. — `tools/plugins/codebase-switch/codebase-switch.js`
+15. **Env selector.** The Environment panel lists the content (tab `content`) and the branches (tab `code`) of the
+    open site's `/.da/environments/config` (`title` = text, `value` = site or branch; read with the SDK's `daFetch`
+    from `admin.da.live`; without it, the open site and the built-in `main`, `uat`, `develop`, D-078, D-079). The author
+    picks both and selects Go. The panel rebuilds the open page's canvas URL from DA's context (`hash`, else `org` /
+    `repo` / `path`), replaces the hash's site segment with the content and sets `ref` to the branch (added when the URL
+    has none, which means `main`), and sends it with `setHref`, e.g. `/canvas?ref=uat#/usta-digital/foundation-dev/en/home`;
+    DA reloads. The canvas then shows that site and renders the preview and loads plugins from that branch (R-A7,
+    D-077). Each list starts on what is open (an unlisted open site or branch is added to its list, D-080); Go is
+    disabled until both lists have a pick and while both match what is open. CodeBase also takes a typed or pasted
+    branch, in host-name form, shown on top (D-082), and lists two groups: "Environments" (the `code` tab) and "All
+    branches" from `GET https://api.aem.live/<org>/repos/<site>/code/` (DA token, canonical-site retry on 403, 5-minute
+    session cache; without it, the `code` tab alone). Typing narrows both groups (D-083). — `tools/plugins/env-selector/api.js`; — `tools/plugins/env-selector/env-selector.js`
 
 **Planned and branch only**
 
@@ -787,8 +796,8 @@ flowchart TD
   without a signed-in DA session); delete `blocks/library-metadata/` once confirmed in Experience Workspace.
 - **TBD:** confirm the `background` option rename to `section-*-bg` in the DA sheet; index definitions and Buttons plugin
   registration for each new repoless site (R-Q1, R-A3, R-E1).
-- **Planned (user-owned, outward-facing):** register the Codebase switch panel in the DA config `library` sheet (R-A7).
-  Its target page and its registration path are open (PRD §12 Q31).
+- **Planned (user-owned, outward-facing):** register the Env selector panel in the DA config `library` sheet (R-A7).
+  Its registration path is open (PRD §12 Q31).
 
 **Gotchas**
 
@@ -802,16 +811,24 @@ flowchart TD
 - In the Layout view never modify anything inside `.ProseMirror` (DA saves it back); the selectors depend on DA internals.
 - DA loads the Buttons panel and Layout code from `main` unless opened with `?ref=<branch>` (`ref=local` renders
   unstyled), and the Insert-block dialog loads the `main` preview: authoring-tool fixes reach authors only via `main`.
+- The `/.da/environments/config` sheet (Env selector) is saved, not published, and read the same way, from the open
+  site; only its `content` and `code` tabs are used, and a value that is not a site or branch name (lowercase letters,
+  digits, `-`) is skipped.
+- A content switch keeps the org and the page path and changes only the site: the target site must be in the same DA
+  org, and the page may not exist there. After the switch the panel and its sheet come from the new site's DA config.
 - The `/.da/library/buttons` sheet is saved, not published (the panel reads it through `admin.da.live`); without its
   `icon` row the Icon dropdown shows only "No icon".
 - The Buttons panel hand-copies parts of `scripts.js` (styles, USTA words, colour logic): change both in the same PR.
-- A plugin registered with a relative path loads from the `?ref=` branch. After the Codebase switch moves the editor to
-  a branch without `tools/plugins/codebase-switch/`, the panel is missing there: change `?ref=` in the address bar to
-  get back. Go always opens `foundation-dev` `index`, not the author's current page.
+- The Env selector's "All branches" needs the author's DA token to have access to the site's code in the admin API; a
+  401, 404, network error or a token-less session falls back to the `code` tab without a message. Typed branches are not
+  remembered: the panel's browser storage is per origin, and its origin follows the branch it loads from.
+- A plugin registered with a relative path loads from the `?ref=` branch. After the Env selector moves the editor to a
+  branch without `tools/plugins/env-selector/`, the panel is missing there: change `?ref=` in the address bar to get
+  back. The panel cannot read DA's URL, so other query parameters on it (e.g. `nx=`) are not carried over.
 - DA publishing turns query-only hrefs into `/` and strips fragment-only `#ID` hrefs (D-025, R-D2).
 - Agent access to DA needs the "Allow LLM to use my Adobe credentials" opt-in; a 401 means it is off (PRD §11).
 
-*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-076; PRD §4.1
+*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-077, D-078, D-079, D-080, D-082, D-083; PRD §4.1
 R-T2/R-T3, §4.2, §4.3, §4.4 R-I3/R-I10, §4.7, §4.8, §7, §8.3; [tools/plugins/buttons/README.md](../tools/plugins/buttons/README.md).
 
 ---
@@ -1054,7 +1071,7 @@ flowchart TD
 7. **CI and previews.** The push runs `main.yaml` (Build: `npm ci`, `npm run lint` → check `build`). The AEM Code Sync app
    builds the branch preview (about a minute; retry the After URL until 200). `a11y.yml` reads the PR body's first
    `- After:` line, checks its branch part against the PR branch (`feature/`, `bugfix/`, `hotfix/` → `<prefix>-`,
-   lowercased — the lowercasing is in the `feature/codesyncandcodebaseswitch` PR) and runs `npm run test:a11y <After URL>` against the deployed preview
+   lowercased) and runs `npm run test:a11y <After URL>` against the deployed preview
    (D-053). The Code Sync app also posts `aem-psi-check` (PageSpeed on the preview URL; target 100). Check with
    `gh pr checks <n>`.
 8. **Merge and QE.** A reviewer checks the code and preview and merges into `develop`; QE tests on
@@ -1082,7 +1099,7 @@ flowchart TD
 - TBD: the official path for Adobe drops and whether `develop` may be rewritten (§12 Q13); breakpoint/overflow/typography/
   svg checks in CI (§12 Q8); `bugfix/` / `hotfix/` prefixes and a hotfix path (§12 Q14).
 - Proposed: add the 63-character preview-host limit to BRANCHING.md and PR_AGENT.md step 1.
-- In the `feature/codesyncandcodebaseswitch` PR to `develop` (2026-10-16): the process docs this flow relies on (BRANCHING.md, PR_AGENT.md, PRD.md, decision.md, ARCHITECTURE.md, this file, the
+- Done, on `develop` since PR #15 (`2860acd`): the process docs this flow relies on (BRANCHING.md, PR_AGENT.md, PRD.md, decision.md, ARCHITECTURE.md, this file, the
   AGENTS.md / README / PR template / `a11y.yml` / `.hlxignore` changes) (PRD §8 status note).
 
 **Gotchas**

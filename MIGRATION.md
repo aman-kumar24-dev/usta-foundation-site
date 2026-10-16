@@ -5682,6 +5682,7 @@ Second of the four martech PRs (branch `feature/hotjar`).
 - **Verified:** homepage — 12/13 images get a title equal to their alt; the 1 decorative image gets none.
 
 ### 2026-10-16 — Codebase switch panel (DA / Experience Workspace plugin)
+*Renamed `env-selector` and changed to keep the open page, same day: see "Env selector" below.*
 - **Request:** a DA panel like Buttons with a dropdown of code branches (`main`, `uat`, `develop`) and a **Go** button
   that reloads the editor at `https://da.live/canvas?ref=<branch>#/usta-digital/foundation-dev/index`.
 - **Files:** `tools/plugins/codebase-switch/codebase-switch.{html,js,css}`. The branch list, the URL template
@@ -5730,3 +5731,235 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
 - **Verified (localhost:3000):** `check:overflow` and `check:typography` pass on `/`, get-involved, who-we-are and
   our-impact; `test:a11y /` passes. **Not re-checked:** who-we-are's History → yellow strip gap against the 2026-10-07
   entry.
+
+### 2026-10-16 — Env selector: renamed from codebase switch, Go keeps the open page
+- **Request:** rename the plugin `env-selector`. Go must take the URL of the page open in the editor and change only
+  the branch. Edge case: `https://da.live/canvas#/usta-digital/foundation-dev/index` has no `ref` and means `main`, so
+  `canvas#` becomes `canvas?ref=<branch>#`.
+- **Files:** `tools/plugins/env-selector/env-selector.{html,js,css}` (`git mv` from `codebase-switch`; classes
+  `env-selector-*`, tokens `--es-*`; title and heading "Environment"). The HTML now holds the editor path
+  (`data-editor="/canvas"`) instead of a full URL template.
+- **Logic:** the panel is a cross-origin iframe and cannot read DA's URL. DA sends no `Referrer-Policy`, so the frame's
+  referrer is just `https://da.live/`, and a referrer never carries the `#…` part. The URL is rebuilt from the SDK
+  context the canvas sends: `hash` (`#/org/site/path`), else `#/<org>/<repo><path>` (classic editor). Then
+  `searchParams.set('ref', branch)` replaces the ref or adds it, and `setHref` gets a relative
+  `/canvas?ref=<branch>#/…`, which DA resolves on its own origin. A hash that is not `#/…` with no org/repo → message,
+  no navigation.
+- **Behaviour changes:** the author stays on the same page (and site); picking the current branch (a URL with no ref
+  counts as `main`) says "The editor is already using …" and does not reload; outside DA, Go stays disabled ("Open this
+  panel from Experience Workspace…") instead of opening DA.
+- **Known limit:** other query parameters on DA's URL (e.g. `nx=`) are not visible to the panel and are dropped.
+- **Register:** DA config → `library` → title `Environment`, path `/tools/plugins/env-selector/env-selector.html`.
+- **Local dev gotcha:** `aem up` refuses to start on `feature/codesyncandcodebaseswitch` ("exceeds the 63 character
+  limit for DNS labels", even with `--url`), because it builds `<branch>--usta-foundation-site--aman-kumar24-dev`. The
+  panel was tested from a plain static server on port 3000 (it needs no AEM content).
+- **Verified (Playwright, 26 checks, simulated DA host):** `ref=develop` on `/en/home/get-involved` → uat sends
+  `/canvas?ref=uat#/usta-digital/foundation-dev/en/home/get-involved`; no ref (`main`) on `index` → develop sends
+  `/canvas?ref=develop#/usta-digital/foundation-dev/index`; same branch → no `setHref`; feature-branch ref; classic
+  context without `hash` → built from org/repo/path; bad hash → refused; tampered option → refused; markup ref not
+  shown; keyboard Tab → Enter; standalone Go disabled; no page errors. `test:a11y` passes. **Not verified:** a signed-in
+  DA canvas session.
+- **Docs:** D-077 (supersedes D-076); PRD §4.3 row + R-A7, §12 Q31 partly answered; flow.md §5; ARCHITECTURE.md §2. PR #15 (codebase switch, code sync) was merged to `develop` as `2860acd` before this change, so it ships on `feature/envselector`; the statuses that said "in the PR" now say "on `develop` since PR #15".
+
+### 2026-10-16 — Env selector: fixed-width picker, white background, "Select a branch" prompt
+- **Request:** the picker spanned the whole page; give it a fixed width. Drop the "Open this panel from Experience
+  Workspace…" message. White background. The picker shows the selected branch, or "Select a branch" when none is
+  (remember `canvas#` with no `ref` is `main`). A second button will come later (needs its own requirement; not built).
+- **Markup:** the picker and Go sit in `.env-selector-controls`, a flex row, so a later button just goes after Go. The
+  first `<option value="" disabled selected>` is the "Select a branch" prompt (text in the HTML). `data-standalone` removed.
+- **CSS:** body background `--es-gray-25` (white; `--es-gray-75` removed). The picker is `flex: 0 1 var(--es-picker-width)`
+  (240 px) and shrinks only when the panel is narrower (155 px at a 280 px panel, no overflow). Go is `flex: none`. The
+  status box is `width: fit-content` instead of full width.
+- **JS:** `updateGo()` enables Go only inside DA and once a branch is chosen, also on `change`. The current branch from
+  `context.ref` is preselected; the canvas sends `main` when its URL has no `ref`, so `canvas#/…` preselects
+  "main (current)". An unlisted branch (e.g. a feature branch) keeps the prompt, and the status still names it.
+  Standalone: no message, prompt shown, Go disabled.
+- **Verified (Playwright, 31 checks):** standalone at 1900 px: no status box, prompt shown, Go disabled, picker 240 px
+  with Go 8 px after it, body `rgb(255, 255, 255)`. In a simulated DA host: the earlier 26 checks still pass, and
+  `ref=feature-x` keeps the prompt with Go disabled until a pick. Panel widths 280 / 320 px: no overflow. `test:a11y`
+  passes.
+
+### 2026-10-16 — Env selector: Go disabled for the current branch
+- **Request:** disable Go while the picker shows the current branch; enable it only for a different branch, and disable
+  it again when the current branch is re-selected.
+- **Before:** Go was enabled for any listed branch; picking the current one only said "already using" on click.
+- **Change:** `updateGo()` also requires `select.value !== state.current` and runs on every `change`. The same-branch
+  branch of the submit handler and `data-same` are removed (unreachable now). `canvas#…` with no ref counts as `main`, so
+  main is preselected with Go disabled.
+- **Verified (Playwright, 34 checks):** `ref=develop` → Go disabled; pick uat → enabled; re-pick develop → disabled; no ref
+  (main) → disabled until another branch is picked; feature-branch ref → prompt, Go disabled until a pick. Type-ahead on
+  macOS (`u` / `d` / `m`): uat enabled, develop disabled, main enabled (macOS arrow keys open the menu instead).
+  `test:a11y` passes.
+
+### 2026-10-16 — Env selector: branches from the DA sheet `/.da/environments/config`
+- **Request:** read the dropdown options from the sheet the user created at `/.da/environments/config.json`, the way the
+  Buttons panel reads `/.da/library/buttons.json`: use its `code` tab, where `title` and `value` are the options.
+- **Code:** `SHEET_PATH = '/.da/environments/config.json'`, `SHEET_TAB = 'code'`. `loadBranches()` reads
+  `https://admin.da.live/source/<org>/<repo>/.da/environments/config.json` with the SDK's `daFetch` (as Buttons'
+  `loadSheet()`), takes `json.code.data`, lower-cases and trims the keys and values (as Buttons' `normalizeRow`), keeps
+  rows whose `value` is branch-shaped (`^[a-z0-9-]+$`), drops repeated values, and uses the value when the title is empty.
+  `renderBranches()` replaces the built-in options after the "Select a branch" prompt (`new Option(title, value)`, no
+  HTML). Messages use the title ("The editor is using QE."); `?ref=` uses the value. The "(current)" label keeps the
+  title in `data-title`.
+- **Fallback:** sheet missing (404), unreadable, without a `code` tab, or with no valid row → the built-in `main`, `uat`,
+  `develop` options in the HTML.
+- **Real sheet (confirmed later the same day, from the JSON the user shared):** tabs `code` (Main/`main`, UAT/`uat`,
+  Develop/`develop`) and `content` (Dev Content/`usta-foundation-site`, not used by the panel yet). It is DA's multi-sheet
+  JSON as assumed (`admin.da.live` / `content.da.live` return 401 without a DA sign-in). Fed to the simulated DA host:
+  `Select a branch | Main | UAT | Develop (current)` for `ref=develop`, `Main (current)` for no ref; Go → the right
+  `?ref=`; 10 checks pass.
+- **Open:** the hint "main is production, uat is UAT, develop is QE." is still fixed text in the HTML and can disagree
+  with the sheet.
+- **Verified (Playwright, 44 checks; sheet served by a route in the simulated DA host):** the request goes to
+  `admin.da.live/source/usta-digital/foundation-dev/.da/environments/config.json`; rows Production/main, UAT/uat,
+  QE/develop, `Feature/X` (skipped), duplicate uat (skipped), ` Stage `/` stage ` with capitalised keys, and an empty
+  title for `hotfix-1` give `Production | UAT | QE (current) | Stage | hotfix-1`; status "The editor is using QE."; Go →
+  `/canvas?ref=stage#…`, "Reloading the editor with Stage…". No `code` tab, no valid row, and 404 → built-in options. The
+  earlier checks still pass.
+
+### 2026-10-16 — Env selector: content picker (site) before the branch picker
+- **Request:** a Content dropdown before Branch, the same width and responsive, with options from the sheet's
+  `content` tab (title/value). Go takes both picks: the content value replaces the site segment of the hash (split on
+  `/`), the branch sets `?ref=`. Example: `https://da.live/canvas?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home`.
+- **Markup:** `#env-selector-content` (prompt "Select content", `data-current="{title} (current)"`) above
+  `#env-selector-branch`; Go moved into `.env-selector-actions` (room for the later button). Messages name both:
+  "The editor is using {content} with {branch} code.", "Opening {content} with {branch} code…".
+- **CSS:** the form is a grid, `minmax(0, var(--es-picker-width)) auto`. Both pickers sit in column 1, so they always have
+  the same width (240 / 240 at 1900 px, 195 / 195 at 320, 155 / 155 at 280, no overflow); Go is in column 2 beside Branch;
+  labels and the hint span both columns. The old `.env-selector-controls` flex row is gone.
+- **JS:** `loadSheet()` returns both tabs (`tabOptions(json, 'content' | 'code')`, the same validation for both: a site or
+  branch name is `^[a-z0-9-]+$`). The open site is the hash's second segment. No `content` tab → the list is just the
+  open site. `switchHref()` replaces `parts[1]` of the hash and sets `ref`. Go is enabled when both lists have a pick and
+  at least one differs from what is open. A hash without a site segment → "could not be found", no navigation.
+- **Gotcha:** a content switch keeps the org and the page path; the panel and its sheet then come from the new site,
+  which needs the plugin registered and its own `/.da/environments/config` (else the defaults).
+- **Verified (Playwright, 56 checks, real sheet JSON):** the user's example → `Select content | Dev Content (current)`,
+  `Select a branch | Main | UAT | Develop` (feature ref unlisted), status "…Dev Content with feature-envselector code.",
+  Go disabled until a branch → `/canvas?ref=develop#/aman-kumar24-dev/usta-foundation-site/en/home`. With a second content
+  row (Foundation Dev): content only → `…?ref=develop#/aman-kumar24-dev/foundation-dev/en/home/get-involved`, content +
+  branch, branch only; re-picking the open values disables Go. No-ref main, an open site not in the tab (prompt, Go waits
+  for it), no sheet / no content tab (open site), classic context, no site segment, tampered value, keyboard (content →
+  branch → Go, type-ahead), markup ref. `test:a11y` passes.
+
+### 2026-10-16 — Env selector redesign (user's mockup)
+- **Request:** match the mockup: the Content and Branch cards and a round arrow Go button in one row, a green-dot status
+  line, the branch list as a card with a check mark; the status text "Currently on {content} with {branch}".
+- **Header:** the mockup's "[icon] Environment" bar is DA's own tool-panel header (`ew-tool-panel`: close button + the
+  view picker showing the title the panel sends with `setTitle`), so the panel draws none; its `<h1>` is visually hidden
+  for screen readers. The intro text and the fixed branch hint are removed.
+- **Cards:** `.env-selector-field` = the label (11 px, uppercase) absolutely on top of a full-card `<select>` (56 px high,
+  12 px radius, value 16 px bold under the label), with a drawn chevron. The row is a grid `3fr 4fr auto`, at most 360 px;
+  the cards shrink with the panel (labels fit from 320 px). Values stay on one line with an ellipsis. Focus or an open
+  list gives the card a 2 px accent border (`select:is(:focus, :open)`). The "Select …" prompt is grey regular weight.
+- **Open list:** `@supports (appearance: base-select)`: `::picker(select)` is a rounded, shadowed card; rows 44 px; the
+  picked row light blue and bold with `::checkmark` on the right; the prompt hidden; `::picker-icon` hidden (the card has its
+  own chevron). The ellipsis needs a `<button><selectedcontent>` inside each select (the select's own text cannot be
+  styled); browsers without customizable select drop both tags and show the native list. `renderOptions()` now removes
+  only the options, so the button survives.
+- **Go:** 56 px accent circle with an inline arrow SVG, `aria-label="Go"`; grey when disabled.
+- **Status:** `say()` sets `data-tone` to the message key; the dot is green (`current`), blue (`switching`), red
+  (`invalid`, `noPage`). Messages: "Currently on {content} with {branch}", "Opening {content} with {branch}…".
+- **Lists:** an open site or branch the sheet does not list is appended and preselected (`selectCurrent()`), as the
+  mockup shows `feature-envselector` under develop; no "(current)" suffix any more.
+- **Deviation from the mockup:** card borders stay `#8f8f8f` (3.3:1) instead of the mockup's lighter grey, for the ≥ 3:1
+  UI-border rule. Labels/values use the panel's font stack (Adobe Clean when installed, else the system font).
+- **Verified:** screenshots at 400 px (closed, list open, changed picks) and 300 / 1900 px; Playwright 63 checks (3:4 row,
+  360 px cap, 56 px Go, no overflow at 280 / 320 / 1900, labels not cut from 320, real sheet + example URL, appended open
+  values, status text and tones, every URL case, keyboard Tab + type-ahead on the customizable select); `test:a11y`
+  passes with no warnings; lint clean (no stylelint disables needed for the new syntax).
+
+### 2026-10-16 — Env selector: "CodeBase" label, stacked up to 576 px
+- **Request:** rename the Branch label to "CodeBase"; when the screen is 576 px wide or less, stack the dropdowns one
+  after the other.
+- **Label:** `<label for="env-selector-branch">CodeBase</label>` (shown uppercase, "CODEBASE"). The "Select a branch"
+  prompt, the messages and the code's `branch` names are unchanged.
+- **Layout:** mobile-first. Base: `grid-template-columns: minmax(0, 1fr) auto`, both cards in column 1 (Content above
+  CodeBase, the same width), Go in column 2 beside the CodeBase card. `@media (width >= 577px)`: the one-row `3fr 4fr auto`
+  layout (D-080) and the cards back to auto placement.
+- **Breakpoint Rule deviation (D-081):** 577 px is not in `tools/quality/breakpoints.json` (768 / 992 / 1200). Accepted for
+  this panel only: it is a DA tool in an iframe, not a site page, and its media queries see the panel's width.
+  `node tools/quality/breakpoint-check.mjs` (site scope) passes; run on `tools/plugins/env-selector/env-selector.css` it
+  reports the two 577 px lines.
+- **Note:** DA's tools panel opens 400 px wide (`blocks/canvas/canvas.js`: `registerPanelSection('tools', { width: '400px' })`),
+  so in DA the panel is stacked unless the author widens it past 576 px.
+- **Verified (Playwright, 82 checks):** one row at 1900 and 577 px (3:4); stacked at 576, 400, 320 and 280 px (cards 296 /
+  296, 216 / 216, 176 / 176; Go beside CodeBase); labels "Content" / "CodeBase", not cut; every earlier behaviour check.
+  Screenshots at 400 (stacked) and 700 px (row). `test:a11y` passes with no warnings; lint clean.
+
+### 2026-10-16 — Env selector: names in the status line bold italic blue
+- **Request:** in "Currently on Dev Content with feature-envselector", show "Dev Content" and "feature-envselector"
+  italic, bold and blue.
+- **Change:** `say()` splits the message template on `{content}` / `{branch}` and puts each name in a
+  `span.env-selector-name` (`textContent`, so a sheet title with markup stays text). The whole message sits in one
+  wrapper span, because the status line is a flex row (dot + text) and separate items would add gaps around the
+  names. CSS: `.env-selector-name` = accent blue `#3b63fb` (4.8:1 on white), italic, 700. It applies to every message
+  with names, so "Opening {content} with {branch}…" matches.
+- **Verified (Playwright, 85 checks):** both names in `.env-selector-name`, computed `italic` / `700` /
+  `rgb(59, 99, 251)`, one wrapper; the switching message highlights "Dev Content" / "Develop"; a content title
+  `<img src=x onerror=…>Dev` renders as text with no element; earlier checks unchanged. `test:a11y` passes with no
+  warnings; lint clean.
+
+### 2026-10-16 — Env selector: type or paste a branch in CodeBase
+- **Request:** let the author type or paste their own branch in CodeBase; what they paste must always appear along
+  with the options from config.json.
+- **Markup:** CodeBase is an editable combobox: `<input id="env-selector-branch" role="combobox" aria-autocomplete="none"
+  aria-controls aria-expanded>` (placeholder "Select or type a branch"), a chevron `<button tabindex="-1" aria-label="Show
+  branches">`, and `<ul role="listbox" aria-labelledby>` whose built-in `<li role="option" data-value>` rows (main / uat /
+  develop) are the fallback. Content stays a select. New message `data-bad-branch`; `data-too-long` for the 63-character
+  host label.
+- **JS:** `state.branches` = the sheet's `code` rows (else the HTML rows) + an unlisted open branch. `fieldBranch()` reads
+  the field: a listed branch by title or value (any case), else `normalizeBranch()` (DA's host-name form: lowercase, other
+  characters → `-`). `branchItems()` puts a typed, unlisted branch first, then every listed one (no filtering).
+  Keyboard: ArrowDown / ArrowUp open and move (`aria-activedescendant`, wraps), Enter picks, Escape closes; Enter with
+  the list closed submits (Go). The chevron toggles the list; a row click keeps the focus in the field; focus leaving
+  the field closes the list and shows a typed branch in its host-name form. `refresh()` replaces `updateGo()`: Go needs
+  a content, a branch matching the stricter `NAME` (`^[a-z0-9]+(-[a-z0-9]+)*$`, also applied to sheet values), a host
+  label `<branch>--<site>--<org>` ≤ 63, and a change. "Too long" is said at once, a bad name only once the field is left.
+  The status variable is now `statusLine` (an editor hint confused `status` with the deprecated `window.status`).
+- **CSS:** the input is the same card as the select (padding, type, focus border, placeholder grey); the list is a
+  card under the field (field width, max 264 px high, scrolls) with the selected row light blue + bold + ✓, hover grey,
+  the arrow-key row with an inset accent ring; long names end in an ellipsis (full name in `title`).
+- **A11y fix found on the way:** axe with the Content list open flagged `target-size` (WCAG 2.2, 24 px): the
+  `<button><selectedcontent>` inside the customizable select was only its text's height. In base-select mode the card's
+  padding now sits on that button (`height: 100%`), so the whole 56 px card is the target; the select's padding is 0 there.
+- **Not done:** typed branches are not remembered after switching away; `localStorage` is per origin and the panel's
+  origin changes with the branch it loads from. After Go the typed branch is the open one and is listed again.
+- **Verified (Playwright, 73 checks):** layouts (one row ≥ 577, stacked ≤ 576, field 56 px like the select); the example
+  URL (field shows `feature-envselector`, list `Main | UAT | Develop | ✓feature-envselector`); typing `feature/EDS5Hotjar` →
+  list `✓feature-eds5hotjar | Main | UAT | Develop`, field settles to `feature-eds5hotjar`, Go → `?ref=feature-eds5hotjar`;
+  pasting `hotfix-42` → listed with the options, Go works; typed `uat` → the listed UAT, no extra row; typed `DEVELOP` →
+  Go disabled (open); too long (`feature-codesyncandcodebaseswitch` + `--usta-foundation-site--aman-kumar24-dev` = 73) →
+  red message at once; `feature-` → no error while typing, error on leaving; `a--b` and markup refused; keyboard (Tab
+  order, arrows with wrap, Enter, Escape, Enter submits); content + typed branch combinations; no sheet / no content tab /
+  classic context / no site segment / tampered content / markup ref. axe (WCAG 2.0–2.2 A/AA) with the list open and a
+  row active: 0 violations; `test:a11y` passes; lint clean.
+
+### 2026-10-16 — Env selector: "All branches" from the EDS admin API
+- **Request:** use `fetchBranches()` from adobe-rnd/aem-apps `tools/plugins/developer/api.js` for the CodeBase field.
+  Plan agreed first; choices: typing filters both groups (only the typed branch always shows), two labelled groups,
+  and on any API error fall back to the `code` tab as implemented (no message).
+- **What fetchBranches does:** `GET https://api.aem.live/<org>/repos/<site>/code/` with `Authorization: Bearer <IMS token>`;
+  each returned path ends in the branch name; a 403 with `x-error-code: AEM_NOT_CANONICAL_CODE_SOURCE` is retried once
+  against the canonical `org/site` parsed from `x-error`; 5-minute `sessionStorage` cache; errors as codes.
+- **Checked live (no token):** CORS preflight from `https://da.live`, an aem.page host, `*.preview.da.live` and
+  `http://localhost:3000` → 204, origin reflected, `Authorization` allowed, `x-error` / `x-error-code` exposed. GET → 401.
+- **New file `tools/plugins/env-selector/api.js`:** the port, keeping Adobe's Apache-2.0 header plus a "modified" note
+  (this repo is Apache-2.0 too). Changes: org/site validated (`^[\w.-]+$`) and URL-encoded, no token → `unauthorized`
+  without a request, no `console.error`, non-array / non-string responses tolerated, own cache key.
+- **env-selector.js:** the token is `sdk.token` (DA sends it with the handshake). `loadFetchedBranches()` starts with the
+  sheet load; config shows first, the API's names (branch-shaped by `NAME`, de-duplicated, minus config, sorted) arrive
+  later as `state.fetched`. List rows: typed (if not listed) → "Environments" group (config, titles) → "All branches"
+  group (`role="group"` + `aria-labelledby` label); headings only when the API listed branches. The open branch, when in
+  neither, goes in "All branches" (or the single list without it). Filtering: `state.query` is what was typed since the
+  list opened; click / chevron / arrow opening shows everything. Keyboard runs across the groups (`aria-activedescendant`
+  ids in row order). "Loading branches…" sits under the list in the popup (`.env-selector-popup` card), outside the
+  listbox. HTML: the listbox is now a `div`, with `data-config-label="Environments"` / `data-fetched-label="All branches"`.
+- **Verified (Playwright, 102 checks, simulated DA host with a token and a fake api.aem.live):** request URL + `Bearer`
+  header; groups `[Environments] Main | UAT | Develop | [All branches] alpha-fix | ✓feature-envselector | feature-zeta`
+  (`Bad--Name` and a repeat dropped); filters "feat", "u", "feature/z", "Develop"; reopen shows all; arrow keys across
+  groups, Enter picks `alpha-fix` → `?ref=alpha-fix`; cache (no second request after a reload); loading line then groups;
+  403 canonical retry → `canon-org/canon-site`; 401 / 500 / network / bad JSON / API listing only config → the code tab,
+  no note, no error; no token → no request; open `hotfix-9` in neither → added to All branches; all earlier checks. axe
+  (WCAG 2.0–2.2 A/AA) with the grouped list open and a row active: 0 violations. `test:a11y` passes; lint clean.
+- **Not verified:** the real API with a signed-in DA session (needs the panel registered; the author's token must have
+  access to the site's code in the admin API).

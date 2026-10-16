@@ -149,7 +149,7 @@ All **Built**; per-block acceptance status **TBD**. Parity fixes are recorded pe
   `dark`, `light`, plus the DA `background` options `section-blue-bg`, `section-yellow-bg`, `sage-grey-bg`,
   `pale-grey-bg` (applied by `applySectionBackgrounds()`, §4.3).
 - **Rhythm:** `compact-headings` (opt-out of the 24 px rhythm; moved from `templates/news/news.css` to
-  `styles.css` in the `feature/codesyncandcodebaseswitch` PR to `develop`, D-072).
+  `styles.css`, on `develop` since PR #15 (`2860acd`), D-072).
 - **Tabs:** `profile-anchor` sections are the panels for `toc-profile`.
 - **Not built:** the generic `full-width` / `full-width-left` / `full-width-right` styles (§5 Full-bleed row).
 
@@ -187,7 +187,7 @@ the code arrived with PR #9 (§8.6).
 |---|---|
 | Foundation buttons: 5 styles (`styles/foundation-buttons.css`), a separate `a.cta-button` layer on top of the boilerplate buttons (D-071), authored `[style=…, color=…, text-color=…, new-tab=…]` options, link-target rules (internal same tab; external/files new tab; `#_blank` forces new tab, D-016) | **Done**: on `develop` and `main` since PR #9 (`e910fb9`, 2026-10-13, Adobe code drop) |
 | Buttons panel for DA / Experience Workspace (`tools/plugins/buttons`) | **Done**: same PR #9 |
-| Codebase switch panel for DA / Experience Workspace (`tools/plugins/codebase-switch`): pick `main` / `uat` / `develop`, **Go** reloads the canvas with `?ref=<branch>` (R-A7, D-076) | **In progress**: in the `feature/codesyncandcodebaseswitch` PR to `develop` (2026-10-16); not yet registered in the DA config |
+| Env selector panel for DA / Experience Workspace (`tools/plugins/env-selector`): pick the content (site) and the branch, **Go** reopens the page open in the canvas with them (R-A7, D-077 – D-079) | **In progress**: in the `feature/envselector` PR to `develop` (2026-10-16). The first version (codebase switch, D-076) is on `develop` since PR #15 (`2860acd`); not yet registered in the DA config |
 | USTA button system: 28 styles / 68 designs / 85 icons (`styles/usta-buttons.css`, `icons/usta-buttons-icons/`), loaded only on pages with a `cta-usta*` link (`loadUstaButtonsCss()`); scope and naming per D-062, icon list in the DA sheet (D-063) | **Done (code):** on `develop` and `main` since PR #9. Validated 2026-10-11: all 68 designs vs usta.com; 86-page Foundation link regression with 0 differences; Foundation pages load only `foundation-buttons.css`. MIGRATION.md §3 "branch `usta-buttons`, not yet merged" is stale |
 | USTA buttons in DA Layout view, `/.da/library/buttons` USTA rows, publishing sample pages | **Planned** (user-owned, outward-facing steps; the panel Insert/Update and USTA Layout preview are untested because they need a signed-in DA session) |
 | DA block-library integration: (1) `tools/da-library-preview/` runs only on `/.da/library/*` pages; it removes `library-metadata` and start/end marker tables and frames each variant with its name (port of `aemdemos/patients-stryker#312`); (2) `applySectionBackgrounds()` reads `/.da/library/blocks.json` (options tab, key `background`, `name=#hex`) and adds the option name as a section class — a new option needs a `main .section.<name>` rule, and a rename needs code and DA sheet changed together; (3) `/.da/library/buttons` feeds the Buttons panel; (4) `?quick-edit` (Layout view) shows edited CTAs as styled buttons; `?dapreview` loads da.live's preview script | **Done** (code on `develop`/`main`: PR #4 and PR #9). **TBD:** confirm the 2026-09-29 rename to `section-blue-bg` / `section-yellow-bg` was made in the DA sheet |
@@ -225,16 +225,39 @@ the code arrived with PR #9 (§8.6).
   #8. [MIGRATION.md 2026-10-06]
 - **R-A6. Tooltips.** Links carry no `title` tooltip, matching the source (EDS-51; the boilerplate
   `a.title = a.title || a.textContent` was removed from `decorateButtons()`). Images show their alt as a native hover
-  tooltip site-wide (`decorateImageTooltips()`, D-064). **In progress:** the tooltip code is in
-  the `feature/codesyncandcodebaseswitch` PR to `develop` (2026-10-16). [MIGRATION.md 2026-10-01, 2026-10-13]
-- **R-A7. Codebase switch panel (In progress).** An author reloads Experience Workspace on another code branch: pick
-  `main`, `uat` or `develop`, select **Go**. The panel puts the branch into `{branch}` of its URL template
-  `https://da.live/canvas?ref={branch}#/usta-digital/foundation-dev/index` and asks DA to navigate there (SDK `setHref`).
-  It preselects the branch DA reports (`context.ref`) and marks it "(current)", and it accepts only a listed branch. The
-  list, URL and messages live in `codebase-switch.html`. Registered by hand per DA site (outward-facing): DA config →
-  `library` → `Codebase` = `/tools/plugins/codebase-switch/codebase-switch.html`. A relative path loads the panel from
-  the `?ref=` branch, so it appears only on branches that have it (flow.md §5 Gotchas). Verified with a simulated DA
-  host, not in a signed-in DA session. [MIGRATION.md 2026-10-16; D-076]
+  tooltip site-wide (`decorateImageTooltips()`, D-064). **Done:** the tooltip code is
+  on `develop` since PR #15 (`2860acd`), 2026-10-16. [MIGRATION.md 2026-10-01, 2026-10-13]
+- **R-A7. Env selector panel (In progress).** An author reopens the page open in Experience Workspace with other content
+  (a DA site) and/or another code branch: pick **Content** and **CodeBase** (the branch), select **Go**. Both lists come from the DA
+  sheet `/.da/environments/config` of the open site (saved, not published; read through `admin.da.live`): tab `content`
+  for the content, tab `code` for the branches; `title` is the option text, `value` the site or branch (values that are
+  not a site/branch name, and repeated values, are skipped). Without the sheet, the branches fall back to the built-in
+  `main`, `uat`, `develop` and the content to the open site (D-078, D-079). CodeBase is an editable combobox (D-082): the
+  author can also type or paste any branch; it is written in host-name form (lowercase, other characters → `-`) and
+  always shown on top, and a name that is not lowercase letters and digits with single hyphens, or makes
+  `<branch>--<site>--<org>` longer than 63 characters, disables Go with a red message. The list has two labelled groups
+  (D-083): "Environments" (the sheet's `code` tab) and "All branches", every code branch of the site from the EDS admin
+  API (`GET https://api.aem.live/<org>/repos/<site>/code/` with the DA token; a not-canonical 403 is retried against the
+  canonical site; cached 5 minutes), loaded in the background; typing narrows both groups. Without the API's list (no
+  token, no permission, an error) the panel works from the `code` tab alone, as before. Go puts the content into the hash's site
+  segment (`#/<org>/<site>/<path>`, split on `/`, second segment replaced) and the branch into `?ref=` (replaced, or added
+  when the URL has none, which means `main`):
+  `da.live/canvas?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home` with Foundation Dev + Develop →
+  `da.live/canvas?ref=develop#/aman-kumar24-dev/foundation-dev/en/home`. The org and the page path are kept.
+  The panel cannot read DA's URL (cross-origin iframe), so it rebuilds it from what DA sends (`hash`, else `org` / `repo`
+  / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). Each list preselects the open
+  value; one the sheet does not list (e.g. a feature branch) is added at the end of its list. The status line reads
+  "Currently on {content} with {branch}" with a green dot; the two names are bold italic accent blue. Go is enabled only when both lists have a pick and at least one
+  differs from what is open; it accepts only listed values and stays disabled outside DA. Layout (D-080, D-081): a
+  Content card and a CodeBase card (label inside, above the value) and a round arrow Go button, at most 360 px wide; up
+  to 576 px the cards stack, the same width, with Go beside the CodeBase card (DA's tools panel opens 400 px wide, so
+  this is what authors see by default); from 577 px they sit in one row, 3:4. DA's panel header shows the title. In browsers with customizable selects the open list
+  is a card with a highlighted, check-marked row; elsewhere the native list. The fallback branches, editor path and messages live in
+  `env-selector.html`. Registered by hand per DA site (outward-facing): DA config → `library` → `Environment` =
+  `/tools/plugins/env-selector/env-selector.html`; after a content switch the panel and its sheet come from the new
+  site, so each listed site needs both. A relative path loads the panel from the `?ref=` branch, so it appears only on
+  branches that have it (flow.md §5 Gotchas). Verified with a simulated DA host, not in a signed-in DA session.
+  [MIGRATION.md 2026-10-16; D-077, D-078, D-079]
 
 ### 4.4 Content import and migration
 
@@ -487,7 +510,7 @@ fails if the PR body has no `- After:` line, or if the After URL's branch (the h
 from the PR branch with `feature/`, `bugfix/` or `hotfix/` changed to `<prefix>-` (it does not check the site or org in
 the URL), then runs `npm run test:a11y <After URL>` on that one page, with `color-contrast` off (N5). The lower-casing
 that lets a capitalised branch pass (BRANCHING.md's own example `feature/EDS5hotjarintegration`) is a change to
-`a11y.yml` in the `feature/codesyncandcodebaseswitch` PR to `develop` (2026-10-16); until it is merged, such PRs fail this check. `sync-block-collection.yaml` only runs in
+`a11y.yml`, on `develop` since PR #15 (`2860acd`), 2026-10-16; before it, such PRs failed this check. `sync-block-collection.yaml` only runs in
 `adobe/aem-boilerplate`; `cleanup-on-create.yaml` is a boilerplate leftover (§11). Checks 2–5 are **not** in CI (local
 only): see §12 Q8. (Branch normalisation added in `53dd0b0`, 2026-09-29.)
 
@@ -511,7 +534,7 @@ not in the repo.
 > AGENTS.md on `develop` still says "Open a pull request to merge changes to `main`". Treat §8.1–8.2 as **In progress**
 > until these are merged to `develop`.
 >
-> **Update (2026-10-16):** all of the above are in the `feature/codesyncandcodebaseswitch` PR to `develop`.
+> **Update (2026-10-16):** all of the above are on `develop` since PR #15 (`2860acd`).
 
 ### 8.1 Branching and release
 
@@ -630,7 +653,8 @@ to match; until then AGENTS.md wins, per the header.
 ## 10. Dependencies
 
 AEM Edge Delivery Services / `aem.live` (+ Code Sync) · DA (da.live; also called at runtime: `?dapreview` loads
-`da.live/scripts/dapreview.js` and the Buttons panel reads `admin.da.live`) · GitHub · Adobe Tags (Launch), Analytics, Target · Hotjar · Fundraise Up · OneTrust · YouTube
+`da.live/scripts/dapreview.js` and the Buttons panel reads `admin.da.live`) · EDS admin API `api.aem.live` (the Env selector's
+branch list, R-A7) · GitHub · Adobe Tags (Launch), Analytics, Target · Hotjar · Fundraise Up · OneTrust · YouTube
 (`video-embed`; the `columns (feature)` player, poster from `i.ytimg.com`) · Instagram (`embed-instagram` loads
 `instagram.com/embed.js`) · Akamai (CDN, production domains) · Playwright + axe-core (quality tooling) · source sites
 `www.ustafoundation.com` and `www.usta.com` (live reference for parity). **TBD / planned:** Feroot (§12 Q25), Google Maps
@@ -665,7 +689,7 @@ only links out to Facebook, X (Twitter) and LinkedIn. External tools for importi
 | Boilerplate leftovers: `cleanup-on-create.yaml` can be run by hand (`workflow_dispatch`, or when `main` is created) and commits + pushes straight to its branch; `.renovaterc.json` automerges devDependency PRs, which Renovate opens against `main` (whether Renovate is installed is n/d); `CONTRIBUTING.md` is the Project Helix text (fork PRs, "commit then review", a non-existent `npm run commit`) | A direct commit to a long-lived branch; contributors follow the wrong process | Remove `cleanup-on-create.yaml`, `sync-block-collection.yaml` and `sync-block-collection.sh`; point Renovate at `develop` with automerge off (or remove it); replace CONTRIBUTING.md with a pointer to BRANCHING.md and PR_AGENT.md |
 | **MIGRATION.md is 520 KB and partly stale** | Agents act on outdated status (e.g. T1 "needs importer") | Re-verify per R-T1; split/archive the log; keep a short current-status table. Known stale (2026-10-15): **§2** container "720 / 970 / 1170" (D-008) and type scale "pending"; **§2a** statuses; **§3 Buttons** "branch `usta-buttons`, not yet merged"; **§6 Standing** items done 2026-09-03 → 09-07; **▶ Typography steps** "`scale` is empty"; **🔴 HANDOFF** (blocker was a measurement error; key files still name `yellow-center-intro`); **§1** `aemdemos` hosts. Also the `typography.json` `$comment` |
 | MIGRATION.md was written mostly in another repository that holds this codebase: the hashes (`472a662`, `81c44b0`, `6d6985d`, `cb94155`, `7c1395f`, `030eb3c`), branches (`usta-buttons`, `buttons-plugin`, `issue67`) and PR numbers (#5, #68–#70) it cites are not in this history | Agents cannot verify what the log cites; "branch pushed, not merged" statuses go stale once a drop lands | After each Adobe drop, re-check MIGRATION.md statuses against `develop` |
-| Uncommitted CSS on `develop` is not logged: the working tree changes `styles/styles.css`, `blocks/columns/columns.css` and `templates/news/news.css` (compact-headings site-wide, D-072; a 60 px gap before non-center-intro yellow bands with the ≥992 px 121 px yellow-strip rule removed, so the who-we-are History → yellow strip gap falls back to 40 px; a 15 px inset on text-left columns rows at 992–1200 px, §12 Q21; yellow columns-band bottom padding 70 → 100 px) | A logged customer fix is undone without trace; the next agent re-derives the work | Log them (Migration-Log Rule) and re-check who-we-are against the 2026-10-07 entry before committing. **Logged 2026-10-16** (MIGRATION.md) and in the `feature/codesyncandcodebaseswitch` PR to `develop`; `check:overflow` / `check:typography` pass on the four pages, but who-we-are was not re-checked against the 2026-10-07 entry |
+| Uncommitted CSS on `develop` is not logged: the working tree changes `styles/styles.css`, `blocks/columns/columns.css` and `templates/news/news.css` (compact-headings site-wide, D-072; a 60 px gap before non-center-intro yellow bands with the ≥992 px 121 px yellow-strip rule removed, so the who-we-are History → yellow strip gap falls back to 40 px; a 15 px inset on text-left columns rows at 992–1200 px, §12 Q21; yellow columns-band bottom padding 70 → 100 px) | A logged customer fix is undone without trace; the next agent re-derives the work | Log them (Migration-Log Rule) and re-check who-we-are against the 2026-10-07 entry before committing. **Logged 2026-10-16** (MIGRATION.md) and on `develop` since PR #15 (`2860acd`); `check:overflow` / `check:typography` pass on the four pages, but who-we-are was not re-checked against the 2026-10-07 entry |
 | Mis-read deploy checks (the old HANDOFF "BLOCKER #1": deployed `styles.css` 34 lines vs 938 local) | Time lost chasing "stale code" | **Resolved.** It was a measurement error: the CDN serves `styles.css` gzip-compressed and `curl` without `--compressed` counted binary (MIGRATION.md 2026-09-08 round 4); the commits it names are not in this repo. Check a deploy with `curl --compressed <host>/styles/styles.css`. CSS goes live after push + Code Sync; content after a DA upload and preview |
 | Experience Workspace's Insert-block dialog loads the **`main`** preview, and authors get the Buttons panel and Layout code from `main` unless DA is opened with `?ref=<branch>` | Authoring-tool fixes reach authors only after the full `develop → uat → main` cycle | Check library previews locally on `/.da/library/…` pages, and the panel / Layout on the feature branch with `?ref=<branch>`; plan authoring-tool changes into the release train |
 | Agent access to DA depends on the "Allow LLM to use my Adobe credentials" opt-in (DA Settings → LLM Permissions); on 2026-09-08 it turned off and `admin.da.live` returned 401 | Agent imports, uploads and publishes stop mid-task | Check the opt-in before DA work; DA writes stay on request only (R-I3). Recipe: [VALIDATION.md §3](../VALIDATION.md) |
@@ -723,7 +747,7 @@ only links out to Facebook, X (Twitter) and LinkedIn. External tools for importi
 | `check:overflow` starts at a 360 px mobile baseline (`MOBILE_BASELINE = 360`), but N5 requires 320 px; on 2026-09-05 a header overflow below ~355 px was missed by the gate | Horizontal scroll on narrow phones passes the gate | Add 320 to the sweep widths, or check 320 by hand until then |
 | With no URL, `test:a11y:all`, `check:overflow` and `check:typography` sweep only `/`, `/en/home` and the `/drafts/…` samples in `tests/a11y/a11y.config.js` (which still lists the retired `custom-content-related-articles` sample) | No news, landing, leadership, financials or special-funds page is swept by default | Add one URL per template (T1–T7), as the file asks ("KEEP IT CURRENT"); drop the retired samples |
 | Docs and tools that disagree with the code: `templates/news/RELATED-ARTICLES.md` says "3–4 teaser cards" and describes decorative thumbnails (empty alt, `aria-hidden`, `tabindex=-1`), but the code caps at 3 (D-018) and uses the source alt pattern (D-056); `tools/quality/audit/related-articles-audit.mjs` slices by the raw `Max Items` with no cap; MIGRATION.md 2026-09-22 describes an older tie-break and an empty-tags fallback | Agents and reviewers work from the wrong spec; the audit reports card counts the page never shows | Update RELATED-ARTICLES.md and apply the same `MAX_LIMIT` clamp in the audit in the next news-template PR; the code is the ground truth (flow.md §4) |
-| `.hlxignore` lists `test/*`, but the folder is `tests/`; `tools/importer/` (scripts, bundles, backups, 16 `.xlsx` reports), `tools/quality/`, `tools/assets/`, the `skills/` scripts and `sync-block-collection.sh` are not ignored either | Code Sync publishes dev files for every site (N11) | Change `test/*` to `tests/*`; ignore `tools/importer/`, `tools/quality/`, `tools/assets/`, `skills/` and `sync-block-collection.sh`; keep `tools/plugins/` and `tools/da-library-preview/`, which the site loads. (`docs/*` is added in the `feature/codesyncandcodebaseswitch` PR) |
+| `.hlxignore` lists `test/*`, but the folder is `tests/`; `tools/importer/` (scripts, bundles, backups, 16 `.xlsx` reports), `tools/quality/`, `tools/assets/`, the `skills/` scripts and `sync-block-collection.sh` are not ignored either | Code Sync publishes dev files for every site (N11) | Change `test/*` to `tests/*`; ignore `tools/importer/`, `tools/quality/`, `tools/assets/`, `skills/` and `sync-block-collection.sh`; keep `tools/plugins/` and `tools/da-library-preview/`, which the site loads. (`docs/*` is on `develop` since PR #15 (`2860acd`)) |
 
 ---
 
@@ -841,11 +865,9 @@ only links out to Facebook, X (Twitter) and LinkedIn. External tools for importi
     After URL used the repository's own `<branch>--<repo>--<owner>` host (#5, #6, #13), and failed with "Rejected:
     provide test url" on #9, #10 and #14. No PR has used the `<branch>--foundation-dev--<org>` form the PR template asks
     for. Does the check accept it? If not, should PRs carry a second URL for PSI, or should the template change?
-31. **Codebase switch target and registration (R-A7).** Go always opens `foundation-dev` `index`, whichever page and site
-    the author was on, as asked. Should it keep the author's page and site instead (DA passes them to the panel)? That
-    matters once the panel is registered on `foundation-com`, `usta-dev` or `usta-com`. Should it be registered with a
-    relative path, so it loads from each branch and is missing on a branch without it, or with one absolute
-    `https://<branch>--foundation-dev--usta-digital.aem.live/…` URL?
+31. **Env selector target and registration (R-A7).** *Partly answered (2026-10-16, D-077):* Go keeps the author's page
+    and site and only changes `ref`. Still open: register it with a relative path, so it loads from each branch and is
+    missing on a branch without it, or with one absolute `https://<branch>--foundation-dev--usta-digital.aem.live/…` URL?
 
 ---
 

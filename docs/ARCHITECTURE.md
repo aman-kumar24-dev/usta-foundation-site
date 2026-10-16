@@ -20,8 +20,8 @@ lift-and-shift of the existing sites (D-006).
 | Part | What it does | Code / docs |
 |---|---|---|
 | **Visitor's browser** | Loads the page HTML, then runs `aem.js` + `scripts.js` in three phases: eager (first section, LCP), lazy (header, other sections, footer), delayed (third parties, 3 s later; D-039) | flow.md §1 |
-| **aem.live / aem.page** | Edge Delivery: renders each DA document as HTML with `head.html`, serves the code that Code Sync pushed for each branch, serves sheets as JSON, and builds the query indexes on publish. `aem.page` = preview, `aem.live` = published | flow.md §5; PRD §4.8 |
-| **DA content** | Pages, the `/nav` and `/footer` fragments, `/fragments/…`, the block library `/.da/library/…`, and the per-site `/configs/site-config` sheet | flow.md §5; PRD §4.3 |
+| **aem.live / aem.page** | Edge Delivery: renders each DA document as HTML with `head.html`, serves the code that Code Sync pushed for each branch, serves sheets as JSON, and builds the query indexes on publish. `aem.page` = preview, `aem.live` = published. Its admin API (`api.aem.live`) lists a site's code branches for the Env selector panel | flow.md §5; PRD §4.8, R-A7 |
+| **DA content** | Pages, the `/nav` and `/footer` fragments, `/fragments/…`, the block library `/.da/library/…`, the Env selector branches `/.da/environments/config`, and the per-site `/configs/site-config` sheet | flow.md §5; PRD §4.3 |
 | **Authors and martech admins** | Edit and publish content in DA; martech admins alone can edit the config sheet (D-049) | flow.md §2, §5 |
 | **Code repository + AEM Code Sync** | Every pushed branch becomes a preview host `https://{branch}--<site>--<org>.aem.page/`; `main` is production | flow.md §7; [BRANCHING.md](BRANCHING.md) |
 | **Importer tools** | `tools/importer` and `tools/assets` turn source-site pages into DA documents; upload to DA only on request | flow.md §6; PRD §4.4 |
@@ -52,7 +52,7 @@ lift-and-shift of the existing sites (D-006).
 | `helix-query.yaml` | Query index definitions (`/query-index.json`, `/news-index.json`) |
 | `tools/importer/`, `tools/assets/` | Importers, parsers, transformers, backups, reports; image and document localizers |
 | `tools/quality/`, `tests/a11y/` | Breakpoint, overflow, typography and SVG checks; site audits; axe accessibility tests |
-| `tools/plugins/buttons/`, `tools/plugins/codebase-switch/`, `tools/da-library-preview/` | DA Buttons panel; DA Codebase switch panel (reloads the canvas on another branch, PRD R-A7); block-library preview cleanup (all loaded by DA or the site, so they must stay served) |
+| `tools/plugins/buttons/`, `tools/plugins/env-selector/`, `tools/da-library-preview/` | DA Buttons panel; DA Env selector panel (reopens the open page with other content and/or another code branch, PRD R-A7); block-library preview cleanup (all loaded by DA or the site, so they must stay served) |
 | `skills/` | Project best-practice guides for agents (start at `skills/README.md`) |
 | `docs/` | This file, [PRD.md](PRD.md), [decision.md](decision.md), [flow.md](flow.md), [BRANCHING.md](BRANCHING.md), [MARTECH.md](MARTECH.md); diagrams in `assets/` |
 

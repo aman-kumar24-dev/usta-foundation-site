@@ -91,7 +91,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-061 | 2026-10-09 | Fundraise Up widget-card reproductions use the widget's font (IBM Plex Sans) | Active |
 | D-062 | 2026-10-11 | USTA buttons cover usta.com's own system only, named by look (`usta-…`), no size option | Active |
 | D-063 | 2026-10-11 | The USTA icon list lives only in the DA buttons sheet | Active |
-| D-064 | 2026-10-13 | Show image alt text as a hover tooltip site-wide | Active (in PR to `develop`) |
+| D-064 | 2026-10-13 | Show image alt text as a hover tooltip site-wide | Active |
 | D-065 | 2026-10-14 | Committed docs name roles, never people's e-mail addresses | Active |
 | D-066 | 2026-10-14 | Analytics, Hotjar and Target run only when OneTrust groups C0002, C0004 and C0005 are all on | Active (branch only) |
 | D-067 | 2026-10-14 | `consentRequired` fails closed: no row, or any value other than `true`/`false`, counts as required | Active |
@@ -99,11 +99,18 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-069 | 2026-10-14 | Port martech from `aem-coder-branch` to `develop` in four PRs, one vendor each | Active (1/4, 2/4 done) |
 | D-070 | 2026-09-09 | Hero photos stay CSS backgrounds, with a hidden `role=img` label and an LCP preload | Active |
 | D-071 | 2026-09-29 | CTA buttons are a separate `a.cta-button` layer on top of the boilerplate buttons | Active |
-| D-072 | n/d | `compact-headings` section style: a per-section opt-out of the 24 px rhythm | Active (in PR to `develop`) |
+| D-072 | n/d | `compact-headings` section style: a per-section opt-out of the 24 px rhythm | Active |
 | D-073 | 2026-10-16 | Keep the PRD, decision log and flows in `docs/` with the other project docs | Active |
 | D-074 | 2026-10-16 | Diagrams in `docs/assets/`; architecture prose in one `docs/ARCHITECTURE.md` | Active |
 | D-075 | 2026-10-16 | Agents keep the four project docs current in the same PR as each change | Active |
-| D-076 | 2026-10-16 | Codebase switch panel: pick main / uat / develop, Go reloads the canvas with `?ref=<branch>` through the DA SDK | Active (in PR to `develop`) |
+| D-076 | 2026-10-16 | Codebase switch panel: pick main / uat / develop, Go reloads the canvas with `?ref=<branch>` through the DA SDK | Superseded by D-077 |
+| D-077 | 2026-10-16 | Env selector: Go keeps the open page and only sets `?ref=<branch>`; plugin renamed `env-selector` | Active (in PR to `develop`) |
+| D-078 | 2026-10-16 | Env selector branches come from the DA sheet `/.da/environments/config` (tab `code`); the HTML list is the fallback | Active (in PR to `develop`) |
+| D-079 | 2026-10-16 | Env selector content picker: the hash's site segment is replaced; Go needs both picks and one change | Active (in PR to `develop`); layout and unlisted-value parts superseded by D-080 |
+| D-080 | 2026-10-16 | Env selector design from the user's mockup: one row of field cards + round Go, unlisted open values added, "Currently on …" status | Active (in PR to `develop`); row-only layout refined by D-081 |
+| D-081 | 2026-10-16 | Env selector: label "CodeBase"; cards stack up to 576 px (panel-only step, outside the site breakpoints) | Active (in PR to `develop`) |
+| D-082 | 2026-10-16 | Env selector CodeBase is an editable combobox: typed/pasted branches, host-name form, listed with the sheet's | Active (in PR to `develop`); "never filters" superseded by D-083 |
+| D-083 | 2026-10-16 | Env selector "All branches" from the EDS admin API (fetchBranches, adapted from adobe-rnd/aem-apps); typing filters both groups | Active (in PR to `develop`) |
 
 ---
 
@@ -385,7 +392,7 @@ hover. `decorateImageTooltips()` in `scripts/scripts.js` is one delegated `mouse
 before the first hover. Decorative (`alt=""`) images are skipped and an authored `title` wins. Links, by contrast, carry
 no `title` tooltip, matching the source (EDS-51, 2026-10-01). *Status:* uncommitted in the working tree on 2026-10-15.
 *Decided by:* n/d ("on request"). *Source:* MIGRATION.md 2026-10-01, 2026-10-13.
-*Update (2026-10-16):* committed in the `feature/codesyncandcodebaseswitch` PR to `develop`.
+*Update (2026-10-16):* committed in the `feature/codesyncandcodebaseswitch` PR to `develop`; on `develop` since PR #15 (`2860acd`).
 
 **D-076 — Codebase switch panel reloads the canvas with `?ref=<branch>` (2026-10-16).** A DA library plugin
 (`tools/plugins/codebase-switch/`) lists the three environment branches `main`, `uat` and `develop` (BRANCHING.md). The author
@@ -397,6 +404,105 @@ not navigate `window.top` from inside the cross-origin iframe. Outside DA it fal
 Only a listed branch is accepted. The branch list, URL and messages live in `codebase-switch.html` (Localization Rule).
 *Decided by:* user (options, Go button, target URL); Claude (`setHref`, allow-list). *Source:* MIGRATION.md 2026-10-16.
 Open: keep the author's current page and site instead of `foundation-dev` `index` (PRD §12 Q31).
+*Superseded by D-077 (2026-10-16), before merge.*
+
+**D-077 — Env selector keeps the open page and only sets `?ref=` (2026-10-16).** Replaces D-076's fixed target URL. The
+plugin is renamed `env-selector` (`tools/plugins/env-selector/`, DA library title `Environment`). Go takes the page open
+in the editor and sets `ref` in its canvas URL to the chosen branch: an existing `?ref=` is replaced, and a URL with none
+(`da.live/canvas#/…`, which means `main`) gets `canvas?ref=<branch>#/…`. The panel is a cross-origin iframe and DA sends
+no referrer beyond its origin (and a referrer never carries the hash), so the URL is rebuilt from the SDK context: the
+canvas `hash`, else `#/<org>/<repo><path>`, on the editor path `/canvas` from the HTML. It goes to `setHref` as a
+relative `/canvas?ref=…#…`, so DA resolves it on its own origin. Other query parameters on DA's URL are not known and
+are dropped. Picking the current branch does not reload; outside DA, Go stays disabled (no page to switch). *Why:*
+authors stay on the page they are editing, and the panel works on every site it is registered on. *Decided by:* user
+(rename, keep the current URL, the no-ref case); Claude (rebuild from context, relative `setHref`, no-op on the same
+branch). *Source:* MIGRATION.md 2026-10-16 (Env selector); PRD R-A7, §12 Q31.
+
+**D-078 — Env selector branches come from a DA sheet (2026-10-16).** The dropdown options are the `code` tab of the DA
+sheet `/.da/environments/config` (created by the user): `title` is the option text and `value` the branch written to
+`?ref=`. It is read like the Buttons panel's `/.da/library/buttons` sheet, through the SDK's `daFetch` from
+`https://admin.da.live/source/<org>/<repo>/.da/environments/config.json`, so it is saved, not published. Other tabs are
+ignored. Column names are matched case-insensitively and trimmed; a row whose value is not a branch name
+(`^[a-z0-9-]+$`) or repeats an earlier value is skipped; an empty title shows the value. When the sheet cannot be read
+or has no valid row, the built-in `main`, `uat`, `develop` options in `env-selector.html` are used. *Why:* authors and
+leads can add or rename environments without a code change. *Decided by:* user (sheet, tab, columns); Claude (fallback,
+validation). *Source:* MIGRATION.md 2026-10-16 (Env selector branches from a sheet); PRD R-A7.
+
+**D-079 — Env selector content picker (2026-10-16).** A **Content** list sits before **Branch**, from the sheet's
+`content` tab (`title` = text, `value` = a DA site name). Go splits the open page's hash `#/<org>/<site>/<path>` on `/`,
+replaces the second segment (the site) with the content and sets `?ref=` to the branch; the org and page path are kept
+(`…?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home` → `…?ref=develop#/aman-kumar24-dev/<content>/en/home`).
+Both lists preselect what is open; Go is enabled only when both have a pick and at least one differs (extends D-077's
+"only a different branch"). Without a `content` tab the list holds just the open site; an open site that is not listed
+leaves "Select content". The two pickers share one grid column, so they always have the same width (240 px, shrinking
+together), with Go beside the branch picker. *Why:* switch between content sites and code branches from one panel.
+*Decided by:* user (content list, position, width, the site-segment rule, both picks on Go); Claude (enable rule,
+fallbacks). *Source:* MIGRATION.md 2026-10-16 (Env selector content picker); PRD R-A7.
+*Partly superseded by D-080 (2026-10-16):* the equal-width column and the "Select content" prompt for an unlisted open
+site.
+
+**D-080 — Env selector design from the user's mockup (2026-10-16).** The panel follows the user's mockup. (1) DA's panel
+header already shows the title the panel sends, so the panel draws no header; its `<h1>` is visually hidden. (2) One row:
+a Content card and a Branch card, each with its label inside above the picked value, sharing the row 3:4 (the branch
+card is wider for branch names) and shrinking with the panel, then a 56 px round Go button with an arrow (`aria-label`
+"Go"); the row is at most 360 px wide. This replaces D-079's equal-width column. (3) The open list uses the customizable
+select (`appearance: base-select`, `::picker(select)`, `::checkmark`, `<button><selectedcontent>` for the ellipsis) where
+the browser has it, and the native list elsewhere. (4) An open site or branch that the sheet does not list (e.g.
+`feature-envselector`) is added at the end of its list and preselected, as in the mockup, instead of showing the prompt
+(D-079); there is no "(current)" suffix. (5) The status line is a dot (green: what is open, blue: switching, red: a
+problem) and "Currently on {content} with {branch}" (the user's wording). The fixed branch hint is removed. (6) Card
+borders stay Spectrum gray 500 (`#8f8f8f`, 3.3:1 on white) rather than the mockup's lighter grey, for the ≥ 3:1 UI-border
+rule (skills/accessibility). *Decided by:* user (mockup, status text); Claude (base-select with fallback, the border
+colour, tones). *Source:* MIGRATION.md 2026-10-16 (Env selector redesign); PRD R-A7.
+
+**D-081 — Env selector: "CodeBase" label, stacked up to 576 px (2026-10-16).** The Branch card's label reads
+**CodeBase** (the "Select a branch" prompt and the messages are unchanged). Up to 576 px wide the two cards stack, the
+same width, with Go beside the CodeBase card; from 577 px they sit in one row, 3:4 (D-080). The CSS stays mobile-first
+(`@media (width >= 577px)`). *Deviation from the Breakpoint Rule:* 577 px is not one of the site's breakpoints
+(768 / 992 / 1200, `tools/quality/breakpoints.json`). It is accepted because the rule exists to copy the source site's
+breakpoints onto site pages, and this is a DA tool panel inside an iframe, whose media queries see the panel's width,
+not a page's; `breakpoint-check` does not scan `tools/` by default, and run on this file it reports the 577 px step.
+*Consequence:* DA's tools panel opens 400 px wide (`registerPanelSection('tools', { width: '400px' })` in
+`blocks/canvas/canvas.js`), so authors see the stacked layout unless the panel is wider. *Decided by:* user (label, the
+576 px rule); Claude (mobile-first form, Go beside the CodeBase card). *Source:* MIGRATION.md 2026-10-16 (Env selector:
+CodeBase label, stacked up to 576 px); PRD R-A7.
+
+**D-082 — CodeBase takes a typed or pasted branch (2026-10-16).** The CodeBase card is an editable combobox (ARIA 1.2:
+`input role="combobox"` + `ul role="listbox"`, `aria-activedescendant`, Arrow keys / Enter / Escape, a chevron button
+outside the tab order) instead of a select. The author picks a listed branch or types / pastes any branch. (1) A typed
+branch is written the way DA's `normalizeBranch` and AEM write a branch in a host name: trimmed, lowercase, every
+character other than `a-z`, `0-9` and `-` → `-` (`feature/EDS5Hotjar` → `feature-eds5hotjar`); a typed title or value of a
+listed branch is that branch. (2) The list never filters: the typed branch (when not listed) is the first row, then
+every sheet branch, then an unlisted open one, so what was typed always appears along with the config options. (3)
+Sites and branches, typed or from the sheet, must be lowercase letters and digits with single hyphens between them
+(`^[a-z0-9]+(-[a-z0-9]+)*$`): a `--` would split `<branch>--<site>--<org>`, and a leading or trailing `-` is not a host
+name; this tightens D-078's `^[a-z0-9-]+$`. (4) `<branch>--<site>--<org>` must fit one DNS label (63 characters; the
+limit that broke the `feature/codesyncandcodebaseswitch` preview). Either problem disables Go with a red message; the
+length one at once, the name one when the field is left, so typing `feature-` on the way to `feature-x` does not flash
+an error. (5) Typed branches are not remembered across reloads: browser storage is per origin, and the panel's origin
+changes with the branch it is loaded from; after Go, the typed branch is the open one and is listed again. *Decided by:*
+user (type/paste, listed with the config options); Claude (combobox pattern, normalisation, validation, no storage).
+*Source:* MIGRATION.md 2026-10-16 (Env selector: type or paste a branch); PRD R-A7.
+*Partly superseded by D-083 (2026-10-16):* point (2), "the list never filters".
+
+**D-083 — "All branches" from the EDS admin API (2026-10-16).** The CodeBase list adds every code branch of the site,
+read with `fetchBranches()` from `tools/plugins/env-selector/api.js`, a port of adobe-rnd/aem-apps
+`tools/plugins/developer/api.js` (Apache-2.0; the notice is kept and the file says what changed): `GET
+https://api.aem.live/<org>/repos/<site>/code/` with `Authorization: Bearer <DA token>` (the token DA sends every panel),
+the branch name being the last segment of each returned path; a 403 `AEM_NOT_CANONICAL_CODE_SOURCE` is retried once
+against the canonical `org/site` from `x-error`; results are cached 5 minutes in `sessionStorage`. Checked on
+2026-10-16: the API answers CORS preflights for any origin (including DA's `*.preview.da.live` proxy and localhost),
+allows `Authorization` and exposes `x-error` / `x-error-code`; without a token it returns 401. Our changes: org and site
+are checked and URL-encoded; errors are not logged; names that are not branch names (D-082) and repeats are dropped.
+**Layout:** two labelled groups, "Environments" (the sheet's `code` tab, with titles) and "All branches" (the API's
+names not in config, sorted), the typed branch above both; an open branch in neither goes in "All branches". **Filtering:**
+typing narrows both groups (title or value, also in host-name form); only the typed branch always shows. Opening the
+list by click, chevron or arrow key shows everything (the value already in the field does not filter). This replaces
+D-082's "never filters". **Loading:** in the background, alongside the sheet; "Loading branches…" under the list (outside
+the listbox, which may only hold options and groups). **Errors:** none shown; without the API's list the panel works
+from the `code` tab as one list, as before. *Decided by:* user (use fetchBranches, filter all but typed, two groups, fall
+back to the code JSON); Claude (port changes, loading line, unlisted open branch placement). *Source:* MIGRATION.md
+2026-10-16 (Env selector: All branches from the admin API); PRD R-A7.
 
 #### Buttons and links
 
@@ -645,7 +751,7 @@ that ends in bold + underlined text (a "heading line") has no gap below it. It b
 deviation D-059 accepted. D-059 was decided with no opt-in style (`spaced` was removed), so this adds a per-section
 opt-out. *Decided by:* n/d. *Status:* not committed, not in MIGRATION.md, and no importer emits it; pages need the style
 set in DA. *Source:* `styles/styles.css` (working tree); MIGRATION.md 2026-10-07.
-*Update (2026-10-16):* logged in MIGRATION.md 2026-10-16 and committed in the `feature/codesyncandcodebaseswitch` PR to `develop`.
+*Update (2026-10-16):* logged in MIGRATION.md 2026-10-16 and committed in the `feature/codesyncandcodebaseswitch` PR to `develop`; on `develop` since PR #15 (`2860acd`).
 
 #### Accessibility
 
@@ -691,3 +797,7 @@ still open (PRD §12).
 | 2026-10-06 audit (same day) | Decorative Related Articles thumbnails (`alt=""`, `aria-hidden`) | D-056 |
 | `style="usta"` + size options | One USTA style with height / width / font-size / shape / padding / disabled options | D-062 |
 | 2026-10-11 in-code list | `USTA_ICONS` allow-list in `scripts.js` and the panel | D-063 |
+| D-076 | Codebase switch panel with a fixed target URL (`…/foundation-dev/index`) | D-077 |
+| D-079 (layout, unlisted value) | Equal-width pickers in one column; "Select content" prompt for an unlisted open site | D-080 |
+| D-078 (value rule) | Sheet values accepted when they match `^[a-z0-9-]+$` | D-082 (single hyphens, no leading/trailing `-`) |
+| D-082 (2) | The CodeBase list never filters; the config options are always visible | D-083 (typing narrows both groups) |
