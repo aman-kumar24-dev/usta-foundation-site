@@ -233,9 +233,13 @@ the code arrived with PR #9 (§8.6).
   for the content, tab `code` for the branches; `title` is the option text, `value` the site or branch (values that are
   not a site/branch name, and repeated values, are skipped). Without the sheet, the branches fall back to the built-in
   `main`, `uat`, `develop` and the content to the open site (D-078, D-079). CodeBase is an editable combobox (D-082): the
-  author can also type or paste any branch; it is written in host-name form (lowercase, other characters → `-`), the
-  list always shows it on top of the sheet's branches, and a name that is not lowercase letters and digits with single
-  hyphens, or makes `<branch>--<site>--<org>` longer than 63 characters, disables Go with a red message. Go puts the content into the hash's site
+  author can also type or paste any branch; it is written in host-name form (lowercase, other characters → `-`) and
+  always shown on top, and a name that is not lowercase letters and digits with single hyphens, or makes
+  `<branch>--<site>--<org>` longer than 63 characters, disables Go with a red message. The list has two labelled groups
+  (D-083): "Environments" (the sheet's `code` tab) and "All branches", every code branch of the site from the EDS admin
+  API (`GET https://api.aem.live/<org>/repos/<site>/code/` with the DA token; a not-canonical 403 is retried against the
+  canonical site; cached 5 minutes), loaded in the background; typing narrows both groups. Without the API's list (no
+  token, no permission, an error) the panel works from the `code` tab alone, as before. Go puts the content into the hash's site
   segment (`#/<org>/<site>/<path>`, split on `/`, second segment replaced) and the branch into `?ref=` (replaced, or added
   when the URL has none, which means `main`):
   `da.live/canvas?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home` with Foundation Dev + Develop →
@@ -649,7 +653,8 @@ to match; until then AGENTS.md wins, per the header.
 ## 10. Dependencies
 
 AEM Edge Delivery Services / `aem.live` (+ Code Sync) · DA (da.live; also called at runtime: `?dapreview` loads
-`da.live/scripts/dapreview.js` and the Buttons panel reads `admin.da.live`) · GitHub · Adobe Tags (Launch), Analytics, Target · Hotjar · Fundraise Up · OneTrust · YouTube
+`da.live/scripts/dapreview.js` and the Buttons panel reads `admin.da.live`) · EDS admin API `api.aem.live` (the Env selector's
+branch list, R-A7) · GitHub · Adobe Tags (Launch), Analytics, Target · Hotjar · Fundraise Up · OneTrust · YouTube
 (`video-embed`; the `columns (feature)` player, poster from `i.ytimg.com`) · Instagram (`embed-instagram` loads
 `instagram.com/embed.js`) · Akamai (CDN, production domains) · Playwright + axe-core (quality tooling) · source sites
 `www.ustafoundation.com` and `www.usta.com` (live reference for parity). **TBD / planned:** Feroot (§12 Q25), Google Maps

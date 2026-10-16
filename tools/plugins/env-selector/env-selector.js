@@ -9,18 +9,22 @@
  * The panel is a cross-origin iframe and cannot read the editor's URL, so the
  * URL is rebuilt from what DA sends the panel: the canvas hash and its ref.
  *
- * Both lists come from the DA sheet /.da/environments/config: tab `content`
- * for the content, tab `code` for the branches (`title` is the option text,
- * `value` the site or branch). Without the sheet, the branches fall back to
- * the ones in the HTML. An open site or branch that is not listed (e.g. a
- * feature branch) is added to its list, so each list starts on what is open.
+ * Content comes from the DA sheet /.da/environments/config, tab `content`
+ * (`title` is the option text, `value` the site). An open site that is not
+ * listed is added to the list, so it starts on what is open.
  *
- * CodeBase is an editable combobox: the author can also type or paste any
- * branch. It is written the way DA and AEM write a branch in a host name
- * (lowercase, anything but a-z, 0-9 and - becomes -), and the list always shows
- * it, on top, along with the sheet's branches. The editor path and every
- * message live in the HTML.
+ * CodeBase is an editable combobox. Its list has two groups: "Environments",
+ * the sheet's `code` tab (else the branches in the HTML), and "All branches",
+ * every code branch of the site from the EDS admin API (api.js), loaded in
+ * the background with the token DA gives the panel. Without that list (no
+ * permission, an error) the panel works from the sheet alone, as one list.
+ * The author can also type or paste any branch: it is written the way DA and
+ * AEM write a branch in a host name (lowercase, anything but a-z, 0-9 and -
+ * becomes -), shown first, and what is typed narrows both groups. The editor
+ * path and every message live in the HTML.
  */
+
+import { fetchBranches } from './api.js';
 
 const SHEET_PATH = '/.da/environments/config.json';
 
@@ -37,7 +41,9 @@ const form = $('.env-selector-form');
 const contentSelect = form.elements.content;
 const branchInput = form.elements.branch;
 const branchToggle = $('.env-selector-toggle');
+const branchPopup = $('.env-selector-popup');
 const branchList = $('.env-selector-list');
+const listNote = $('.env-selector-list-note');
 const go = $('.env-selector-go');
 const statusLine = $('.env-selector-status');
 
@@ -46,10 +52,15 @@ const state = {
   context: {},
   hash: null,
   current: { content: null, branch: null },
-  // the listed branches: the sheet's (else the HTML's), then an unlisted open one
-  branches: [...branchList.querySelectorAll('[role="option"]')]
+  // "Environments": the sheet's code tab, else the branches in the HTML
+  config: [...branchList.querySelectorAll('[role="option"]')]
     .map((option) => ({ title: option.textContent, value: option.dataset.value })),
-  // the highlighted row of the open branch list, -1 for none
+  // "All branches": the admin API's names that are not in config; null when unavailable
+  fetched: null,
+  loading: false,
+  // what was typed since the list opened, which narrows it
+  query: '',
+  // the highlighted row of the open list, -1 for none
   active: -1,
 };
 
@@ -139,8 +150,26 @@ function selectCurrent(select, value) {
 /** A typed branch as DA and AEM write it in a host name (cf. normalizeBranch in DA) */
 const normalizeBranch = (text) => text.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
 
+const asItem = (value) => ({ title: value, value });
+
+/**
+ * The listed branches by group. The open branch, when neither group has it,
+ * is added to "All branches" (or to the one list without the API's).
+ */
+function listedGroups() {
+  const config = [...state.config];
+  const fetched = (state.fetched || []).map(asItem);
+  const open = state.current.branch;
+  if (open && ![...config, ...fetched].some((b) => b.value === open)) {
+    (state.fetched?.length ? fetched : config).push(asItem(open));
+  }
+  return { config, fetched };
+}
+
+const listedBranches = () => Object.values(listedGroups()).flat();
+
 /** A branch's name for messages and the field: its title in the list, else the branch */
-const branchTitle = (value) => state.branches.find((b) => b.value === value)?.title || value;
+const branchTitle = (value) => listedBranches().find((b) => b.value === value)?.title || value;
 
 /**
  * The branch in the CodeBase field: a listed one, by its title or value, else
@@ -150,30 +179,64 @@ function fieldBranch() {
   const text = branchInput.value.trim();
   if (!text) return null;
   const lower = text.toLowerCase();
-  const match = state.branches.find((b) => b.title.toLowerCase() === lower || b.value === lower);
+  const match = listedBranches().find((b) => b.title.toLowerCase() === lower || b.value === lower);
   return match ? match.value : normalizeBranch(text);
 }
 
-/** The rows of the branch list: a typed branch that is not listed first, then the listed ones */
-function branchItems() {
-  const branch = fieldBranch();
-  const typed = branch && !state.branches.some((b) => b.value === branch);
-  return typed ? [{ title: branch, value: branch }, ...state.branches] : state.branches;
+/** True when a branch matches what was typed since the list opened */
+function matchesQuery({ title, value }) {
+  const query = state.query.trim().toLowerCase();
+  return !query || title.toLowerCase().includes(query) || value.includes(normalizeBranch(query));
 }
 
-function renderBranchList() {
+/**
+ * The rows of the open list: a typed branch that is not listed (always
+ * shown), then each group narrowed to what was typed
+ */
+function branchRows() {
+  const { config, fetched } = listedGroups();
   const branch = fieldBranch();
-  branchList.replaceChildren(...branchItems().map(({ title, value }, i) => {
-    const option = document.createElement('li');
-    option.id = `env-selector-branch-${i}`;
-    option.setAttribute('role', 'option');
-    option.setAttribute('aria-selected', String(value === branch));
-    option.classList.toggle('is-active', i === state.active);
-    option.dataset.value = value;
-    option.title = title;
-    option.textContent = title;
-    return option;
-  }));
+  const isListed = [...config, ...fetched].some((b) => b.value === branch);
+  const typed = branch && !isListed ? [asItem(branch)] : [];
+  return { typed, config: config.filter(matchesQuery), fetched: fetched.filter(matchesQuery) };
+}
+
+const flatRows = () => Object.values(branchRows()).flat();
+
+function renderBranchList() {
+  const { typed, config, fetched } = branchRows();
+  // two labelled groups once the admin API listed branches; one list without them
+  const grouped = Boolean(state.fetched?.length);
+  const branch = fieldBranch();
+  let index = 0;
+  const option = ({ title, value }) => {
+    const row = document.createElement('div');
+    row.id = `env-selector-branch-${index}`;
+    row.setAttribute('role', 'option');
+    row.setAttribute('aria-selected', String(value === branch));
+    row.classList.toggle('is-active', index === state.active);
+    row.dataset.value = value;
+    row.title = title;
+    row.textContent = title;
+    index += 1;
+    return row;
+  };
+  const group = (items, key) => {
+    if (!items.length) return [];
+    if (!grouped) return items.map(option);
+    const label = document.createElement('div');
+    label.id = `env-selector-group-${key}`;
+    label.className = 'env-selector-group-label';
+    label.textContent = branchList.dataset[`${key}Label`];
+    const box = document.createElement('div');
+    box.setAttribute('role', 'group');
+    box.setAttribute('aria-labelledby', label.id);
+    box.append(label, ...items.map(option));
+    return [box];
+  };
+  branchList.replaceChildren(...typed.map(option), ...group(config, 'config'), ...group(fetched, 'fetched'));
+  listNote.textContent = state.loading ? listNote.dataset.loading : '';
+
   if (state.active >= 0) {
     branchInput.setAttribute('aria-activedescendant', `env-selector-branch-${state.active}`);
     branchList.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
@@ -182,13 +245,23 @@ function renderBranchList() {
   }
 }
 
-const isOpen = () => !branchList.hidden;
+const isOpen = () => !branchPopup.hidden;
 
 function setOpen(open) {
-  if (!open) state.active = -1;
-  branchList.hidden = !open;
+  if (!open) {
+    state.active = -1;
+    state.query = '';
+  }
+  branchPopup.hidden = !open;
   [branchInput, branchToggle].forEach((el) => el.setAttribute('aria-expanded', String(open)));
   renderBranchList();
+}
+
+/** Opens the whole list: what is in the field does not narrow it until the author types */
+function openFull() {
+  if (isOpen()) return;
+  state.query = '';
+  setOpen(true);
 }
 
 /** Shows a listed branch by its title and a typed one in host-name form */
@@ -266,24 +339,25 @@ function refresh({ settled = false } = {}) {
 contentSelect.addEventListener('change', refresh);
 
 branchInput.addEventListener('input', () => {
+  state.query = branchInput.value;
   state.active = -1;
   setOpen(true);
   refresh();
 });
-branchInput.addEventListener('click', () => {
-  if (!isOpen()) setOpen(true);
-});
+branchInput.addEventListener('click', openFull);
 branchInput.addEventListener('keydown', (e) => {
-  const items = branchItems();
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     e.preventDefault();
+    openFull();
+    const rows = flatRows();
+    if (!rows.length) return;
     const step = e.key === 'ArrowDown' ? 1 : -1;
-    if (state.active < 0) state.active = step > 0 ? 0 : items.length - 1;
-    else state.active = (state.active + step + items.length) % items.length;
-    setOpen(true);
+    if (state.active < 0) state.active = step > 0 ? 0 : rows.length - 1;
+    else state.active = (state.active + step + rows.length) % rows.length;
+    renderBranchList();
   } else if (e.key === 'Enter' && isOpen() && state.active >= 0) {
     e.preventDefault();
-    branchInput.value = items[state.active].title;
+    branchInput.value = flatRows()[state.active].title;
     setOpen(false);
     refresh();
   } else if (e.key === 'Escape' && isOpen()) {
@@ -292,11 +366,12 @@ branchInput.addEventListener('keydown', (e) => {
   }
 });
 branchToggle.addEventListener('click', () => {
-  setOpen(!isOpen());
+  if (isOpen()) setOpen(false);
+  else openFull();
   branchInput.focus();
 });
 // a click on a row must not take the focus out of the field
-branchList.addEventListener('mousedown', (e) => e.preventDefault());
+branchPopup.addEventListener('mousedown', (e) => e.preventDefault());
 branchList.addEventListener('click', (e) => {
   const option = e.target.closest('[role="option"]');
   if (!option) return;
@@ -332,6 +407,16 @@ form.addEventListener('submit', (e) => {
   state.actions.setHref(href);
 });
 
+/**
+ * The site's code branches from the admin API that are branch names, once
+ * each; null when the API gives none (the panel then works from the sheet)
+ */
+async function loadFetchedBranches({ org, repo } = {}, token = '') {
+  const { branches } = await fetchBranches(org, repo, token);
+  const names = [...new Set(branches)].filter((name) => NAME.test(name));
+  return names.length ? names : null;
+}
+
 const timeout = (ms) => new Promise((resolve) => { setTimeout(() => resolve(null), ms); });
 
 async function init() {
@@ -356,15 +441,24 @@ async function init() {
   if (NAME.test(site || '')) state.current.content = site;
   if (typeof ref === 'string' && NAME.test(ref)) state.current.branch = ref;
 
+  // the branch list loads in the background, alongside the sheet
+  const fetching = loadFetchedBranches(state.context, sdk.token);
+  state.loading = true;
+
   const sheet = await loadSheet(state.context, state.actions);
   renderOptions(contentSelect, sheet.content || []);
   selectCurrent(contentSelect, state.current.content);
-  if (sheet.branch) state.branches = sheet.branch;
-  const { branch } = state.current;
-  if (branch && !state.branches.some((b) => b.value === branch)) {
-    state.branches = [...state.branches, { title: branch, value: branch }];
-  }
-  if (branch) branchInput.value = branchTitle(branch);
+  if (sheet.branch) state.config = sheet.branch;
+  if (state.current.branch) branchInput.value = branchTitle(state.current.branch);
+  renderBranchList();
+  refresh();
+
+  // the API's branches that config does not have go in "All branches"
+  const names = await fetching;
+  state.loading = false;
+  const fetched = (names || []).filter((name) => !state.config.some((b) => b.value === name));
+  state.fetched = fetched.length ? fetched.sort() : null;
+  state.active = -1;
   renderBranchList();
   refresh();
 }

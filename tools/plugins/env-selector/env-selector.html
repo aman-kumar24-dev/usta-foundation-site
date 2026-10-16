@@ -26,8 +26,9 @@
         </select>
       </div>
 
-      <!-- an editable combobox: pick a branch or type/paste any branch; the list always shows what was typed,
-           the branches from the DA sheet /.da/environments/config (tab code) and the open branch -->
+      <!-- an editable combobox: pick a branch or type/paste any branch. The list: what was typed, then the
+           branches from the DA sheet /.da/environments/config (tab code) and, in a second group, every branch
+           of the site from the EDS admin API; typing narrows both groups -->
       <div class="env-selector-field env-selector-combo">
         <label class="env-selector-label" id="env-selector-branch-label" for="env-selector-branch">CodeBase</label>
         <input id="env-selector-branch" name="branch" type="text" role="combobox"
@@ -35,13 +36,17 @@
           autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Select or type a branch">
         <button type="button" class="env-selector-toggle" tabindex="-1" aria-label="Show branches"
           aria-controls="env-selector-branches" aria-expanded="false"></button>
-        <ul class="env-selector-list" id="env-selector-branches" role="listbox"
-          aria-labelledby="env-selector-branch-label" hidden>
-          <!-- built-in branches: replaced by the sheet's when it can be read -->
-          <li role="option" data-value="main">main</li>
-          <li role="option" data-value="uat">uat</li>
-          <li role="option" data-value="develop">develop</li>
-        </ul>
+        <div class="env-selector-popup" hidden>
+          <div class="env-selector-list" id="env-selector-branches" role="listbox"
+            aria-labelledby="env-selector-branch-label"
+            data-config-label="Environments" data-fetched-label="All branches">
+            <!-- built-in branches: replaced by the sheet's when it can be read -->
+            <div role="option" data-value="main">main</div>
+            <div role="option" data-value="uat">uat</div>
+            <div role="option" data-value="develop">develop</div>
+          </div>
+          <p class="env-selector-list-note" data-loading="Loading branches…"></p>
+        </div>
       </div>
 
       <!-- the buttons that act on both picks -->

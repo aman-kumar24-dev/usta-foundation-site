@@ -5933,3 +5933,33 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   order, arrows with wrap, Enter, Escape, Enter submits); content + typed branch combinations; no sheet / no content tab /
   classic context / no site segment / tampered content / markup ref. axe (WCAG 2.0–2.2 A/AA) with the list open and a
   row active: 0 violations; `test:a11y` passes; lint clean.
+
+### 2026-10-16 — Env selector: "All branches" from the EDS admin API
+- **Request:** use `fetchBranches()` from adobe-rnd/aem-apps `tools/plugins/developer/api.js` for the CodeBase field.
+  Plan agreed first; choices: typing filters both groups (only the typed branch always shows), two labelled groups,
+  and on any API error fall back to the `code` tab as implemented (no message).
+- **What fetchBranches does:** `GET https://api.aem.live/<org>/repos/<site>/code/` with `Authorization: Bearer <IMS token>`;
+  each returned path ends in the branch name; a 403 with `x-error-code: AEM_NOT_CANONICAL_CODE_SOURCE` is retried once
+  against the canonical `org/site` parsed from `x-error`; 5-minute `sessionStorage` cache; errors as codes.
+- **Checked live (no token):** CORS preflight from `https://da.live`, an aem.page host, `*.preview.da.live` and
+  `http://localhost:3000` → 204, origin reflected, `Authorization` allowed, `x-error` / `x-error-code` exposed. GET → 401.
+- **New file `tools/plugins/env-selector/api.js`:** the port, keeping Adobe's Apache-2.0 header plus a "modified" note
+  (this repo is Apache-2.0 too). Changes: org/site validated (`^[\w.-]+$`) and URL-encoded, no token → `unauthorized`
+  without a request, no `console.error`, non-array / non-string responses tolerated, own cache key.
+- **env-selector.js:** the token is `sdk.token` (DA sends it with the handshake). `loadFetchedBranches()` starts with the
+  sheet load; config shows first, the API's names (branch-shaped by `NAME`, de-duplicated, minus config, sorted) arrive
+  later as `state.fetched`. List rows: typed (if not listed) → "Environments" group (config, titles) → "All branches"
+  group (`role="group"` + `aria-labelledby` label); headings only when the API listed branches. The open branch, when in
+  neither, goes in "All branches" (or the single list without it). Filtering: `state.query` is what was typed since the
+  list opened; click / chevron / arrow opening shows everything. Keyboard runs across the groups (`aria-activedescendant`
+  ids in row order). "Loading branches…" sits under the list in the popup (`.env-selector-popup` card), outside the
+  listbox. HTML: the listbox is now a `div`, with `data-config-label="Environments"` / `data-fetched-label="All branches"`.
+- **Verified (Playwright, 102 checks, simulated DA host with a token and a fake api.aem.live):** request URL + `Bearer`
+  header; groups `[Environments] Main | UAT | Develop | [All branches] alpha-fix | ✓feature-envselector | feature-zeta`
+  (`Bad--Name` and a repeat dropped); filters "feat", "u", "feature/z", "Develop"; reopen shows all; arrow keys across
+  groups, Enter picks `alpha-fix` → `?ref=alpha-fix`; cache (no second request after a reload); loading line then groups;
+  403 canonical retry → `canon-org/canon-site`; 401 / 500 / network / bad JSON / API listing only config → the code tab,
+  no note, no error; no token → no request; open `hotfix-9` in neither → added to All branches; all earlier checks. axe
+  (WCAG 2.0–2.2 A/AA) with the grouped list open and a row active: 0 violations. `test:a11y` passes; lint clean.
+- **Not verified:** the real API with a signed-in DA session (needs the panel registered; the author's token must have
+  access to the site's code in the admin API).

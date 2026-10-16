@@ -109,7 +109,8 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-079 | 2026-10-16 | Env selector content picker: the hash's site segment is replaced; Go needs both picks and one change | Active (in PR to `develop`); layout and unlisted-value parts superseded by D-080 |
 | D-080 | 2026-10-16 | Env selector design from the user's mockup: one row of field cards + round Go, unlisted open values added, "Currently on …" status | Active (in PR to `develop`); row-only layout refined by D-081 |
 | D-081 | 2026-10-16 | Env selector: label "CodeBase"; cards stack up to 576 px (panel-only step, outside the site breakpoints) | Active (in PR to `develop`) |
-| D-082 | 2026-10-16 | Env selector CodeBase is an editable combobox: typed/pasted branches, host-name form, listed with the sheet's | Active (in PR to `develop`) |
+| D-082 | 2026-10-16 | Env selector CodeBase is an editable combobox: typed/pasted branches, host-name form, listed with the sheet's | Active (in PR to `develop`); "never filters" superseded by D-083 |
+| D-083 | 2026-10-16 | Env selector "All branches" from the EDS admin API (fetchBranches, adapted from adobe-rnd/aem-apps); typing filters both groups | Active (in PR to `develop`) |
 
 ---
 
@@ -482,6 +483,26 @@ an error. (5) Typed branches are not remembered across reloads: browser storage 
 changes with the branch it is loaded from; after Go, the typed branch is the open one and is listed again. *Decided by:*
 user (type/paste, listed with the config options); Claude (combobox pattern, normalisation, validation, no storage).
 *Source:* MIGRATION.md 2026-10-16 (Env selector: type or paste a branch); PRD R-A7.
+*Partly superseded by D-083 (2026-10-16):* point (2), "the list never filters".
+
+**D-083 — "All branches" from the EDS admin API (2026-10-16).** The CodeBase list adds every code branch of the site,
+read with `fetchBranches()` from `tools/plugins/env-selector/api.js`, a port of adobe-rnd/aem-apps
+`tools/plugins/developer/api.js` (Apache-2.0; the notice is kept and the file says what changed): `GET
+https://api.aem.live/<org>/repos/<site>/code/` with `Authorization: Bearer <DA token>` (the token DA sends every panel),
+the branch name being the last segment of each returned path; a 403 `AEM_NOT_CANONICAL_CODE_SOURCE` is retried once
+against the canonical `org/site` from `x-error`; results are cached 5 minutes in `sessionStorage`. Checked on
+2026-10-16: the API answers CORS preflights for any origin (including DA's `*.preview.da.live` proxy and localhost),
+allows `Authorization` and exposes `x-error` / `x-error-code`; without a token it returns 401. Our changes: org and site
+are checked and URL-encoded; errors are not logged; names that are not branch names (D-082) and repeats are dropped.
+**Layout:** two labelled groups, "Environments" (the sheet's `code` tab, with titles) and "All branches" (the API's
+names not in config, sorted), the typed branch above both; an open branch in neither goes in "All branches". **Filtering:**
+typing narrows both groups (title or value, also in host-name form); only the typed branch always shows. Opening the
+list by click, chevron or arrow key shows everything (the value already in the field does not filter). This replaces
+D-082's "never filters". **Loading:** in the background, alongside the sheet; "Loading branches…" under the list (outside
+the listbox, which may only hold options and groups). **Errors:** none shown; without the API's list the panel works
+from the `code` tab as one list, as before. *Decided by:* user (use fetchBranches, filter all but typed, two groups, fall
+back to the code JSON); Claude (port changes, loading line, unlisted open branch placement). *Source:* MIGRATION.md
+2026-10-16 (Env selector: All branches from the admin API); PRD R-A7.
 
 #### Buttons and links
 
@@ -779,3 +800,4 @@ still open (PRD §12).
 | D-076 | Codebase switch panel with a fixed target URL (`…/foundation-dev/index`) | D-077 |
 | D-079 (layout, unlisted value) | Equal-width pickers in one column; "Select content" prompt for an unlisted open site | D-080 |
 | D-078 (value rule) | Sheet values accepted when they match `^[a-z0-9-]+$` | D-082 (single hyphens, no leading/trailing `-`) |
+| D-082 (2) | The CodeBase list never filters; the config options are always visible | D-083 (typing narrows both groups) |

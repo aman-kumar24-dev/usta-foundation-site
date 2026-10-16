@@ -212,24 +212,48 @@
   cursor: pointer;
 }
 
-/* the branch list: a card under the field, like the content list; long
-   names end in an ellipsis (the full name is the row's title) */
-.env-selector .env-selector-list {
+/* the branch list: a card under the field, like the content list, holding
+   the list (it scrolls) and a loading line; long names end in an ellipsis
+   (the full name is the row's title) */
+.env-selector .env-selector-popup {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   left: 0;
   z-index: 1;
   box-sizing: border-box;
-  max-height: 264px;
-  margin: 0;
   border: 1px solid var(--es-gray-200);
   border-radius: var(--es-radius-card);
   padding: 6px;
-  overflow-y: auto;
   background-color: var(--es-gray-25);
   box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
-  list-style: none;
+}
+
+.env-selector .env-selector-list {
+  max-height: 264px;
+  overflow-y: auto;
+}
+
+/* "Environments" / "All branches": like the card labels */
+.env-selector .env-selector-group-label {
+  padding: 10px 14px 4px;
+  color: var(--es-gray-700);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.env-selector .env-selector-list-note {
+  padding: 8px 14px 6px;
+  color: var(--es-gray-700);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.env-selector .env-selector-list-note:empty {
+  display: none;
 }
 
 .env-selector .env-selector-list [role="option"] {

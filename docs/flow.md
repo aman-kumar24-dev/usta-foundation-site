@@ -708,6 +708,7 @@ flowchart TD
   LIB -->|"insert block or section"| DOC
   BTN -->|"sendHTML: marks or options suffix"| DOC
   ENV -->|"setHref: same page, picked site and ?ref=branch"| EW
+  API["EDS admin API<br/>api.aem.live org/repos/site/code"] -->|"code branches, with the DA token"| ENV
   DOC -->|"Preview"| PREV
   FRAG -->|"Preview"| PREV
   PREV -->|"Publish"| PUB
@@ -782,7 +783,9 @@ flowchart TD
     DA reloads. The canvas then shows that site and renders the preview and loads plugins from that branch (R-A7,
     D-077). Each list starts on what is open (an unlisted open site or branch is added to its list, D-080); Go is
     disabled until both lists have a pick and while both match what is open. CodeBase also takes a typed or pasted
-    branch, in host-name form, listed on top of the sheet's (D-082). — `tools/plugins/env-selector/env-selector.js`
+    branch, in host-name form, shown on top (D-082), and lists two groups: "Environments" (the `code` tab) and "All
+    branches" from `GET https://api.aem.live/<org>/repos/<site>/code/` (DA token, canonical-site retry on 403, 5-minute
+    session cache; without it, the `code` tab alone). Typing narrows both groups (D-083). — `tools/plugins/env-selector/api.js`; — `tools/plugins/env-selector/env-selector.js`
 
 **Planned and branch only**
 
@@ -816,13 +819,16 @@ flowchart TD
 - The `/.da/library/buttons` sheet is saved, not published (the panel reads it through `admin.da.live`); without its
   `icon` row the Icon dropdown shows only "No icon".
 - The Buttons panel hand-copies parts of `scripts.js` (styles, USTA words, colour logic): change both in the same PR.
+- The Env selector's "All branches" needs the author's DA token to have access to the site's code in the admin API; a
+  401, 404, network error or a token-less session falls back to the `code` tab without a message. Typed branches are not
+  remembered: the panel's browser storage is per origin, and its origin follows the branch it loads from.
 - A plugin registered with a relative path loads from the `?ref=` branch. After the Env selector moves the editor to a
   branch without `tools/plugins/env-selector/`, the panel is missing there: change `?ref=` in the address bar to get
   back. The panel cannot read DA's URL, so other query parameters on it (e.g. `nx=`) are not carried over.
 - DA publishing turns query-only hrefs into `/` and strips fragment-only `#ID` hrefs (D-025, R-D2).
 - Agent access to DA needs the "Allow LLM to use my Adobe credentials" opt-in; a 401 means it is off (PRD §11).
 
-*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-077, D-078, D-079, D-080, D-082; PRD §4.1
+*Related:* D-016, D-017, D-023, D-024, D-025, D-028, D-030, D-033, D-041, D-050, D-056, D-062, D-063, D-071, D-077, D-078, D-079, D-080, D-082, D-083; PRD §4.1
 R-T2/R-T3, §4.2, §4.3, §4.4 R-I3/R-I10, §4.7, §4.8, §7, §8.3; [tools/plugins/buttons/README.md](../tools/plugins/buttons/README.md).
 
 ---
