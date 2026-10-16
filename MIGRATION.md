@@ -5778,3 +5778,15 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   with Go 8 px after it, body `rgb(255, 255, 255)`. In a simulated DA host: the earlier 26 checks still pass, and
   `ref=feature-x` keeps the prompt with Go disabled until a pick. Panel widths 280 / 320 px: no overflow. `test:a11y`
   passes.
+
+### 2026-10-16 — Env selector: Go disabled for the current branch
+- **Request:** disable Go while the picker shows the current branch; enable it only for a different branch, and disable
+  it again when the current branch is re-selected.
+- **Before:** Go was enabled for any listed branch; picking the current one only said "already using" on click.
+- **Change:** `updateGo()` also requires `select.value !== state.current` and runs on every `change`. The same-branch
+  branch of the submit handler and `data-same` are removed (unreachable now). `canvas#…` with no ref counts as `main`, so
+  main is preselected with Go disabled.
+- **Verified (Playwright, 34 checks):** `ref=develop` → Go disabled; pick uat → enabled; re-pick develop → disabled; no ref
+  (main) → disabled until another branch is picked; feature-branch ref → prompt, Go disabled until a pick. Type-ahead on
+  macOS (`u` / `d` / `m`): uat enabled, develop disabled, main enabled (macOS arrow keys open the menu instead).
+  `test:a11y` passes.

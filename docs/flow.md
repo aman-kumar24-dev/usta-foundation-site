@@ -777,7 +777,7 @@ flowchart TD
     rebuilds the open page's canvas URL from DA's context (`hash`, else `org` / `repo` / `path`), sets `ref` to the
     branch (added when the URL has none, which means `main`) and sends it with `setHref`, e.g.
     `/canvas?ref=uat#/usta-digital/foundation-dev/en/home`; DA reloads. The canvas then renders the preview and loads
-    plugins from that branch (R-A7, D-077). Picking the current branch only says so. — `tools/plugins/env-selector/env-selector.js`
+    plugins from that branch (R-A7, D-077). Go is disabled while the current branch is selected. — `tools/plugins/env-selector/env-selector.js`
 
 **Planned and branch only**
 

@@ -59,9 +59,12 @@ function switchHref(branch) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-/** Go works only inside DA, once a branch is picked (not the "Select a branch" prompt) */
+/**
+ * Go works only inside DA, for a picked branch (not the "Select a branch"
+ * prompt) that differs from the editor's current one
+ */
 function updateGo() {
-  go.disabled = !state.actions?.setHref || !select.value;
+  go.disabled = !state.actions?.setHref || !select.value || select.value === state.current;
 }
 
 select.addEventListener('change', updateGo);
@@ -72,10 +75,6 @@ form.addEventListener('submit', (e) => {
   const branch = chosenBranch();
   if (!branch) {
     say('invalid');
-    return;
-  }
-  if (branch === state.current) {
-    say('same', branch);
     return;
   }
   const href = switchHref(branch);
