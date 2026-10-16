@@ -52,7 +52,7 @@ lift-and-shift of the existing sites (D-006).
 | `helix-query.yaml` | Query index definitions (`/query-index.json`, `/news-index.json`) |
 | `tools/importer/`, `tools/assets/` | Importers, parsers, transformers, backups, reports; image and document localizers |
 | `tools/quality/`, `tests/a11y/` | Breakpoint, overflow, typography and SVG checks; site audits; axe accessibility tests |
-| `tools/plugins/buttons/`, `tools/plugins/codebase-switch/`, `tools/da-library-preview/` | DA Buttons panel; DA Codebase switch panel (reloads the canvas on another branch, PRD R-A7); block-library preview cleanup (all loaded by DA or the site, so they must stay served) |
+| `tools/plugins/buttons/`, `tools/plugins/env-selector/`, `tools/da-library-preview/` | DA Buttons panel; DA Env selector panel (reloads the open page on another code branch, PRD R-A7); block-library preview cleanup (all loaded by DA or the site, so they must stay served) |
 | `skills/` | Project best-practice guides for agents (start at `skills/README.md`) |
 | `docs/` | This file, [PRD.md](PRD.md), [decision.md](decision.md), [flow.md](flow.md), [BRANCHING.md](BRANCHING.md), [MARTECH.md](MARTECH.md); diagrams in `assets/` |
 

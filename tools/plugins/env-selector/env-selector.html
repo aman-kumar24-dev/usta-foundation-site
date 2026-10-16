@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Environment</title>
+  <link rel="stylesheet" href="/tools/plugins/env-selector/env-selector.css">
+  <script type="module" src="/tools/plugins/env-selector/env-selector.js"></script>
+</head>
+<body class="env-selector">
+  <main>
+    <header class="env-selector-intro">
+      <h1 id="env-selector-title">Environment</h1>
+      <p>Pick a code branch, then select Go to reload this page in the editor with it.</p>
+    </header>
+
+    <!-- data-editor: the editor's path; Go keeps the open page and sets ?ref= to the chosen option's value -->
+    <form class="env-selector-form" aria-labelledby="env-selector-title" data-editor="/canvas">
+      <label class="env-selector-label" for="env-selector-branch">Branch</label>
+      <div class="env-selector-select">
+        <select id="env-selector-branch" name="branch" aria-describedby="env-selector-hint"
+          data-current="{branch} (current)">
+          <option value="main">main</option>
+          <option value="uat">uat</option>
+          <option value="develop">develop</option>
+        </select>
+      </div>
+      <button type="submit" class="env-selector-go" disabled>Go</button>
+      <p class="env-selector-hint" id="env-selector-hint">main is production, uat is UAT, develop is QE.</p>
+    </form>
+
+    <p class="env-selector-status" role="status"
+      data-current="The editor is using {branch}."
+      data-same="The editor is already using {branch}."
+      data-standalone="Open this panel from Experience Workspace to switch its branch."
+      data-no-page="The page open in the editor could not be found. Reload the editor and try again."
+      data-switching="Reloading the editor with {branch}…"
+      data-invalid="Pick a branch from the list.">Checking the current branch…</p>
+  </main>
+</body>
+</html>
