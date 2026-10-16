@@ -5898,3 +5898,38 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   `rgb(59, 99, 251)`, one wrapper; the switching message highlights "Dev Content" / "Develop"; a content title
   `<img src=x onerror=…>Dev` renders as text with no element; earlier checks unchanged. `test:a11y` passes with no
   warnings; lint clean.
+
+### 2026-10-16 — Env selector: type or paste a branch in CodeBase
+- **Request:** let the author type or paste their own branch in CodeBase; what they paste must always appear along
+  with the options from config.json.
+- **Markup:** CodeBase is an editable combobox: `<input id="env-selector-branch" role="combobox" aria-autocomplete="none"
+  aria-controls aria-expanded>` (placeholder "Select or type a branch"), a chevron `<button tabindex="-1" aria-label="Show
+  branches">`, and `<ul role="listbox" aria-labelledby>` whose built-in `<li role="option" data-value>` rows (main / uat /
+  develop) are the fallback. Content stays a select. New message `data-bad-branch`; `data-too-long` for the 63-character
+  host label.
+- **JS:** `state.branches` = the sheet's `code` rows (else the HTML rows) + an unlisted open branch. `fieldBranch()` reads
+  the field: a listed branch by title or value (any case), else `normalizeBranch()` (DA's host-name form: lowercase, other
+  characters → `-`). `branchItems()` puts a typed, unlisted branch first, then every listed one (no filtering).
+  Keyboard: ArrowDown / ArrowUp open and move (`aria-activedescendant`, wraps), Enter picks, Escape closes; Enter with
+  the list closed submits (Go). The chevron toggles the list; a row click keeps the focus in the field; focus leaving
+  the field closes the list and shows a typed branch in its host-name form. `refresh()` replaces `updateGo()`: Go needs
+  a content, a branch matching the stricter `NAME` (`^[a-z0-9]+(-[a-z0-9]+)*$`, also applied to sheet values), a host
+  label `<branch>--<site>--<org>` ≤ 63, and a change. "Too long" is said at once, a bad name only once the field is left.
+  The status variable is now `statusLine` (an editor hint confused `status` with the deprecated `window.status`).
+- **CSS:** the input is the same card as the select (padding, type, focus border, placeholder grey); the list is a
+  card under the field (field width, max 264 px high, scrolls) with the selected row light blue + bold + ✓, hover grey,
+  the arrow-key row with an inset accent ring; long names end in an ellipsis (full name in `title`).
+- **A11y fix found on the way:** axe with the Content list open flagged `target-size` (WCAG 2.2, 24 px): the
+  `<button><selectedcontent>` inside the customizable select was only its text's height. In base-select mode the card's
+  padding now sits on that button (`height: 100%`), so the whole 56 px card is the target; the select's padding is 0 there.
+- **Not done:** typed branches are not remembered after switching away; `localStorage` is per origin and the panel's
+  origin changes with the branch it loads from. After Go the typed branch is the open one and is listed again.
+- **Verified (Playwright, 73 checks):** layouts (one row ≥ 577, stacked ≤ 576, field 56 px like the select); the example
+  URL (field shows `feature-envselector`, list `Main | UAT | Develop | ✓feature-envselector`); typing `feature/EDS5Hotjar` →
+  list `✓feature-eds5hotjar | Main | UAT | Develop`, field settles to `feature-eds5hotjar`, Go → `?ref=feature-eds5hotjar`;
+  pasting `hotfix-42` → listed with the options, Go works; typed `uat` → the listed UAT, no extra row; typed `DEVELOP` →
+  Go disabled (open); too long (`feature-codesyncandcodebaseswitch` + `--usta-foundation-site--aman-kumar24-dev` = 73) →
+  red message at once; `feature-` → no error while typing, error on leaving; `a--b` and markup refused; keyboard (Tab
+  order, arrows with wrap, Enter, Escape, Enter submits); content + typed branch combinations; no sheet / no content tab /
+  classic context / no site segment / tampered content / markup ref. axe (WCAG 2.0–2.2 A/AA) with the list open and a
+  row active: 0 violations; `test:a11y` passes; lint clean.

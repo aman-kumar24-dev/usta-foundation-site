@@ -232,7 +232,10 @@ the code arrived with PR #9 (§8.6).
   sheet `/.da/environments/config` of the open site (saved, not published; read through `admin.da.live`): tab `content`
   for the content, tab `code` for the branches; `title` is the option text, `value` the site or branch (values that are
   not a site/branch name, and repeated values, are skipped). Without the sheet, the branches fall back to the built-in
-  `main`, `uat`, `develop` and the content to the open site (D-078, D-079). Go puts the content into the hash's site
+  `main`, `uat`, `develop` and the content to the open site (D-078, D-079). CodeBase is an editable combobox (D-082): the
+  author can also type or paste any branch; it is written in host-name form (lowercase, other characters → `-`), the
+  list always shows it on top of the sheet's branches, and a name that is not lowercase letters and digits with single
+  hyphens, or makes `<branch>--<site>--<org>` longer than 63 characters, disables Go with a red message. Go puts the content into the hash's site
   segment (`#/<org>/<site>/<path>`, split on `/`, second segment replaced) and the branch into `?ref=` (replaced, or added
   when the URL has none, which means `main`):
   `da.live/canvas?ref=feature-envselector#/aman-kumar24-dev/usta-foundation-site/en/home` with Foundation Dev + Develop →

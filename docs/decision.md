@@ -109,6 +109,7 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-079 | 2026-10-16 | Env selector content picker: the hash's site segment is replaced; Go needs both picks and one change | Active (in PR to `develop`); layout and unlisted-value parts superseded by D-080 |
 | D-080 | 2026-10-16 | Env selector design from the user's mockup: one row of field cards + round Go, unlisted open values added, "Currently on …" status | Active (in PR to `develop`); row-only layout refined by D-081 |
 | D-081 | 2026-10-16 | Env selector: label "CodeBase"; cards stack up to 576 px (panel-only step, outside the site breakpoints) | Active (in PR to `develop`) |
+| D-082 | 2026-10-16 | Env selector CodeBase is an editable combobox: typed/pasted branches, host-name form, listed with the sheet's | Active (in PR to `develop`) |
 
 ---
 
@@ -465,6 +466,23 @@ not a page's; `breakpoint-check` does not scan `tools/` by default, and run on t
 576 px rule); Claude (mobile-first form, Go beside the CodeBase card). *Source:* MIGRATION.md 2026-10-16 (Env selector:
 CodeBase label, stacked up to 576 px); PRD R-A7.
 
+**D-082 — CodeBase takes a typed or pasted branch (2026-10-16).** The CodeBase card is an editable combobox (ARIA 1.2:
+`input role="combobox"` + `ul role="listbox"`, `aria-activedescendant`, Arrow keys / Enter / Escape, a chevron button
+outside the tab order) instead of a select. The author picks a listed branch or types / pastes any branch. (1) A typed
+branch is written the way DA's `normalizeBranch` and AEM write a branch in a host name: trimmed, lowercase, every
+character other than `a-z`, `0-9` and `-` → `-` (`feature/EDS5Hotjar` → `feature-eds5hotjar`); a typed title or value of a
+listed branch is that branch. (2) The list never filters: the typed branch (when not listed) is the first row, then
+every sheet branch, then an unlisted open one, so what was typed always appears along with the config options. (3)
+Sites and branches, typed or from the sheet, must be lowercase letters and digits with single hyphens between them
+(`^[a-z0-9]+(-[a-z0-9]+)*$`): a `--` would split `<branch>--<site>--<org>`, and a leading or trailing `-` is not a host
+name; this tightens D-078's `^[a-z0-9-]+$`. (4) `<branch>--<site>--<org>` must fit one DNS label (63 characters; the
+limit that broke the `feature/codesyncandcodebaseswitch` preview). Either problem disables Go with a red message; the
+length one at once, the name one when the field is left, so typing `feature-` on the way to `feature-x` does not flash
+an error. (5) Typed branches are not remembered across reloads: browser storage is per origin, and the panel's origin
+changes with the branch it is loaded from; after Go, the typed branch is the open one and is listed again. *Decided by:*
+user (type/paste, listed with the config options); Claude (combobox pattern, normalisation, validation, no storage).
+*Source:* MIGRATION.md 2026-10-16 (Env selector: type or paste a branch); PRD R-A7.
+
 #### Buttons and links
 
 **D-025 — Path-bearing donate links (2026-09-04).** Author `form=<CODE>` links as full URLs (e.g.
@@ -760,3 +778,4 @@ still open (PRD §12).
 | 2026-10-11 in-code list | `USTA_ICONS` allow-list in `scripts.js` and the panel | D-063 |
 | D-076 | Codebase switch panel with a fixed target URL (`…/foundation-dev/index`) | D-077 |
 | D-079 (layout, unlisted value) | Equal-width pickers in one column; "Select content" prompt for an unlisted open site | D-080 |
+| D-078 (value rule) | Sheet values accepted when they match `^[a-z0-9-]+$` | D-082 (single hyphens, no leading/trailing `-`) |

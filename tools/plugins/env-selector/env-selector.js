@@ -12,30 +12,45 @@
  * Both lists come from the DA sheet /.da/environments/config: tab `content`
  * for the content, tab `code` for the branches (`title` is the option text,
  * `value` the site or branch). Without the sheet, the branches fall back to
- * the options in the HTML. An open site or branch that is not listed (e.g. a
+ * the ones in the HTML. An open site or branch that is not listed (e.g. a
  * feature branch) is added to its list, so each list starts on what is open.
- * The editor path and every message live in the HTML.
+ *
+ * CodeBase is an editable combobox: the author can also type or paste any
+ * branch. It is written the way DA and AEM write a branch in a host name
+ * (lowercase, anything but a-z, 0-9 and - becomes -), and the list always shows
+ * it, on top, along with the sheet's branches. The editor path and every
+ * message live in the HTML.
  */
 
 const SHEET_PATH = '/.da/environments/config.json';
 
-// a branch or a site as it appears in an aem.page host: {branch}--{site}--{org}
-const NAME = /^[a-z0-9-]+$/;
+// a branch or a site as it appears in an aem.page host, {branch}--{site}--{org}:
+// lowercase letters and digits, single hyphens between them (a -- would split the host)
+const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 // the editor hash: #/org/site/path
 const HASH = /^#\/[^\s#]+$/;
+// {branch}--{site}--{org} is one DNS label
+const HOST_LABEL_MAX = 63;
 
 const $ = (selector) => document.querySelector(selector);
 const form = $('.env-selector-form');
 const contentSelect = form.elements.content;
-const branchSelect = form.elements.branch;
+const branchInput = form.elements.branch;
+const branchToggle = $('.env-selector-toggle');
+const branchList = $('.env-selector-list');
 const go = $('.env-selector-go');
-const status = $('.env-selector-status');
+const statusLine = $('.env-selector-status');
 
 const state = {
   actions: null,
   context: {},
   hash: null,
   current: { content: null, branch: null },
+  // the listed branches: the sheet's (else the HTML's), then an unlisted open one
+  branches: [...branchList.querySelectorAll('[role="option"]')]
+    .map((option) => ({ title: option.textContent, value: option.dataset.value })),
+  // the highlighted row of the open branch list, -1 for none
+  active: -1,
 };
 
 /**
@@ -44,9 +59,9 @@ const state = {
  * colours its dot
  */
 function say(key, names = {}) {
-  status.dataset.tone = key;
+  statusLine.dataset.tone = key;
   // split() keeps the captured placeholder names at the odd indexes
-  const parts = (status.dataset[key] || '').split(/\{(content|branch)\}/).map((part, i) => {
+  const parts = (statusLine.dataset[key] || '').split(/\{(content|branch)\}/).map((part, i) => {
     if (i % 2 === 0) return part;
     const name = document.createElement('span');
     name.className = 'env-selector-name';
@@ -56,12 +71,12 @@ function say(key, names = {}) {
   // one element for the whole message, so it flows as text beside the dot
   const message = document.createElement('span');
   message.append(...parts.filter((part) => part !== ''));
-  status.replaceChildren(message);
+  statusLine.replaceChildren(message);
 }
 
 const listed = (select, value) => [...select.options].find((option) => option.value === value);
 
-/** A value's name for messages: its title in the list, else the value itself */
+/** A content's name for messages: its title in the list, else the value itself */
 const labelOf = (select, value) => (value && listed(select, value)?.textContent) || value;
 
 /** The picked value, only when it is one of the listed options */
@@ -103,21 +118,83 @@ async function loadSheet({ org, repo } = {}, actions = {}) {
   }
 }
 
-/** Replaces a list's options, after its prompt, with the given ones */
+/** Replaces the content options, after the prompt, with the given ones */
 function renderOptions(select, options) {
   [...select.options].slice(1).forEach((option) => option.remove());
   select.append(...options.map(({ title, value }) => new Option(title, value)));
 }
 
 /**
- * Preselects the open content or branch. One the list does not have (e.g. a
- * feature branch) is added at the end, so the author can see it and pick it
- * again.
+ * Preselects the open content. One the list does not have is added at the
+ * end, so the author can see it and pick it again.
  */
 function selectCurrent(select, value) {
   if (!value) return;
   if (!listed(select, value)) select.append(new Option(value, value));
   select.value = value;
+}
+
+/* ---- CodeBase: an editable combobox ------------------------------------- */
+
+/** A typed branch as DA and AEM write it in a host name (cf. normalizeBranch in DA) */
+const normalizeBranch = (text) => text.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+/** A branch's name for messages and the field: its title in the list, else the branch */
+const branchTitle = (value) => state.branches.find((b) => b.value === value)?.title || value;
+
+/**
+ * The branch in the CodeBase field: a listed one, by its title or value, else
+ * the typed text as a branch name; null when the field is empty
+ */
+function fieldBranch() {
+  const text = branchInput.value.trim();
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  const match = state.branches.find((b) => b.title.toLowerCase() === lower || b.value === lower);
+  return match ? match.value : normalizeBranch(text);
+}
+
+/** The rows of the branch list: a typed branch that is not listed first, then the listed ones */
+function branchItems() {
+  const branch = fieldBranch();
+  const typed = branch && !state.branches.some((b) => b.value === branch);
+  return typed ? [{ title: branch, value: branch }, ...state.branches] : state.branches;
+}
+
+function renderBranchList() {
+  const branch = fieldBranch();
+  branchList.replaceChildren(...branchItems().map(({ title, value }, i) => {
+    const option = document.createElement('li');
+    option.id = `env-selector-branch-${i}`;
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', String(value === branch));
+    option.classList.toggle('is-active', i === state.active);
+    option.dataset.value = value;
+    option.title = title;
+    option.textContent = title;
+    return option;
+  }));
+  if (state.active >= 0) {
+    branchInput.setAttribute('aria-activedescendant', `env-selector-branch-${state.active}`);
+    branchList.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
+  } else {
+    branchInput.removeAttribute('aria-activedescendant');
+  }
+}
+
+const isOpen = () => !branchList.hidden;
+
+function setOpen(open) {
+  if (!open) state.active = -1;
+  branchList.hidden = !open;
+  [branchInput, branchToggle].forEach((el) => el.setAttribute('aria-expanded', String(open)));
+  renderBranchList();
+}
+
+/** Shows a listed branch by its title and a typed one in host-name form */
+function settleBranchField() {
+  const branch = fieldBranch();
+  if (branch) branchInput.value = branchTitle(branch);
 }
 
 /* ---- editor URL ------------------------------------------------------- */
@@ -136,6 +213,13 @@ function editorHash({
 /** The open page's hash split into org, site, path… */
 const hashParts = () => (state.hash ? state.hash.slice(2).split('/') : []);
 
+/** True when {branch}--{site}--{org} would not fit in one DNS label */
+function tooLong(branch, content) {
+  const [org] = hashParts();
+  return Boolean(branch && content && org)
+    && `${branch}--${content}--${org}`.length > HOST_LABEL_MAX;
+}
+
 /**
  * The editor URL of the open page with the content as the hash's site and
  * the branch as `?ref=`. Relative, so DA resolves it against its own origin.
@@ -149,27 +233,91 @@ function switchHref(content, branch) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-/* ---- Go ----------------------------------------------------------------- */
+/* ---- Go and the status line ----------------------------------------------- */
 
-/**
- * Go works only inside DA, once both lists have a pick (not their prompts),
- * and only when the picks differ from what the editor has open
- */
-function updateGo() {
-  const unchanged = contentSelect.value === state.current.content
-    && branchSelect.value === state.current.branch;
-  go.disabled = !state.actions?.setHref || !contentSelect.value || !branchSelect.value || unchanged;
+function sayCurrent() {
+  const { content, branch } = state.current;
+  if (content && branch) {
+    say('current', { content: labelOf(contentSelect, content), branch: branchTitle(branch) });
+  } else {
+    statusLine.textContent = '';
+  }
 }
 
-contentSelect.addEventListener('change', updateGo);
-branchSelect.addEventListener('change', updateGo);
+/**
+ * Go works only inside DA, with a content and a branch that make a preview
+ * host, and only when they differ from what the editor has open. A branch
+ * that is too long is said at once; one that is not a host name only once the
+ * field is left (`settled`), so typing "feature-" on the way to "feature-x"
+ * does not flash an error.
+ */
+function refresh({ settled = false } = {}) {
+  const content = contentSelect.value;
+  const branch = fieldBranch();
+  const bad = Boolean(branch) && !NAME.test(branch);
+  const long = tooLong(branch, content);
+  const unchanged = content === state.current.content && branch === state.current.branch;
+  go.disabled = !state.actions?.setHref || !content || !branch || bad || long || unchanged;
+  if (long) say('tooLong', { branch });
+  else if (bad && settled) say('badBranch', { branch });
+  else if (state.actions && !bad) sayCurrent();
+}
+
+contentSelect.addEventListener('change', refresh);
+
+branchInput.addEventListener('input', () => {
+  state.active = -1;
+  setOpen(true);
+  refresh();
+});
+branchInput.addEventListener('click', () => {
+  if (!isOpen()) setOpen(true);
+});
+branchInput.addEventListener('keydown', (e) => {
+  const items = branchItems();
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const step = e.key === 'ArrowDown' ? 1 : -1;
+    if (state.active < 0) state.active = step > 0 ? 0 : items.length - 1;
+    else state.active = (state.active + step + items.length) % items.length;
+    setOpen(true);
+  } else if (e.key === 'Enter' && isOpen() && state.active >= 0) {
+    e.preventDefault();
+    branchInput.value = items[state.active].title;
+    setOpen(false);
+    refresh();
+  } else if (e.key === 'Escape' && isOpen()) {
+    e.preventDefault();
+    setOpen(false);
+  }
+});
+branchToggle.addEventListener('click', () => {
+  setOpen(!isOpen());
+  branchInput.focus();
+});
+// a click on a row must not take the focus out of the field
+branchList.addEventListener('mousedown', (e) => e.preventDefault());
+branchList.addEventListener('click', (e) => {
+  const option = e.target.closest('[role="option"]');
+  if (!option) return;
+  branchInput.value = option.textContent;
+  setOpen(false);
+  refresh();
+});
+branchInput.closest('.env-selector-combo').addEventListener('focusout', (e) => {
+  if (e.currentTarget.contains(e.relatedTarget)) return;
+  setOpen(false);
+  settleBranchField();
+  refresh({ settled: true });
+});
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   if (go.disabled) return;
+  setOpen(false);
   const content = chosen(contentSelect);
-  const branch = chosen(branchSelect);
-  if (!content || !branch) {
+  const branch = fieldBranch();
+  if (!content || !NAME.test(branch || '')) {
     say('invalid');
     return;
   }
@@ -178,7 +326,8 @@ form.addEventListener('submit', (e) => {
     say('noPage');
     return;
   }
-  say('switching', { content: labelOf(contentSelect, content), branch: labelOf(branchSelect, branch) });
+  settleBranchField();
+  say('switching', { content: labelOf(contentSelect, content), branch: branchTitle(branch) });
   // the panel is a cross-origin iframe: DA's page navigates itself
   state.actions.setHref(href);
 });
@@ -194,7 +343,7 @@ async function init() {
     sdk = await Promise.race([DA_SDK, timeout(3000)]);
   } catch { /* not in DA */ }
 
-  status.textContent = '';
+  statusLine.textContent = '';
   if (!sdk?.actions) return;
   state.actions = sdk.actions;
   state.context = sdk.context || {};
@@ -209,17 +358,15 @@ async function init() {
 
   const sheet = await loadSheet(state.context, state.actions);
   renderOptions(contentSelect, sheet.content || []);
-  if (sheet.branch) renderOptions(branchSelect, sheet.branch);
   selectCurrent(contentSelect, state.current.content);
-  selectCurrent(branchSelect, state.current.branch);
-
-  if (state.current.content && state.current.branch) {
-    say('current', {
-      content: labelOf(contentSelect, state.current.content),
-      branch: labelOf(branchSelect, state.current.branch),
-    });
+  if (sheet.branch) state.branches = sheet.branch;
+  const { branch } = state.current;
+  if (branch && !state.branches.some((b) => b.value === branch)) {
+    state.branches = [...state.branches, { title: branch, value: branch }];
   }
-  updateGo();
+  if (branch) branchInput.value = branchTitle(branch);
+  renderBranchList();
+  refresh();
 }
 
 init();
