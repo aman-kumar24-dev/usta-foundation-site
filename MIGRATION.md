@@ -5867,3 +5867,21 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   360 px cap, 56 px Go, no overflow at 280 / 320 / 1900, labels not cut from 320, real sheet + example URL, appended open
   values, status text and tones, every URL case, keyboard Tab + type-ahead on the customizable select); `test:a11y`
   passes with no warnings; lint clean (no stylelint disables needed for the new syntax).
+
+### 2026-10-16 — Env selector: "CodeBase" label, stacked up to 576 px
+- **Request:** rename the Branch label to "CodeBase"; when the screen is 576 px wide or less, stack the dropdowns one
+  after the other.
+- **Label:** `<label for="env-selector-branch">CodeBase</label>` (shown uppercase, "CODEBASE"). The "Select a branch"
+  prompt, the messages and the code's `branch` names are unchanged.
+- **Layout:** mobile-first. Base: `grid-template-columns: minmax(0, 1fr) auto`, both cards in column 1 (Content above
+  CodeBase, the same width), Go in column 2 beside the CodeBase card. `@media (width >= 577px)`: the one-row `3fr 4fr auto`
+  layout (D-080) and the cards back to auto placement.
+- **Breakpoint Rule deviation (D-081):** 577 px is not in `tools/quality/breakpoints.json` (768 / 992 / 1200). Accepted for
+  this panel only: it is a DA tool in an iframe, not a site page, and its media queries see the panel's width.
+  `node tools/quality/breakpoint-check.mjs` (site scope) passes; run on `tools/plugins/env-selector/env-selector.css` it
+  reports the two 577 px lines.
+- **Note:** DA's tools panel opens 400 px wide (`blocks/canvas/canvas.js`: `registerPanelSection('tools', { width: '400px' })`),
+  so in DA the panel is stacked unless the author widens it past 576 px.
+- **Verified (Playwright, 82 checks):** one row at 1900 and 577 px (3:4); stacked at 576, 400, 320 and 280 px (cards 296 /
+  296, 216 / 216, 176 / 176; Go beside CodeBase); labels "Content" / "CodeBase", not cut; every earlier behaviour check.
+  Screenshots at 400 (stacked) and 700 px (row). `test:a11y` passes with no warnings; lint clean.

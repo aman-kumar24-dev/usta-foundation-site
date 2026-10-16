@@ -228,7 +228,7 @@ the code arrived with PR #9 (§8.6).
   tooltip site-wide (`decorateImageTooltips()`, D-064). **Done:** the tooltip code is
   on `develop` since PR #15 (`2860acd`), 2026-10-16. [MIGRATION.md 2026-10-01, 2026-10-13]
 - **R-A7. Env selector panel (In progress).** An author reopens the page open in Experience Workspace with other content
-  (a DA site) and/or another code branch: pick **Content** and **Branch**, select **Go**. Both lists come from the DA
+  (a DA site) and/or another code branch: pick **Content** and **CodeBase** (the branch), select **Go**. Both lists come from the DA
   sheet `/.da/environments/config` of the open site (saved, not published; read through `admin.da.live`): tab `content`
   for the content, tab `code` for the branches; `title` is the option text, `value` the site or branch (values that are
   not a site/branch name, and repeated values, are skipped). Without the sheet, the branches fall back to the built-in
@@ -241,9 +241,10 @@ the code arrived with PR #9 (§8.6).
   / `path`, and `ref`) and asks DA to navigate (SDK `setHref`, a relative `/canvas?ref=…#…`). Each list preselects the open
   value; one the sheet does not list (e.g. a feature branch) is added at the end of its list. The status line reads
   "Currently on {content} with {branch}" with a green dot. Go is enabled only when both lists have a pick and at least one
-  differs from what is open; it accepts only listed values and stays disabled outside DA. Layout (D-080): one row of a
-  Content card and a Branch card (label inside, above the value; 3:4, shrinking with the panel, at most 360 px with Go)
-  and a round arrow Go button; DA's panel header shows the title. In browsers with customizable selects the open list
+  differs from what is open; it accepts only listed values and stays disabled outside DA. Layout (D-080, D-081): a
+  Content card and a CodeBase card (label inside, above the value) and a round arrow Go button, at most 360 px wide; up
+  to 576 px the cards stack, the same width, with Go beside the CodeBase card (DA's tools panel opens 400 px wide, so
+  this is what authors see by default); from 577 px they sit in one row, 3:4. DA's panel header shows the title. In browsers with customizable selects the open list
   is a card with a highlighted, check-marked row; elsewhere the native list. The fallback branches, editor path and messages live in
   `env-selector.html`. Registered by hand per DA site (outward-facing): DA config → `library` → `Environment` =
   `/tools/plugins/env-selector/env-selector.html`; after a content switch the panel and its sheet come from the new

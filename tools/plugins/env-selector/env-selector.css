@@ -1,8 +1,10 @@
 /*
  * Env selector panel (Experience Workspace library). DA's panel header shows
- * the title, so the panel is one row: a Content card and a Branch card (each
- * with its label inside, above the picked value) and a round Go button, then a
- * status line with a coloured dot. Spectrum 2 greys and accent blue, the Adobe
+ * the title, so the panel is a Content card and a CodeBase card (each with its
+ * label inside, above the picked value) and a round Go button, then a status
+ * line with a coloured dot. Up to 576px wide the cards stack; wider, they sit
+ * in one row with Go (the 577px step is the panel's own, not a site
+ * breakpoint: the panel is a DA tool, not a site page; see MIGRATION.md). Spectrum 2 greys and accent blue, the Adobe
  * Clean type stack. Where the browser has customizable selects
  * (appearance: base-select), the open list is styled too: a rounded card, a
  * highlighted row and a check mark on the picked option; elsewhere the native
@@ -65,11 +67,11 @@
   outline-offset: 2px;
 }
 
-/* one row: the Content card, the Branch card (wider, for branch names) and Go;
-   the cards share the row 3:4 and shrink with the panel */
+/* up to 576px: the cards stack in one column, the same width, with Go beside
+   the CodeBase card */
 .env-selector .env-selector-form {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   max-width: var(--es-form-width);
@@ -79,7 +81,20 @@
    label sits on top of it, above the picked value */
 .env-selector .env-selector-field {
   position: relative;
+  grid-column: 1;
   min-width: 0;
+}
+
+/* from 577px: one row, the Content card, the CodeBase card (wider, for
+   branch names) and Go; the cards share the row 3:4 */
+@media (width >= 577px) {
+  .env-selector .env-selector-form {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 4fr) auto;
+  }
+
+  .env-selector .env-selector-field {
+    grid-column: auto;
+  }
 }
 
 .env-selector .env-selector-label {

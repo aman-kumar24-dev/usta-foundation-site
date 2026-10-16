@@ -107,7 +107,8 @@ live in [PRD.md §12](PRD.md#12-open-questions-need-an-owners-answer); when one 
 | D-077 | 2026-10-16 | Env selector: Go keeps the open page and only sets `?ref=<branch>`; plugin renamed `env-selector` | Active (in PR to `develop`) |
 | D-078 | 2026-10-16 | Env selector branches come from the DA sheet `/.da/environments/config` (tab `code`); the HTML list is the fallback | Active (in PR to `develop`) |
 | D-079 | 2026-10-16 | Env selector content picker: the hash's site segment is replaced; Go needs both picks and one change | Active (in PR to `develop`); layout and unlisted-value parts superseded by D-080 |
-| D-080 | 2026-10-16 | Env selector design from the user's mockup: one row of field cards + round Go, unlisted open values added, "Currently on …" status | Active (in PR to `develop`) |
+| D-080 | 2026-10-16 | Env selector design from the user's mockup: one row of field cards + round Go, unlisted open values added, "Currently on …" status | Active (in PR to `develop`); row-only layout refined by D-081 |
+| D-081 | 2026-10-16 | Env selector: label "CodeBase"; cards stack up to 576 px (panel-only step, outside the site breakpoints) | Active (in PR to `develop`) |
 
 ---
 
@@ -451,6 +452,18 @@ problem) and "Currently on {content} with {branch}" (the user's wording). The fi
 borders stay Spectrum gray 500 (`#8f8f8f`, 3.3:1 on white) rather than the mockup's lighter grey, for the ≥ 3:1 UI-border
 rule (skills/accessibility). *Decided by:* user (mockup, status text); Claude (base-select with fallback, the border
 colour, tones). *Source:* MIGRATION.md 2026-10-16 (Env selector redesign); PRD R-A7.
+
+**D-081 — Env selector: "CodeBase" label, stacked up to 576 px (2026-10-16).** The Branch card's label reads
+**CodeBase** (the "Select a branch" prompt and the messages are unchanged). Up to 576 px wide the two cards stack, the
+same width, with Go beside the CodeBase card; from 577 px they sit in one row, 3:4 (D-080). The CSS stays mobile-first
+(`@media (width >= 577px)`). *Deviation from the Breakpoint Rule:* 577 px is not one of the site's breakpoints
+(768 / 992 / 1200, `tools/quality/breakpoints.json`). It is accepted because the rule exists to copy the source site's
+breakpoints onto site pages, and this is a DA tool panel inside an iframe, whose media queries see the panel's width,
+not a page's; `breakpoint-check` does not scan `tools/` by default, and run on this file it reports the 577 px step.
+*Consequence:* DA's tools panel opens 400 px wide (`registerPanelSection('tools', { width: '400px' })` in
+`blocks/canvas/canvas.js`), so authors see the stacked layout unless the panel is wider. *Decided by:* user (label, the
+576 px rule); Claude (mobile-first form, Go beside the CodeBase card). *Source:* MIGRATION.md 2026-10-16 (Env selector:
+CodeBase label, stacked up to 576 px); PRD R-A7.
 
 #### Buttons and links
 
