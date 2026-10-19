@@ -4132,3 +4132,18 @@ light-blue support band below. Removing the band's padding in devtools revealed 
   with `Target` metadata, and the test Tags page-view rule already carries `a4t.payload` (so no fallback hit fires).
 - **Content drift:** `aemdemos/foundation-usta` has 210 newer + 33 new files since the last sync — not synced (on
   request).
+
+### 2026-10-19 — `.ema/` restructured: PRD, Design, flow, implementation
+- `plan.md` → **`PRD.md`** (problem, goals, users, accounts incl. USTA Target `unitedstatestennisas` /
+  `unitedstatestennisas.tt.omtrdc.net` / `A6D83F7A5347FCE90A490D44@AdobeOrg`, requirements FR-1…16 with
+  status, NFRs, decisions, open items, risks); `design.md` → **`Design.md`**; new **`flow.md`** (F1–F16
+  runtime and operational sequences); `implementation.md` updated (sheet values 2026-10-19, production
+  Target rows, mapping to develop).
+- **Found:** `develop` was force-updated (base `aacbdb5` gone; tip `d43e142`) and re-architected martech —
+  `/configs/site-config` with `eager`/`lazy`/`delayed` tabs, `scripts/martech/loader.js`, Target ported from
+  this branch, Fundraise Up pending (Martech 4/4). Rebasing as-is would reintroduce a second config design →
+  port the unique pieces (donation analytics, interaction loading, DA sync, test kit) instead (PRD OI-19).
+- **Found:** a develop-style `script.delay` row (Google Maps URL with an API key) in this branch's
+  `/site-config` `settings` tab; not read by this code (PRD OI-20).
+- **Correction:** with `consentRequired=true` this branch **skips** site at.js (it does not wait for
+  consent); test-sheet case title fixed.

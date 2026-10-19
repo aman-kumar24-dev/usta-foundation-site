@@ -1,5 +1,9 @@
 # Implementation — where things live and how to run them
 
+Last updated: 2026-10-19 · scope: `aem-coder-branch` as built. Why: [PRD.md](PRD.md) ·
+how: [Design.md](Design.md) · step by step: [flow.md](flow.md). §8 maps these files to
+`develop`'s new layout.
+
 ## 1. File map
 
 | File | Purpose | Main exports / hooks |
@@ -27,7 +31,7 @@ reports and backups live there locally (see §5).
 ## 2. `/site-config` sheet reference
 
 Edit: `da.live/sheet#/aman-kumar24-dev/usta-foundation-site/site-config` → **Preview** (aem.page)
-→ **Publish** (aem.live). Current values (2026-10-11; preview = published):
+→ **Publish** (aem.live). Current values (checked 2026-10-19; preview = published):
 
 | key | value now | notes |
 |---|---|---|
@@ -44,8 +48,25 @@ Edit: `da.live/sheet#/aman-kumar24-dev/usta-foundation-site/site-config` → **P
 | `hotjarVersion` | `6` | |
 | `hotjarHostUrl.development` / `.production` | `https://static.hotjar.com/c/hotjar-` | |
 | `onetrust.sdk` / `onetrust.src` | set by the team | **not used by code yet** |
+| `script.delay` | Google Maps script URL with an API key (added outside this work) | **not read by this branch** — develop-style row in the wrong sheet; see PRD OI-20 (don't copy the key anywhere) |
 
-Any key may carry `.production` / `.development` suffixes (lookup in design.md §2).
+Any key may carry `.production` / `.development` suffixes (lookup in Design.md §3).
+
+**Production Target rows to add at cutover** (PRD OI-9, flow F12 — only after Target is gone from
+USTA's production Launch library):
+
+| key | value |
+|---|---|
+| `target.clientCode.production` | `unitedstatestennisas` |
+| `target.serverDomain.production` | `unitedstatestennisas.tt.omtrdc.net` |
+| `target.imsOrgId.production` | `A6D83F7A5347FCE90A490D44@AdobeOrg` |
+| `target.a4t.production` | `client` (needs processing rule) or `true` (server, VisitorAPI) — decide |
+
+Rollback: `target.enabled.production` = `false`.
+
+The same DA repo also holds `develop`'s sheet **`/configs/site-config`** (`eager`: `consentRequired`,
+`target.*` · `lazy`: empty · `delayed`: `script.launch`, `script.hotjar`,
+`script.googlePlaceLibrary`). This branch's code does not read it.
 `donate-beacons` tab: `event | linkName | events | set | map`, e.g.
 `donationComplete | Fundraise Up Donation Complete | event67 | | amount=eVar76`
 (`set`/`map` = `name=value; …`; variables `eVarN`, `propN`, `pageName`, `channel`, `campaign`).
@@ -101,8 +122,8 @@ source, write on destination) in the shell — never commit it. Backups:
 **Add a repoless site** — create its DA repo with its own `/site-config` sheet (same layout),
 add org-config permission rows for `/<site>/…`, preview/publish. No code change.
 
-**Permissions** — org config `da.live/config#/aman-kumar24-dev/` → `permissions` (design.md
-§9). Keep at least one `CONFIG` write row; back up the JSON first
+**Permissions** — org config `da.live/config#/aman-kumar24-dev/` → `permissions` (Design.md
+§11, flow F14). Keep at least one `CONFIG` write row; back up the JSON first
 (`GET https://admin.da.live/config/aman-kumar24-dev/`), POST form field `config` to restore.
 
 **Rebase / push** — this repo's fetch setting tracks only `main`: fetch explicitly
@@ -175,6 +196,14 @@ shows a 302 + `pccr=true` pair = one hit), Hotjar once, Target delivery 200.
 - The host can be heavily loaded (load average ~50): compare Lighthouse variants interleaved.
 - Shell guard in AEM Coder blocks some inline commands containing `>` or `/`-heavy patterns —
   put such logic in a script file.
+- `migration-work/` is ignored only through this machine's `.git/info/exclude`; on a fresh clone
+  `npm run da:sync` backups show up as untracked files — don't commit them.
+- On consent-required sites site at.js is **skipped**, not deferred (develop's port loads it after
+  consent instead).
+- `eslint --fix` rewrote a site-relative `import('/scripts/…')` inside `page.evaluate` into a long
+  relative path — keep such paths in a variable.
+- This repo's fetch refspec tracks only `main`, and `develop` gets force-updated: fetch with
+  `git fetch origin +develop:refs/remotes/origin/develop`.
 
 ## 7. History
 
@@ -184,5 +213,22 @@ interaction + donation analytics · `daff30e` no timer / pointermove · `1958509
 `95f6fea` timer 2000 (user) · `b1771d1` DA sync tool · `89cdfbb` settings from the sheet ·
 `971acbe` admin-only sheet docs · `138d4af` eager sheet + wait for offers · `e0cee4d` sync
 includes `/.da/library` · `a227503` client-side A4T + timer 3000 · `cabc915` one site-config
-module · `d0e81e2` MIGRATION note. Pre-rebase history: local tag `pre-rebase-20261007`.
-Narrative: `MIGRATION.md` entries dated 2026-09-27 → 2026-10-07.
+module · `d0e81e2` MIGRATION note · `45c8629` `.ema` hand-over · `3320018` `tools/martech-tests`
+· (2026-10-19) docs restructured into PRD / Design / flow / implementation. Pre-rebase history:
+local tag `pre-rebase-20261007`. Narrative: `MIGRATION.md` entries dated 2026-09-27 → 2026-10-19.
+
+## 8. Mapping to `develop` (tip `d43e142`)
+
+| This branch | `develop` | Port status |
+|---|---|---|
+| `/site-config` (`settings`, `donate-beacons`) | `/configs/site-config` (`eager`, `lazy`, `delayed`) | both exist in DA |
+| `scripts/site-config.js` (`getConfig`, `getMartechConfig`, env rules) | `scripts/site-config.js` (`getSheet(tab)`, `isConsentRequired()`, `window.hlx.siteConfig`) | replaced |
+| `scripts/analytics.js` (Tags part) | `scripts/martech/loader.js` + `script.launch` row | replaced |
+| `scripts/analytics.js` (donation beacons) | — (Martech 4/4) | **to port** |
+| `scripts/hotjar-router.js` | `scripts/martech/hotjar.js` + `script.hotjar` row | replaced |
+| `scripts/target.js`, `target-a4t.js`, `scripts/vendor/*` | `scripts/martech/target.js`, `target-a4t.js`, `scripts/martech/vendor/*` | ported (3/4) |
+| `scripts/donate.js` (interaction loading, link rewrite, `donate` events) | `scripts/donate.js` (Adobe drop; widget in delayed phase) | **to port** (4/4) |
+| `scripts/consent-check.js` `onConsent()` | `window.hlx.consent` + `consent.update`, `ctx.whenConsented()` | replaced |
+| `tools/da-sync/`, `npm run da:sync` | — | **to port** if still wanted |
+| `tools/martech-tests/` | — (develop's MARTECH.md links here) | **to port** + adapt to phase tabs |
+| `.ema/` | `docs/PRD.md`, `flow.md`, `decision.md`, `ARCHITECTURE.md`, `MARTECH.md` | merge content, don't duplicate |

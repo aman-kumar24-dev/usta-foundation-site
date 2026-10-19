@@ -6,12 +6,21 @@ code; the site never serves it (`.hlxignore` ignores dot-folders and `*.md`).
 
 ## Read order
 
-1. **[plan.md](plan.md)** — why and what: context, accounts and IDs, every decision (with the
-   reason), current status, open items with owners, next steps.
-2. **[design.md](design.md)** — how it works: page-load phases, the `/site-config` sheet,
-   Analytics, Target + A4T, Hotjar, Fundraise Up, DA content sync, DA Library, DA permissions.
-3. **[implementation.md](implementation.md)** — where and how: file map, sheet keys, APIs and
-   events, runbooks, testing, gotchas, history.
+1. **[PRD.md](PRD.md)** — why and what: problem, goals, users, accounts and IDs (incl. USTA's
+   Target client code / server domain / org), requirements with status, non-functional
+   requirements, decision log, open items with owners, risks, next steps.
+2. **[Design.md](Design.md)** — how it works: component map, the `/site-config` sheet, Analytics,
+   donations, consent + Hotjar, Target, A4T, DA sync, Library, permissions, alternatives, and
+   **§13 the comparison with `develop`'s newer architecture**.
+3. **[flow.md](flow.md)** — step by step: page load, settings resolution, Tags, Target, A4T
+   (client/server), donations, consent, failure paths, and the operational flows (sheet edit,
+   Target cutover, content sync, permissions, new site, PR).
+4. **[implementation.md](implementation.md)** — where and how: file map, sheet keys, events,
+   runbooks, testing, gotchas, history, **§8 file mapping to `develop`**.
+
+> These files describe **`aem-coder-branch` as built**. `develop` has since re-architected the
+> martech layer and has its own `docs/PRD.md` / `docs/flow.md`; see PRD §13 and OI-19 before
+> merging anything.
 
 ## The project in one paragraph
 
@@ -33,7 +42,7 @@ later (**repoless**), so everything site-specific lives in the sheet, not in cod
 | Main preview / live | https://main--usta-foundation-site--aman-kumar24-dev.aem.page/ · https://main--usta-foundation-site--aman-kumar24-dev.aem.live/ |
 | Source site | https://www.ustafoundation.com/en/home.html |
 | DA content | `da.live/#/aman-kumar24-dev/usta-foundation-site` (synced from `aemdemos/foundation-usta`) |
-| Settings sheet | `da.live/sheet#/aman-kumar24-dev/usta-foundation-site/site-config` → served as `/site-config.json` |
+| Settings sheet | `da.live/sheet#/aman-kumar24-dev/usta-foundation-site/site-config` → served as `/site-config.json` (this branch) · `develop` reads `/configs/site-config` |
 | DA config | org: `da.live/config#/aman-kumar24-dev/` (permissions live here) · site: `da.live/config#/aman-kumar24-dev/usta-foundation-site/` (Library) |
 | Related docs | `docs/MARTECH.md` (martech detail), `tools/da-sync/README.md`, `MIGRATION.md` (dated log), `AGENTS.md` (project rules) |
 
@@ -41,11 +50,11 @@ later (**repoless**), so everything site-specific lives in the sheet, not in cod
 
 After **every** task that touches this area:
 
-1. `plan.md` — update **Status** and **Open items**; add a dated row to the **Decision log**
-   for any new decision (what, why, who decided).
-2. `implementation.md` — update the **file map**, **sheet keys** or **runbooks** if they changed;
-   add new **gotchas**.
-3. `design.md` — only if the architecture or a flow changed.
+1. `PRD.md` — update **Status** (§11) and **Open items** (§12); add a dated row to the
+   **Decision log** (§10) for any new decision (what, why, who decided); new requirement → §6.
+2. `implementation.md` — update the **file map**, **sheet keys**, **runbooks** or the **develop
+   mapping** if they changed; add new **gotchas**.
+3. `Design.md` — when the architecture changes; `flow.md` — when a sequence changes.
 4. `MIGRATION.md` — add the dated entry the project rules require (`AGENTS.md`).
 
 Keep facts verifiable: give file paths, sheet keys, commit hashes, URLs. Mark anything not yet

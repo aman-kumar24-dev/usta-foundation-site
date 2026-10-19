@@ -27,7 +27,7 @@ const cases = [
   ['sheet as published', base],
   ['all launch.* rows removed → no Tags', withoutKeys(base, /^launch/)],
   ['invalid values (consentRequired=yes, launch.development=evil) → ignored with a warning', setKey(setKey(base, 'consentRequired', 'yes'), 'launch.development', 'https://evil.example/x.js')],
-  ['consentRequired=true → Tags and Target wait for consent', setKey(base, 'consentRequired', 'true')],
+  ['consentRequired=true → Tags wait for consent; site at.js skipped', setKey(base, 'consentRequired', 'true')],
   ['donate linkName edited → beacon uses the new name', editDonate(base)],
   ['sheet missing (404) → nothing loads, no errors', null],
   ['target.enabled=false (+ Target metadata) → no at.js', setKey(base, 'target.enabled', 'false')],
