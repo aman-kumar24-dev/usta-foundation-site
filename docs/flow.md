@@ -199,7 +199,7 @@ flowchart TD
 
 **Planned and branch only**
 
-- **Martech 3/4 (`feature/target`):** the eager `runPhase('eager')` hook for Adobe Target on pages with `Target`
+- **Martech 3/4 (`feature/EDS11AdobeTarget`):** the eager `runPhase('eager')` hook for Adobe Target on pages with `Target`
   metadata — step 11 (D-045, D-052, D-069). Reference build on `aem-coder-branch`.
 - **Martech 4/4 (Planned):** a lazy `runPhase('lazy')` hook; Fundraise Up becomes a lazy-tab row (D-046). Today the lazy
   tab is never read.

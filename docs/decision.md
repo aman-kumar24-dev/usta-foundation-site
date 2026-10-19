@@ -634,7 +634,7 @@ untouchable `head.html` would not allow. *Why:* requested method; keeps the exis
 only on pages with `Target` metadata and `target.enabled`. *Why:* keeps at.js off all other pages. Two at.js instances
 conflict, so production stays off until USTA's Tags library drops Target. Anti-flicker: the first section waits for the
 page-load offers, capped by `target.flickerTimeout` (1000 ms). When consent is required, Target starts only after consent
-and does not hold first paint. *Decided by:* user. *Status:* ported in Martech 3/4 (`feature/target`) as
+and does not hold first paint. *Decided by:* user. *Status:* ported in Martech 3/4 (`feature/EDS11AdobeTarget`) as
 `scripts/martech/target.js`, configured by the eager tab; reference build on `aem-coder-branch` (`1958509`, `138d4af`). *Source:* `.ema/plan.md` §3 and `.ema/design.md` §5 on that branch; MIGRATION.md 2026-10-14.
 
 **D-046 — Fundraise Up on interaction; donation analytics from code (2026-09-27).** *Why:* loaded at ~3 s in the delayed
@@ -717,7 +717,7 @@ comes from the site config only; the Hotjar rule in USTA's Launch library is to 
 
 **D-069 — Martech moves over in four PRs (2026-10-14).** `aem-coder-branch` is not merged as is. Each vendor is rebuilt
 on the per-phase config and loader (D-015), one per PR: Analytics → Hotjar → Target → Fundraise Up. 1/4 (`2e8c8f0`,
-`7e3c377`, `2cb2e68`) and 2/4 (PR #14, `b6236c7`) are on `develop`; 3/4 Target is `feature/target` (PR to `develop`); 4/4 Fundraise Up remains. *Decided
+`7e3c377`, `2cb2e68`) and 2/4 (PR #14, `b6236c7`) are on `develop`; 3/4 Target is `feature/EDS11AdobeTarget` (PR to `develop`); 4/4 Fundraise Up remains. *Decided
 by:* n/d. *Source:* MIGRATION.md 2026-10-14 (Martech restructure 1/4).
 *Correction (2026-10-16):* 1/4 was pushed straight to `develop` with no PR (GitHub lists no PR for its three commits);
 only 2/4 went through a PR (#14).

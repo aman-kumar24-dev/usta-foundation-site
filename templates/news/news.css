@@ -61,15 +61,18 @@ body.news main > .section > div {
 }
 
 /* ---- Space above the headline (breadcrumb → H1 gap) -----------------------
-   The source's breadcrumb→H1 gap is AUTHOR-controlled per article, not a fixed
-   template rule: the DEFAULT article (e.g. evert-speaks-on-rally-to-rebuild) has
-   NO top-padding band — the H1's own line-box leading yields a small ~25px gap
-   from the breadcrumb — while a few articles (e.g. the Aerie page) author an
-   extra `padding-top` band. We match the DEFAULT (the common case) with a small
-   top pad; the earlier blanket 64px pushed every headline down too far vs the
-   source. (main > .section:first-of-type already has margin-top:0.) */
+   Customer-requested, a deliberate deviation from the source (~23px): the
+   breadcrumb→H1 gap is 50px on every article, matching the H1→body gap below.
+   The padding alone sets it — the headline's wrapper drops the 16px top margin
+   the columns-section rule below gives it, so articles that open with a columns
+   section and those that open with plain text land on the same 50px.
+   (main > .section:first-of-type already has margin-top:0.) */
 body.news main > .section:first-of-type {
-  padding-top: 24px; /* → ~24px breadcrumb→H1 gap, matching the source (mobile + desktop both ~25px) */
+  padding-top: 50px;
+}
+
+body.news main > .section:first-of-type > .default-content-wrapper:first-child {
+  margin-top: 0;
 }
 
 /* ---- Article headline (H1) ------------------------------------------------
@@ -85,19 +88,18 @@ body.news main > .section:first-of-type {
 body.news main h1 {
   --dark-color: #333;
 
-  /* Source leaves a large gap below the article H1 before the body content
-     (measured H1→first-paragraph: ~89px mobile, ~105px desktop). Reproduce it
-     with the H1's bottom margin (it collapses with the following block's top gap,
-     so the effective gap lands on the source values: 75→~88px mobile, 91→~105px
-     desktop, both matching the source). */
-  margin: 0 0 75px;
+  /* H1 → first body copy / photo: ~50px at every width, the same as the
+     breadcrumb→H1 gap above (customer request; the source leaves ~89 / ~105px).
+     The margin collapses with the following block's top gap. */
+  margin: 0 0 50px;
   color: #333;
 }
 
-@media (width >= 768px) {
-  body.news main h1 {
-    margin-bottom: 91px;
-  }
+/* The article headline (first thing in the first section) keeps that 50px even
+   in a `compact-headings` section, whose heading rule (0,5,4) zeroes heading
+   margins — this selector is (0,6,3). */
+body.news main > .section:first-of-type > .default-content-wrapper:first-child > h1:first-child {
+  margin-bottom: 50px;
 }
 
 /* Higher-specificity twin (0,2,3) so the explicit #333 wins over the global

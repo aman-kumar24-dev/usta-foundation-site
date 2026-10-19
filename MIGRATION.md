@@ -5747,7 +5747,7 @@ Second of the four martech PRs (branch `feature/hotjar`).
 - **Verified:** homepage — 12/13 images get a title equal to their alt; the 1 decorative image gets none.
 
 ### 2026-10-14 — Martech restructure 3/4: Adobe Target (at.js) as an eager-tab module
-Third of the four martech PRs (branch `feature/target`).
+Third of the four martech PRs (branch `feature/EDS11AdobeTarget`).
 - **Module:** `scripts/martech/target.js` (+ `target-a4t.js`, `vendor/at.min.js` 2.11.4, `vendor/VisitorAPI.min.js` 5.5.0),
   listed in the loader's `MODULES`. Logic from `aem-coder-branch`: aem.live at.js pattern, synchronous `findTarget`,
   `:eq()` conversion, offers applied as sections/blocks decorate, A4T `client` / `server` / `off`; the Tags-era at.js
@@ -6052,7 +6052,7 @@ logged"). They are logged here as they go into the `feature/codesyncandcodebases
   access to the site's code in the admin API).
 
 ### 2026-10-16 — Target pages: first section loads while Target runs (mobile Lighthouse)
-Branch `feature/target` (Martech 3/4), after mobile Lighthouse dropped on the preview `/en/home`: 94 / LCP 2.98 s vs develop
+Branch `feature/EDS11AdobeTarget` (Martech 3/4), after mobile Lighthouse dropped on the preview `/en/home`: 94 / LCP 2.98 s vs develop
 99 / 1.83 s (median of 3; non-Target pages unchanged at 100). Cause: the eager hook awaited Target before `loadSection()`,
 so the hero image started only after the chain config tab → `loader.js`/`target.js` → at.js → delivery.
 - **Fix (`scripts/scripts.js` `loadEager`):** a `<link rel=preload as=fetch>` for `/configs/site-config.json?sheet=eager` at
