@@ -1,0 +1,64 @@
+name: Scheduled Page Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      page_path:
+        description: 'Page path to publish (e.g. en/home/news/my-page)'
+        required: true
+        type: string
+      publish_date:
+        description: 'Publish date (YYYY-MM-DD)'
+        required: true
+        type: string
+      publish_time:
+        description: 'Publish time in UTC (HH:MM)'
+        required: true
+        type: string
+
+jobs:
+  scheduled-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Calculate wait time
+        id: wait
+        run: |
+          PUBLISH_DATETIME="${{ github.event.inputs.publish_date }} ${{ github.event.inputs.publish_time }}:00"
+          PUBLISH_EPOCH=$(date -d "$PUBLISH_DATETIME UTC" +%s)
+          NOW_EPOCH=$(date +%s)
+          WAIT_SECONDS=$((PUBLISH_EPOCH - NOW_EPOCH))
+          if [ $WAIT_SECONDS -le 0 ]; then
+            echo "Scheduled time is in the past! Publishing immediately..."
+            WAIT_SECONDS=0
+          fi
+          echo "wait_seconds=$WAIT_SECONDS" >> $GITHUB_OUTPUT
+          echo "Will wait $WAIT_SECONDS seconds before publishing."
+
+      - name: Wait until scheduled time
+        run: |
+          echo "Waiting ${{ steps.wait.outputs.wait_seconds }} seconds..."
+          sleep ${{ steps.wait.outputs.wait_seconds }}
+
+      - name: Preview Page
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: token ${{ secrets.AEM_API_TOKEN }}" \
+            "https://admin.hlx.page/preview/usta-digital/foundation-dev/main/${{ github.event.inputs.page_path }}")
+          echo "Preview response: $RESPONSE"
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Preview failed with status $RESPONSE"
+            exit 1
+          fi
+
+      - name: Publish Page to Live
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: token ${{ secrets.AEM_API_TOKEN }}" \
+            "https://admin.hlx.page/live/usta-digital/foundation-dev/main/${{ github.event.inputs.page_path }}")
+          echo "Publish response: $RESPONSE"
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Publish failed with status $RESPONSE"
+            exit 1
+          fi
+          echo "✅ Page successfully published!"
+          echo "Live URL: https://main--foundation-dev--usta-digital.aem.live/${{ github.event.inputs.page_path }}"
