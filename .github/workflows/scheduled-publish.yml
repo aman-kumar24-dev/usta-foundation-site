@@ -3,48 +3,148 @@ name: Scheduled Page Publish
 on:
   workflow_dispatch:
     inputs:
-      page_path:
-        description: 'Page path to publish (e.g. en/home/news/my-page)'
+      page_paths:
+        description: 'Page path(s) to publish, comma-separated (e.g. en/home/news/page-a, en/home/news/page-b)'
         required: true
         type: string
       publish_date:
-        description: 'Publish date (YYYY-MM-DD)'
-        required: true
+        description: 'Publish date (DD-MM-YYYY). Leave empty for today in the selected timezone.'
+        required: false
         type: string
-      publish_time:
-        description: 'Publish time in UTC (HH:MM)'
+      publish_hour:
+        description: 'Publish time: hour'
         required: true
-        type: string
+        type: choice
+        default: '12'
+        options: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+      publish_minute:
+        description: 'Publish time: minute'
+        required: true
+        type: choice
+        default: '00'
+        options: ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09',
+                  '10', '11', '12', '13', '14', '15', '16', '17', '18', '19',
+                  '20', '21', '22', '23', '24', '25', '26', '27', '28', '29',
+                  '30', '31', '32', '33', '34', '35', '36', '37', '38', '39',
+                  '40', '41', '42', '43', '44', '45', '46', '47', '48', '49',
+                  '50', '51', '52', '53', '54', '55', '56', '57', '58', '59']
+      publish_ampm:
+        description: 'Publish time: AM / PM'
+        required: true
+        type: choice
+        default: 'PM'
+        options: ['AM', 'PM']
+      timezone:
+        description: 'Timezone the date and time above are in'
+        required: true
+        type: choice
+        default: 'UTC'
+        options:
+          - 'UTC'
+          - 'Asia/Kolkata'
+          - 'America/New_York'
+          - 'America/Chicago'
+          - 'America/Denver'
+          - 'America/Los_Angeles'
+          - 'Europe/London'
 
 jobs:
   scheduled-publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     env:
       # AEM_BEARER_TOKEN (personal login token, short-lived) is for testing and wins when set.
       # Otherwise AEM_API_TOKEN (site admin API key) is used.
       AEM_BEARER_TOKEN: ${{ secrets.AEM_BEARER_TOKEN }}
       AEM_API_TOKEN: ${{ secrets.AEM_API_TOKEN }}
+      AEM_SITE: aman-kumar24-dev/usta-foundation-site
+      LIVE_HOST: https://main--usta-foundation-site--aman-kumar24-dev.aem.live
     steps:
-      - name: Calculate wait time
-        id: wait
+      - name: Validate inputs and calculate wait time
+        id: schedule
+        env:
+          PAGE_PATHS: ${{ inputs.page_paths }}
+          PUBLISH_DATE: ${{ inputs.publish_date }}
+          PUBLISH_HOUR: ${{ inputs.publish_hour }}
+          PUBLISH_MINUTE: ${{ inputs.publish_minute }}
+          PUBLISH_AMPM: ${{ inputs.publish_ampm }}
+          PUBLISH_TZ: ${{ inputs.timezone }}
         run: |
-          PUBLISH_DATETIME="${{ github.event.inputs.publish_date }} ${{ github.event.inputs.publish_time }}:00"
-          PUBLISH_EPOCH=$(date -d "$PUBLISH_DATETIME UTC" +%s)
+          # Page paths: split on commas, trim, drop leading "/" and trailing ".html"
+          PATHS=""
+          IFS=',' read -ra RAW <<< "$PAGE_PATHS"
+          for P in "${RAW[@]}"; do
+            P=$(echo "$P" | xargs)
+            P="${P#/}"
+            P="${P%.html}"
+            [ -z "$P" ] && continue
+            if ! [[ "$P" =~ ^[A-Za-z0-9/_.-]+$ ]] || [[ "$P" == *..* ]]; then
+              echo "::error::Invalid page path: '$P'"
+              exit 1
+            fi
+            PATHS="$PATHS $P"
+          done
+          PATHS=$(echo "$PATHS" | xargs)
+          if [ -z "$PATHS" ]; then
+            echo "::error::No page paths provided."
+            exit 1
+          fi
+
+          # Date: DD-MM-YYYY, must be a real calendar date. Empty = today in the selected timezone.
+          if [ -z "$PUBLISH_DATE" ]; then
+            PUBLISH_DATE=$(TZ="$PUBLISH_TZ" date +%d-%m-%Y)
+          fi
+          if ! [[ "$PUBLISH_DATE" =~ ^([0-9]{2})-([0-9]{2})-([0-9]{4})$ ]]; then
+            echo "::error::Publish date '$PUBLISH_DATE' must be in DD-MM-YYYY format (e.g. 21-10-2026)."
+            exit 1
+          fi
+          ISO_DATE="${BASH_REMATCH[3]}-${BASH_REMATCH[2]}-${BASH_REMATCH[1]}"
+          if [ "$(date -d "$ISO_DATE" +%d-%m-%Y 2>/dev/null)" != "$PUBLISH_DATE" ]; then
+            echo "::error::Publish date '$PUBLISH_DATE' is not a valid calendar date."
+            exit 1
+          fi
+
+          # Time: 12-hour dropdowns -> 24-hour
+          HOUR=$((10#$PUBLISH_HOUR % 12))
+          [ "$PUBLISH_AMPM" = "PM" ] && HOUR=$((HOUR + 12))
+          TIME_24=$(printf '%02d:%s' "$HOUR" "$PUBLISH_MINUTE")
+
+          # Convert from the selected timezone (DST-aware) to epoch
+          if ! PUBLISH_EPOCH=$(TZ="$PUBLISH_TZ" date -d "$ISO_DATE $TIME_24" +%s 2>/dev/null); then
+            echo "::error::$PUBLISH_DATE $PUBLISH_HOUR:$PUBLISH_MINUTE $PUBLISH_AMPM does not exist in $PUBLISH_TZ (daylight saving change)."
+            exit 1
+          fi
           NOW_EPOCH=$(date +%s)
           WAIT_SECONDS=$((PUBLISH_EPOCH - NOW_EPOCH))
           if [ $WAIT_SECONDS -le 0 ]; then
-            echo "Scheduled time is in the past! Publishing immediately..."
+            echo "Scheduled time is in the past - publishing immediately."
             WAIT_SECONDS=0
           fi
-          echo "wait_seconds=$WAIT_SECONDS" >> $GITHUB_OUTPUT
-          echo "Will wait $WAIT_SECONDS seconds before publishing."
+          # GitHub-hosted jobs are cancelled after 6 hours; keep a margin for publishing
+          if [ $WAIT_SECONDS -gt 20700 ]; then
+            echo "::error::Scheduled time is more than 5h45m away. GitHub stops jobs after 6 hours - start the run closer to the publish time."
+            exit 1
+          fi
+
+          UTC_TIME=$(date -u -d "@$PUBLISH_EPOCH" '+%d-%m-%Y %H:%M UTC')
+          COUNT=$(echo "$PATHS" | wc -w)
+          echo "Publishing $COUNT page(s) at $PUBLISH_DATE $PUBLISH_HOUR:$PUBLISH_MINUTE $PUBLISH_AMPM $PUBLISH_TZ ($UTC_TIME)"
+          echo "Waiting $WAIT_SECONDS seconds."
+          {
+            echo "### Scheduled publish"
+            echo "- **When:** $PUBLISH_DATE $PUBLISH_HOUR:$PUBLISH_MINUTE $PUBLISH_AMPM $PUBLISH_TZ ($UTC_TIME)"
+            echo "- **Pages:** $COUNT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "paths=$PATHS" >> "$GITHUB_OUTPUT"
+          echo "wait_seconds=$WAIT_SECONDS" >> "$GITHUB_OUTPUT"
 
       - name: Wait until scheduled time
-        run: |
-          echo "Waiting ${{ steps.wait.outputs.wait_seconds }} seconds..."
-          sleep ${{ steps.wait.outputs.wait_seconds }}
+        run: sleep ${{ steps.schedule.outputs.wait_seconds }}
 
-      - name: Preview Page
+      - name: Preview and publish pages
+        env:
+          PATHS: ${{ steps.schedule.outputs.paths }}
         run: |
           if [ -n "$AEM_BEARER_TOKEN" ]; then
             echo "Using AEM_BEARER_TOKEN"
@@ -53,29 +153,39 @@ jobs:
             echo "Using AEM_API_TOKEN"
             AUTH="token $AEM_API_TOKEN"
           fi
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -H "Authorization: $AUTH" \
-            "https://admin.hlx.page/preview/aman-kumar24-dev/usta-foundation-site/main/${{ github.event.inputs.page_path }}")
-          echo "Preview response: $RESPONSE"
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Preview failed with status $RESPONSE"
-            exit 1
-          fi
 
-      - name: Publish Page to Live
-        run: |
-          if [ -n "$AEM_BEARER_TOKEN" ]; then
-            AUTH="Bearer $AEM_BEARER_TOKEN"
-          else
-            AUTH="token $AEM_API_TOKEN"
-          fi
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -H "Authorization: $AUTH" \
-            "https://admin.hlx.page/live/aman-kumar24-dev/usta-foundation-site/main/${{ github.event.inputs.page_path }}")
-          echo "Publish response: $RESPONSE"
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Publish failed with status $RESPONSE"
+          {
+            echo ""
+            echo "| Page | Preview | Publish |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          FAILED=0
+          for P in $PATHS; do
+            PUBLISH="skipped"
+            PREVIEW=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              -H "Authorization: $AUTH" \
+              "https://admin.hlx.page/preview/$AEM_SITE/main/$P")
+            if [ "$PREVIEW" = "200" ]; then
+              PUBLISH=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+                -H "Authorization: $AUTH" \
+                "https://admin.hlx.page/live/$AEM_SITE/main/$P")
+            fi
+
+            if [ "$PUBLISH" = "200" ]; then
+              echo "✅ $P -> $LIVE_HOST/$P"
+              echo "| [$P]($LIVE_HOST/$P) | $PREVIEW | $PUBLISH |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::$P failed (preview: $PREVIEW, publish: $PUBLISH)"
+              echo "| $P | $PREVIEW | $PUBLISH |" >> "$GITHUB_STEP_SUMMARY"
+              FAILED=$((FAILED + 1))
+            fi
+            # stay well under the admin API rate limit
+            sleep 1
+          done
+
+          if [ $FAILED -gt 0 ]; then
+            echo "::error::$FAILED page(s) failed to publish."
             exit 1
           fi
-          echo "✅ Page successfully published!"
-          echo "Live URL: https://main--usta-foundation-site--aman-kumar24-dev.aem.live/${{ github.event.inputs.page_path }}"
+          echo "All pages published."
