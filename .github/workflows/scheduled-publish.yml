@@ -19,6 +19,11 @@ on:
 jobs:
   scheduled-publish:
     runs-on: ubuntu-latest
+    env:
+      # AEM_BEARER_TOKEN (personal login token, short-lived) is for testing and wins when set.
+      # Otherwise AEM_API_TOKEN (site admin API key) is used.
+      AEM_BEARER_TOKEN: ${{ secrets.AEM_BEARER_TOKEN }}
+      AEM_API_TOKEN: ${{ secrets.AEM_API_TOKEN }}
     steps:
       - name: Calculate wait time
         id: wait
@@ -41,8 +46,15 @@ jobs:
 
       - name: Preview Page
         run: |
+          if [ -n "$AEM_BEARER_TOKEN" ]; then
+            echo "Using AEM_BEARER_TOKEN"
+            AUTH="Bearer $AEM_BEARER_TOKEN"
+          else
+            echo "Using AEM_API_TOKEN"
+            AUTH="token $AEM_API_TOKEN"
+          fi
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -H "Authorization: token ${{ secrets.AEM_API_TOKEN }}" \
+            -H "Authorization: $AUTH" \
             "https://admin.hlx.page/preview/aman-kumar24-dev/usta-foundation-site/main/${{ github.event.inputs.page_path }}")
           echo "Preview response: $RESPONSE"
           if [ "$RESPONSE" != "200" ]; then
@@ -52,8 +64,13 @@ jobs:
 
       - name: Publish Page to Live
         run: |
+          if [ -n "$AEM_BEARER_TOKEN" ]; then
+            AUTH="Bearer $AEM_BEARER_TOKEN"
+          else
+            AUTH="token $AEM_API_TOKEN"
+          fi
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -H "Authorization: token ${{ secrets.AEM_API_TOKEN }}" \
+            -H "Authorization: $AUTH" \
             "https://admin.hlx.page/live/aman-kumar24-dev/usta-foundation-site/main/${{ github.event.inputs.page_path }}")
           echo "Publish response: $RESPONSE"
           if [ "$RESPONSE" != "200" ]; then
