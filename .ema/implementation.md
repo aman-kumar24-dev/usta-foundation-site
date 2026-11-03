@@ -202,12 +202,14 @@ shows a 302 + `pccr=true` pair = one hit), Hotjar once, Target delivery 200.
   consent instead).
 - `eslint --fix` rewrote a site-relative `import('/scripts/…')` inside `page.evaluate` into a long
   relative path — keep such paths in a variable.
-- **DA Library "Blocks" list empty** while `/.da/library/blocks.json` and the block docs are fine
-  (`da-sync/verify-library.mjs`): da-live fetches Library sheets with `noRedirect: true`, so a 401
-  from a stale IMS token is **not** retried, the error is swallowed, and the empty result is cached
-  for the page session → reload the editor tab, then sign out/in. Also check the account has read
-  on `/usta-foundation-site/+**` (2026-11-03: `vishal.sharma@`, `udit.upmanyu@`, `victor.deb@` have
-  only `CONFIG` / `site-config.json` rows → empty Library and no page access).
+- **DA Library "Blocks"/"Templates" list empty in Experience Workspace** (org flag
+  `ew.enabled=true`): the EW canvas routes same-org Library URLs through the DA preview proxy
+  (`main--<site>--<org>.preview.da.live`), which forwards every `.json` to **aem.page** — so
+  `/.da/library/blocks.json` and `templates.json` must be **previewed** (they were 404 until
+  2026-11-03, because `da:sync` never previews dot-folders). Block/template documents are fetched
+  extensionless and composed from DA source, so they need no preview. Classic edit mode reads
+  content.da.live directly (and silently shows an empty list on a stale-token 401 — reload).
+  Accounts need read on `/usta-foundation-site/+**`.
 - This repo's fetch refspec tracks only `main`, and `develop` gets force-updated: fetch with
   `git fetch origin +develop:refs/remotes/origin/develop`.
 

@@ -4147,3 +4147,11 @@ light-blue support band below. Removing the band's padding in devtools revealed 
   `/site-config` `settings` tab; not read by this code (PRD OI-20).
 - **Correction:** with `consentRequired=true` this branch **skips** site at.js (it does not wait for
   consent); test-sheet case title fixed.
+
+### 2026-11-03 — DA Library Blocks list empty in Experience Workspace (fixed)
+- **Cause:** the org has Experience Workspace on (`ew.enabled=true`). Its canvas Library fetches same-org
+  Library sheets through the DA preview proxy, which forwards `.json` to aem.page; `/.da/library/blocks.json`
+  and `templates.json` had never been previewed (404) because `da:sync` skips dot-folders when previewing.
+  Config paths (`https://content.da.live/aman-kumar24-dev/usta-foundation-site/.da/library/*.json`) were correct.
+- **Fix (on request):** previewed both sheets → 200 (14 blocks, 5 templates). Data and block docs unchanged.
+- **Follow-up:** have `tools/da-sync` preview `/.da/library/*.json` after a sync (not done yet).
