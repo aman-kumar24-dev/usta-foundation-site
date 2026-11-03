@@ -202,6 +202,12 @@ shows a 302 + `pccr=true` pair = one hit), Hotjar once, Target delivery 200.
   consent instead).
 - `eslint --fix` rewrote a site-relative `import('/scripts/…')` inside `page.evaluate` into a long
   relative path — keep such paths in a variable.
+- **DA Library "Blocks" list empty** while `/.da/library/blocks.json` and the block docs are fine
+  (`da-sync/verify-library.mjs`): da-live fetches Library sheets with `noRedirect: true`, so a 401
+  from a stale IMS token is **not** retried, the error is swallowed, and the empty result is cached
+  for the page session → reload the editor tab, then sign out/in. Also check the account has read
+  on `/usta-foundation-site/+**` (2026-11-03: `vishal.sharma@`, `udit.upmanyu@`, `victor.deb@` have
+  only `CONFIG` / `site-config.json` rows → empty Library and no page access).
 - This repo's fetch refspec tracks only `main`, and `develop` gets force-updated: fetch with
   `git fetch origin +develop:refs/remotes/origin/develop`.
 

@@ -12,6 +12,11 @@ let total = 0;
 let missing = 0;
 let pointingAtSource = 0;
 for (const { title, path } of config.library.data) {
+  // plugins / apps (relative paths, external tools) are not Library sheets
+  if (!path?.startsWith('https://content.da.live/') || !path.endsWith('.json')) {
+    console.log(`\n${title}: ${path} (plugin — skipped)`);
+    continue;
+  }
   const sheetPath = new URL(path).pathname.replace(`/${DST}`, '');
   const res = await get(sheetPath);
   console.log(`\n${title}: ${sheetPath} → HTTP ${res.status}`);
