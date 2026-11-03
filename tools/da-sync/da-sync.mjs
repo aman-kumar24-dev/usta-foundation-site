@@ -81,8 +81,18 @@ async function copyFile(source, destination, path, { srcToken, dstToken, fetchIm
   if (!put.ok) throw new Error(`POST ${path}: HTTP ${put.status}`);
 }
 
-/** Paths inside dot-folders (e.g. /.da/library) are not served on the site — never previewed. */
-export const isPreviewable = (daPath) => !daPath.split('/').some((seg) => seg.startsWith('.') && seg.length > 1);
+/**
+ * Library sheets (/.da/library/blocks.json, templates.json, …). Experience Workspace loads them
+ * through the DA preview proxy, which serves .json from aem.page — so they must be previewed.
+ */
+const isLibrarySheet = (daPath) => /^\/\.da\/library\/[^/]+\.json$/.test(daPath);
+
+/**
+ * Whether a copied path is previewed: everything except dot-folders (e.g. /.da/library block and
+ * template documents, which the editors read from DA directly), apart from the Library sheets.
+ */
+export const isPreviewable = (daPath) => isLibrarySheet(daPath)
+  || !daPath.split('/').some((seg) => seg.startsWith('.') && seg.length > 1);
 
 /** DA path → site path for preview (/en/home.html → /en/home, /index.html → /). */
 export function toSitePath(daPath) {

@@ -28,7 +28,10 @@ on the destination) in the environment — never commit it or paste it into chat
 - **DA Library included:** DA's folder listing hides dot-folders, so `/.da/library/**` (the Library's
   `blocks.json` / `templates.json` sheets and their example documents) is listed explicitly. In those
   two sheets the absolute `content.da.live/<source>/…` paths are rewritten to the destination repo, so
-  the Library opens the destination's copies. Dot-folder paths are never previewed (not served).
+  the Library opens the destination's copies. The Library **sheets** (`/.da/library/*.json`) are
+  previewed too: Experience Workspace loads them through the DA preview proxy, which serves `.json`
+  from aem.page (unpreviewed → empty Blocks/Templates list). Other dot-folder paths (block and
+  template documents) are not previewed — the editors read them from DA directly.
   Copy only the Library: `npm run da:sync -- --folders=/.da/library`.
 - **Why not DA's copy API:** `POST admin.da.live/copy/...` rejects cross-org copies
   ("Destination must be in the same org as the source"), so the tool does GET + POST per file.

@@ -72,7 +72,7 @@ const result = await syncRepos({
 process.stdout.write('\n');
 const { total, copied, failed } = result;
 console.log(JSON.stringify({ total, copied: copied.length, failed }, null, 1));
-if (dryRun) result.files.forEach((p) => console.log(' ', p));
+if (dryRun) result.files.forEach((p) => console.log(isPreviewable(p) ? '  [preview]' : '           ', p));
 
 const previewable = result.copied.filter(isPreviewable);
 if (!dryRun && !flag('no-preview') && previewable.length) {

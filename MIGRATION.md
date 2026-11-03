@@ -4154,4 +4154,7 @@ light-blue support band below. Removing the band's padding in devtools revealed 
   and `templates.json` had never been previewed (404) because `da:sync` skips dot-folders when previewing.
   Config paths (`https://content.da.live/aman-kumar24-dev/usta-foundation-site/.da/library/*.json`) were correct.
 - **Fix (on request):** previewed both sheets → 200 (14 blocks, 5 templates). Data and block docs unchanged.
-- **Follow-up:** have `tools/da-sync` preview `/.da/library/*.json` after a sync (not done yet).
+- **Follow-up done:** `tools/da-sync` now previews the Library sheets (`/.da/library/*.json`: blocks, templates,
+  buttons) with the rest of the sync; block/template documents and other dot-folders still are not. `--dry-run`
+  marks the paths it would preview. The bulk preview job has not yet run with dot-folder paths — check its result
+  on the next real sync.

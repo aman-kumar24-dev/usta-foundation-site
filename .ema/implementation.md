@@ -206,7 +206,8 @@ shows a 302 + `pccr=true` pair = one hit), Hotjar once, Target delivery 200.
   `ew.enabled=true`): the EW canvas routes same-org Library URLs through the DA preview proxy
   (`main--<site>--<org>.preview.da.live`), which forwards every `.json` to **aem.page** — so
   `/.da/library/blocks.json` and `templates.json` must be **previewed** (they were 404 until
-  2026-11-03, because `da:sync` never previews dot-folders). Block/template documents are fetched
+  2026-11-03, because `da:sync` never previewed dot-folders; since 2026-11-03 it previews
+  `/.da/library/*.json` after a sync). Block/template documents are fetched
   extensionless and composed from DA source, so they need no preview. Classic edit mode reads
   content.da.live directly (and silently shows an empty list on a stale-token 401 — reload).
   Accounts need read on `/usta-foundation-site/+**`.
